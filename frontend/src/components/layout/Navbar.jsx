@@ -136,15 +136,46 @@ const Navbar = ({ onOpenBooking }) => {
           })}
         </nav>
 
-        {/* Right: Book Appointment Button & Avatar */}
+        {/* Right: Login Button, Book Appointment Button & Avatar */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
-            gap: '20px',
+            gap: '16px',
           }}
         >
+          {/* Login Button (positioned before Book Appointment) */}
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#ffffff',
+              color: '#265e38',
+              border: '1.5px solid #265e38',
+              padding: '9.5px 22px',
+              borderRadius: '9999px',
+              fontSize: '14.5px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f0fdf4';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            Login
+          </button>
+
           <button
             type="button"
             onClick={handleBookClick}
@@ -276,6 +307,26 @@ const Navbar = ({ onOpenBooking }) => {
               {link.label}
             </a>
           ))}
+          <button
+            type="button"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              navigate('/login');
+            }}
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#265e38',
+              border: '1.5px solid #265e38',
+              padding: '10px',
+              borderRadius: '9999px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              marginTop: '6px',
+            }}
+          >
+            Login
+          </button>
         </div>
       )}
 
