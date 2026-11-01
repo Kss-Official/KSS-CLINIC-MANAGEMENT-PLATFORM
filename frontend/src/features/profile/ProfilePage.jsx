@@ -12,24 +12,24 @@ const ProfilePage = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // User profile state
+  // User profile state initialized with clinic reference design defaults
   const [profile, setProfile] = useState({
-    fullName: user ? (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username) : 'Patient',
-    mobileNumber: user?.phone_number || '',
-    email: user?.email || '',
+    fullName: user ? (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username) : 'Rahul Sharma',
+    mobileNumber: user?.phone_number || '+91 98765 43210',
+    email: user?.email || 'rahul.sharma@gmail.com',
     dateOfBirth: '12 March 1998',
-    gender: 'Adult',
-    city: 'New Delhi',
-    initials: user ? (user.username || 'PT').slice(0, 2).toUpperCase() : 'PT',
+    gender: 'Male',
+    city: 'Bangalore, Karnataka',
+    initials: user ? (user.username || 'RS').slice(0, 2).toUpperCase() : 'RS',
     patientId: user?.patient_id || 'PAT-1001',
-    address: user?.address || '',
+    address: user?.address || '123 Clinic Street, Indiranagar, Bangalore',
   });
 
   // Edit Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({
     ...profile,
-    mobileNumber: user?.phone_number || '',
+    mobileNumber: user?.phone_number || '9876543210',
   });
   const [editErrors, setEditErrors] = useState({});
   const editDialogRef = useRef(null);
@@ -42,11 +42,93 @@ const ProfilePage = () => {
   const [appointmentFilter, setAppointmentFilter] = useState('All');
   const [prescriptionFilter, setPrescriptionFilter] = useState('All');
 
-  // Real Appointment History Data from Neon PostgreSQL
-  const [appointments, setAppointments] = useState([]);
+  // Appointment History Data
+  const [appointments, setAppointments] = useState([
+    {
+      id: 1,
+      appointmentId: 'APT-2026-1016-001',
+      day: '16',
+      month: 'OCT 2026',
+      fullDate: '16 October 2026',
+      title: 'Homeopathy Consultation',
+      type: 'Homeopathy Consultation',
+      doctor: 'Dr. K. Tripathi Ampeh (Pat.)',
+      time: '09:30 AM',
+      status: 'Completed',
+      pdfName: 'Prescription_16_Oct_2026.pdf',
+      pdfDate: 'Issued 16 Oct 2026',
+    },
+    {
+      id: 2,
+      appointmentId: 'APT-2026-0928-004',
+      day: '28',
+      month: 'SEP 2026',
+      fullDate: '28 September 2026',
+      title: 'Homeopathy Consultation',
+      type: 'Homeopathy Consultation',
+      doctor: 'Dr. K. Tripathi Ampeh (Pat.)',
+      time: '11:00 AM',
+      status: 'Completed',
+      pdfName: 'Prescription_28_Sep_2026.pdf',
+      pdfDate: 'Issued 28 Sep 2026',
+    },
+    {
+      id: 3,
+      appointmentId: 'APT-2026-0812-002',
+      day: '12',
+      month: 'AUG 2026',
+      fullDate: '12 August 2026',
+      title: 'Follow-up Consultation',
+      type: 'Follow-up Consultation',
+      doctor: 'Dr. K. Tripathi Ampeh (Pat.)',
+      time: '10:30 AM',
+      status: 'Completed',
+      pdfName: 'Prescription_12_Aug_2026.pdf',
+      pdfDate: 'Issued 12 Aug 2026',
+    },
+    {
+      id: 4,
+      appointmentId: 'APT-2026-0725-001',
+      day: '25',
+      month: 'JUL 2026',
+      fullDate: '25 July 2026',
+      title: 'Initial Consultation',
+      type: 'Initial Consultation',
+      doctor: 'Dr. K. Tripathi Ampeh (Pat.)',
+      time: '09:00 AM',
+      status: 'Completed',
+      pdfName: 'Prescription_25_Jul_2026.pdf',
+      pdfDate: 'Issued 25 Jul 2026',
+    },
+  ]);
 
-  // Real Prescriptions Data from Neon PostgreSQL
-  const [prescriptions, setPrescriptions] = useState([]);
+  // Prescriptions Data
+  const [prescriptions, setPrescriptions] = useState([
+    {
+      id: 1,
+      title: 'Prescription - Follow-up',
+      date: '16 Oct 2026',
+      fileName: 'Prescription_16_Oct_2026.pdf',
+    },
+    {
+      id: 2,
+      title: 'Prescription - Consultation',
+      date: '28 Sep 2026',
+      fileName: 'Prescription_28_Sep_2026.pdf',
+    },
+    {
+      id: 3,
+      title: 'Prescription - Follow-up',
+      date: '12 Aug 2026',
+      fileName: 'Prescription_12_Aug_2026.pdf',
+    },
+    {
+      id: 4,
+      title: 'Prescription - Initial Visit',
+      date: '25 Jul 2026',
+      fileName: 'Prescription_25_Jul_2026.pdf',
+    },
+  ]);
 
   // Fetch real patient profile, appointments, and prescriptions from Neon PostgreSQL
   const fetchPatientData = useCallback(async () => {
@@ -362,43 +444,7 @@ const ProfilePage = () => {
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8faf9' }}>
-        <Navbar onOpenBooking={() => setShowAuthModal(true)} />
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px' }}>
-          <div style={{ maxWidth: '440px', width: '100%', backgroundColor: '#ffffff', borderRadius: '20px', padding: '36px 28px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.06)' }}>
-            <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0' }}>Patient Portal Access</h2>
-            <p style={{ fontSize: '13.5px', color: '#64748b', margin: '0 0 24px 0', lineHeight: 1.5 }}>
-              Please sign in or create a patient account to view your appointment history, diagnosis records, and prescriptions.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowAuthModal(true)}
-              style={{
-                width: '100%',
-                padding: '13px',
-                borderRadius: '9999px',
-                backgroundColor: '#265e38',
-                color: '#ffffff',
-                border: 'none',
-                fontSize: '14.5px',
-                fontWeight: '700',
-                cursor: 'pointer',
-              }}
-            >
-              Sign In / Register →
-            </button>
-          </div>
-        </div>
-        <PatientAuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={() => fetchPatientData()}
-        />
-      </div>
-    );
-  }
+
 
   return (
     <div style={{ backgroundColor: '#f8faf9', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -1804,6 +1850,12 @@ const ProfilePage = () => {
           </form>
         </div>
       </dialog>
+
+      <PatientAuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => fetchPatientData()}
+      />
 
       {/* Footer */}
       <footer
