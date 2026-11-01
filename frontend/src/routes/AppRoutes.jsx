@@ -5,6 +5,12 @@ import ProtectedRoute from './ProtectedRoute';
 // Public Homepage with exact UI from design
 import HomePage from '../features/home/HomePage';
 
+// Dedicated Marketing Pages
+import AboutPage from '../features/about/AboutPage';
+import ServicesPage from '../features/services/ServicesPage';
+import StoriesPage from '../features/stories/StoriesPage';
+import ContactPage from '../features/contact/ContactPage';
+
 // Dedicated Book Appointment Page
 import BookAppointmentPage from '../features/booking/BookAppointmentPage';
 
@@ -33,7 +39,13 @@ const AppRoutes = () => {
       {/* 1. Main Homepage */}
       <Route path="/" element={<HomePage />} />
 
-      {/* 2. Public Book Appointment Page */}
+      {/* 2. Dedicated Marketing Pages */}
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/services" element={<ServicesPage />} />
+      <Route path="/stories" element={<StoriesPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+
+      {/* 3. Book Appointment Page */}
       <Route path="/book-appointment" element={<BookAppointmentPage />} />
 
       {/* 3. Patient Profile Page */}

@@ -16,7 +16,11 @@ const ProfilePage = () => {
 
   // Edit Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState({ ...profile });
+  const [editFormData, setEditFormData] = useState({
+    ...profile,
+    mobileNumber: '9876543210',
+  });
+  const [editErrors, setEditErrors] = useState({});
   const editDialogRef = useRef(null);
 
   // Appointment Details Modal State
@@ -138,29 +142,83 @@ const ProfilePage = () => {
   }, [selectedAppointment]);
 
   const handleOpenEdit = () => {
-    setEditFormData({ ...profile });
+    // Extract 10-digit mobile number for clean editing
+    const rawMobile = profile.mobileNumber || '';
+    let digits = rawMobile.replace(/\D/g, '');
+    if (digits.length > 10 && digits.startsWith('91')) {
+      digits = digits.slice(2);
+    }
+    digits = digits.slice(0, 10);
+
+    setEditFormData({
+      ...profile,
+      mobileNumber: digits,
+    });
+    setEditErrors({});
     setIsEditOpen(true);
   };
 
   const handleCloseEdit = () => {
+    setEditErrors({});
     setIsEditOpen(false);
   };
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
-    let filtered = value;
     if (name === 'fullName') {
-      filtered = value.replace(/[^a-zA-Z\s.()]/g, '').slice(0, 35);
-    } else if (name === 'email') {
-      filtered = value.toLowerCase();
-      const comIndex = filtered.indexOf('.com');
-      if (comIndex !== -1) {
-        filtered = filtered.slice(0, comIndex + 4);
+      const cleaned = value.replace(/[^a-zA-Z\s.()]/g, '').slice(0, 35);
+      if (/[^a-zA-Z\s.()]/.test(value)) {
+        setEditErrors((prev) => ({
+          ...prev,
+          fullName: 'Only letters, spaces, dots, and parentheses are allowed',
+        }));
+      } else if (editErrors.fullName) {
+        setEditErrors((prev) => ({ ...prev, fullName: '' }));
       }
+      setEditFormData((prev) => ({ ...prev, fullName: cleaned }));
+      return;
     }
+
+    if (name === 'mobileNumber') {
+      let digits = value.replace(/\D/g, '');
+      if (digits.length > 10 && digits.startsWith('91')) {
+        digits = digits.slice(2);
+      }
+      if (/\D/.test(value)) {
+        setEditErrors((prev) => ({
+          ...prev,
+          mobileNumber: 'Only numbers are allowed',
+        }));
+      } else if (digits.length > 0 && !/^[6-9]/.test(digits)) {
+        setEditErrors((prev) => ({
+          ...prev,
+          mobileNumber: 'Mobile number must start with 6, 7, 8, or 9',
+        }));
+        return;
+      } else if (editErrors.mobileNumber) {
+        setEditErrors((prev) => ({ ...prev, mobileNumber: '' }));
+      }
+      digits = digits.slice(0, 10);
+      setEditFormData((prev) => ({ ...prev, mobileNumber: digits }));
+      return;
+    }
+
+    if (name === 'email') {
+      let val = value.replace(/\s/g, '').toLowerCase();
+      const comIndex = val.indexOf('.com');
+      if (comIndex !== -1) {
+        val = val.slice(0, comIndex + 4);
+      }
+      if (editErrors.email) {
+        setEditErrors((prev) => ({ ...prev, email: '' }));
+      }
+      setEditFormData((prev) => ({ ...prev, email: val }));
+      return;
+    }
+
     setEditFormData((prev) => ({
       ...prev,
-      [name]: filtered,
+      [name]: value,
     }));
   };
 
@@ -191,16 +249,61 @@ const ProfilePage = () => {
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
-    const parts = editFormData.fullName.trim().split(' ');
+    const errors = {};
+
+    // 1. Full Name Validation: non-empty, letters & spaces only, max 25 chars
+    const nameTrimmed = (editFormData.fullName || '').trim();
+    if (!nameTrimmed) {
+      errors.fullName = 'Full Name is required';
+    } else if (nameTrimmed.length > 35) {
+      errors.fullName = 'Full Name cannot exceed 35 characters';
+    } else if (!/^[a-zA-Z\s.()]+$/.test(nameTrimmed)) {
+      errors.fullName = 'Only alphabets and spaces are allowed';
+    }
+
+    // 2. Mobile Number Validation: exactly 10 digits, starts with 6, 7, 8, 9
+    const mobileDigits = (editFormData.mobileNumber || '').replace(/\D/g, '');
+    if (!mobileDigits) {
+      errors.mobileNumber = 'Mobile number is required';
+    } else if (mobileDigits.length !== 10) {
+      errors.mobileNumber = 'Mobile number must be exactly 10 digits';
+    } else if (!/^[6-9]/.test(mobileDigits)) {
+      errors.mobileNumber = 'Mobile number must start with 6, 7, 8, or 9';
+    }
+
+    // 3. Email Validation: valid email format, no words after .com
+    const emailVal = (editFormData.email || '').trim();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailVal) {
+      errors.email = 'Email address is required';
+    } else if (!emailRegex.test(emailVal)) {
+      errors.email = 'Please enter a valid email address (e.g. name@example.com)';
+    } else if (/@.*\.com.+/i.test(emailVal)) {
+      errors.email = 'No words or characters allowed after .com';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setEditErrors(errors);
+      return;
+    }
+
+    // Compute initials from Full Name
+    const parts = nameTrimmed.split(/\s+/);
     const computedInitials =
       parts.length > 1
         ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-        : editFormData.fullName.slice(0, 2).toUpperCase();
+        : nameTrimmed.slice(0, 2).toUpperCase();
+
+    // Format mobile for display (+91 98765 43210)
+    const formattedMobile = `+91 ${mobileDigits.slice(0, 5)} ${mobileDigits.slice(5)}`;
 
     setProfile({
       ...editFormData,
+      fullName: nameTrimmed,
+      mobileNumber: formattedMobile,
       initials: computedInitials || 'RS',
     });
+    setEditErrors({});
     setIsEditOpen(false);
   };
 
@@ -239,15 +342,26 @@ const ProfilePage = () => {
       {/* Top Navbar */}
       <Navbar onOpenBooking={() => {}} />
 
-      {/* Main Container */}
-      <div className="container" style={{ padding: '36px 24px 80px', flex: 1, maxWidth: '1160px' }}>
-        {/* Top Profile Banner Card */}
+      {/* Main Container: Expanded to cover LHS and RHS matching Navbar */}
+      <div
+        className="profile-container"
+        style={{
+          width: '100%',
+          maxWidth: '1440px',
+          margin: '0 auto',
+          padding: '36px 40px 80px',
+          boxSizing: 'border-box',
+          flex: 1,
+        }}
+      >
+        {/* Top Profile Banner Card (Exact match to Reference Image 1) */}
         <div
+          className="profile-header-card"
           style={{
             backgroundColor: '#edf5ee',
             border: '1px solid #e1efe4',
-            borderRadius: '18px',
-            padding: '28px 36px',
+            borderRadius: '20px',
+            padding: '24px 44px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -256,33 +370,55 @@ const ProfilePage = () => {
             position: 'relative',
           }}
         >
-          <div>
+          <div style={{ zIndex: 2, maxWidth: '680px' }}>
             <h1
               style={{
                 fontSize: '34px',
                 fontWeight: '800',
                 color: '#111827',
                 margin: '0 0 6px 0',
-                letterSpacing: '-0.3px',
+                letterSpacing: '-0.4px',
+                fontFamily: "'Manrope', sans-serif",
               }}
             >
               Profile
             </h1>
-            <p style={{ fontSize: '15px', color: '#6b7280', margin: 0 }}>
+            <p
+              style={{
+                fontSize: '15px',
+                color: '#4b5563',
+                margin: 0,
+                fontWeight: '400',
+                fontFamily: "'Manrope', sans-serif",
+                lineHeight: '1.5',
+              }}
+            >
               Manage your profile, view your appointment history and prescriptions.
             </p>
           </div>
 
-          {/* Right Herbal Graphic */}
-          <div style={{ flexShrink: 0 }}>
+          {/* Right Herbal Graphic (High-definition, perfectly sized & positioned) */}
+          <div
+            className="profile-herbs-wrapper"
+            style={{
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: '12px',
+            }}
+          >
             <img
               src={profileHerbs}
               alt="Natural Homeopathy Herbs"
+              className="profile-herbs-img"
               style={{
-                height: '96px',
+                height: '170px',
                 width: 'auto',
                 display: 'block',
                 objectFit: 'contain',
+                filter: 'drop-shadow(0 10px 22px rgba(22, 101, 52, 0.12))',
+                transition: 'transform 0.3s ease',
               }}
             />
           </div>
@@ -309,10 +445,10 @@ const ProfilePage = () => {
             }}
           >
             <div>
-              <h2 style={{ fontSize: '19px', fontWeight: '800', color: '#111827', margin: '0 0 4px 0' }}>
+              <h2 style={{ fontSize: '19px', fontWeight: '800', color: '#111827', margin: '0 0 4px 0', fontFamily: "'Manrope', sans-serif" }}>
                 Personal Information
               </h2>
-              <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>
+              <p style={{ fontSize: '13px', color: '#6b7280', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
                 Keep your information updated for a better experience.
               </p>
             </div>
@@ -332,13 +468,16 @@ const ProfilePage = () => {
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 transition: 'all 0.15s ease',
+                fontFamily: "'Manrope', sans-serif",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#9ca3af')}
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#d1d5db')}
             >
-              <span>✏️</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+              </svg>
               Edit Profile
             </button>
           </div>
@@ -354,50 +493,24 @@ const ProfilePage = () => {
             className="profile-personal-grid"
           >
             {/* Avatar Circle */}
-            <div style={{ position: 'relative', width: '92px', height: '92px' }}>
-              <div
-                style={{
-                  width: '92px',
-                  height: '92px',
-                  borderRadius: '50%',
-                  backgroundColor: '#dcfce7',
-                  color: '#166534',
-                  fontSize: '28px',
-                  fontWeight: '800',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(22, 101, 52, 0.12)',
-                }}
-              >
-                {profile.initials}
-              </div>
-
-              {/* Camera Icon Overlay */}
-              <button
-                type="button"
-                onClick={handleOpenEdit}
-                aria-label="Change photo"
-                style={{
-                  position: 'absolute',
-                  bottom: '0',
-                  right: '0',
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  backgroundColor: '#1b4332',
-                  color: '#ffffff',
-                  border: '2px solid #ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
-                }}
-              >
-                📷
-              </button>
+            <div
+              style={{
+                width: '92px',
+                height: '92px',
+                borderRadius: '50%',
+                backgroundColor: '#dcfce7',
+                color: '#15803d',
+                fontSize: '28px',
+                fontWeight: '800',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(22, 101, 52, 0.12)',
+                fontFamily: "'Manrope', sans-serif",
+                flexShrink: 0,
+              }}
+            >
+              {profile.initials}
             </div>
 
             {/* Information Grid: 2 Columns x 3 Rows */}
@@ -411,8 +524,13 @@ const ProfilePage = () => {
               className="profile-fields-grid"
             >
               {/* Row 1: Full Name & Mobile */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <span style={{ color: '#9ca3af', fontSize: '16px', marginTop: '1px' }}>👤</span>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </span>
                 <div>
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
                     FULL NAME
@@ -423,8 +541,12 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <span style={{ color: '#9ca3af', fontSize: '16px', marginTop: '1px' }}>📞</span>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                </span>
                 <div>
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
                     MOBILE NUMBER
@@ -436,8 +558,13 @@ const ProfilePage = () => {
               </div>
 
               {/* Row 2: Email & Date of Birth */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <span style={{ color: '#9ca3af', fontSize: '16px', marginTop: '1px' }}>✉️</span>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                </span>
                 <div>
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
                     EMAIL
@@ -448,8 +575,15 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <span style={{ color: '#9ca3af', fontSize: '16px', marginTop: '1px' }}>📅</span>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </span>
                 <div>
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
                     DATE OF BIRTH
@@ -461,8 +595,14 @@ const ProfilePage = () => {
               </div>
 
               {/* Row 3: Gender & City */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <span style={{ color: '#9ca3af', fontSize: '16px', marginTop: '1px' }}>👥</span>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 7v10" />
+                    <path d="M8 12h8" />
+                  </svg>
+                </span>
                 <div>
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
                     GENDER
@@ -473,8 +613,13 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <span style={{ color: '#9ca3af', fontSize: '16px', marginTop: '1px' }}>📍</span>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                </span>
                 <div>
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
                     CITY
@@ -517,27 +662,32 @@ const ProfilePage = () => {
                 marginBottom: '22px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div
                   style={{
-                    width: '34px',
-                    height: '34px',
+                    width: '36px',
+                    height: '36px',
                     borderRadius: '8px',
                     backgroundColor: '#e8f5e9',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#2e7d32',
-                    fontSize: '16px',
+                    flexShrink: 0,
                   }}
                 >
-                  📅
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#111827', margin: 0 }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#111827', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
                     Appointment History
                   </h3>
-                  <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0' }}>
+                  <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif" }}>
                     View your past and upcoming appointments.
                   </p>
                 </div>
@@ -556,6 +706,7 @@ const ProfilePage = () => {
                   backgroundColor: '#ffffff',
                   outline: 'none',
                   cursor: 'pointer',
+                  fontFamily: "'Manrope', sans-serif",
                 }}
               >
                 <option value="All">All Appointments</option>
@@ -604,23 +755,23 @@ const ProfilePage = () => {
                         flexShrink: 0,
                       }}
                     >
-                      <span style={{ fontSize: '16px', fontWeight: '800', color: '#1b4332', lineHeight: '1' }}>
+                      <span style={{ fontSize: '16px', fontWeight: '800', color: '#1b4332', lineHeight: '1', fontFamily: "'Manrope', sans-serif" }}>
                         {item.day}
                       </span>
-                      <span style={{ fontSize: '10px', fontWeight: '700', color: '#2e7d32', marginTop: '2px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: '700', color: '#2e7d32', marginTop: '2px', fontFamily: "'Manrope', sans-serif" }}>
                         {item.month}
                       </span>
                     </div>
 
                     {/* Consultation Meta */}
                     <div>
-                      <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0 }}>
+                      <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
                         {item.title}
                       </h4>
-                      <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0' }}>
+                      <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif" }}>
                         {item.doctor}
                       </p>
-                      <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0 0' }}>
+                      <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif" }}>
                         {item.time}
                       </p>
                     </div>
@@ -636,11 +787,14 @@ const ProfilePage = () => {
                         fontWeight: '700',
                         padding: '4px 12px',
                         borderRadius: '9999px',
+                        fontFamily: "'Manrope', sans-serif",
                       }}
                     >
                       {item.status}
                     </span>
-                    <span style={{ color: '#9ca3af', fontSize: '18px' }}>›</span>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
                   </div>
                 </div>
               ))}
@@ -666,27 +820,32 @@ const ProfilePage = () => {
                 marginBottom: '22px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div
                   style={{
-                    width: '34px',
-                    height: '34px',
+                    width: '36px',
+                    height: '36px',
                     borderRadius: '8px',
                     backgroundColor: '#e8f5e9',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#2e7d32',
-                    fontSize: '16px',
+                    flexShrink: 0,
                   }}
                 >
-                  📄
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#111827', margin: 0 }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#111827', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
                     Prescriptions
                   </h3>
-                  <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0' }}>
+                  <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif" }}>
                     View and download your prescription records.
                   </p>
                 </div>
@@ -705,6 +864,7 @@ const ProfilePage = () => {
                   backgroundColor: '#ffffff',
                   outline: 'none',
                   cursor: 'pointer',
+                  fontFamily: "'Manrope', sans-serif",
                 }}
               >
                 <option value="All">All Prescriptions</option>
@@ -737,17 +897,21 @@ const ProfilePage = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '16px',
                         flexShrink: 0,
                       }}
                     >
-                      📄
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                      </svg>
                     </div>
                     <div>
-                      <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0 }}>
+                      <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
                         {item.title}
                       </h4>
-                      <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0' }}>
+                      <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif" }}>
                         {item.date}
                       </p>
                     </div>
@@ -770,11 +934,16 @@ const ProfilePage = () => {
                       alignItems: 'center',
                       gap: '6px',
                       transition: 'all 0.15s ease',
+                      fontFamily: "'Manrope', sans-serif",
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#bbf7d0')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dcfce7')}
                   >
-                    <span>📥</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
                     Download
                   </button>
                 </div>
@@ -793,16 +962,16 @@ const ProfilePage = () => {
           borderRadius: '20px',
           border: 'none',
           padding: 0,
-          maxWidth: '600px',
+          maxWidth: '620px',
           width: '92%',
           margin: 'auto',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           overflow: 'hidden',
           backgroundColor: '#ffffff',
         }}
       >
         {selectedAppointment && (
-          <div style={{ padding: '32px 32px 28px' }}>
+          <div style={{ padding: '32px 36px 30px' }}>
             {/* Header Row: Title on Left, Status Badge & Close button on Right */}
             <div
               style={{
@@ -819,21 +988,23 @@ const ProfilePage = () => {
                   fontWeight: '800',
                   color: '#111827',
                   margin: 0,
-                  letterSpacing: '-0.2px',
+                  letterSpacing: '-0.3px',
+                  fontFamily: "'Manrope', sans-serif",
                 }}
               >
                 Appointment Details
               </h3>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span
                   style={{
                     backgroundColor: '#dcfce7',
-                    color: '#166534',
+                    color: '#15803d',
                     fontSize: '12px',
                     fontWeight: '700',
                     padding: '4px 14px',
                     borderRadius: '9999px',
+                    fontFamily: "'Manrope', sans-serif",
                   }}
                 >
                   {selectedAppointment.status}
@@ -846,16 +1017,22 @@ const ProfilePage = () => {
                   style={{
                     background: 'none',
                     border: 'none',
-                    fontSize: '18px',
                     cursor: 'pointer',
                     color: '#9ca3af',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     padding: '4px',
+                    borderRadius: '6px',
+                    transition: 'color 0.15s ease',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#111827')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#9ca3af')}
                 >
-                  ✕
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -885,22 +1062,25 @@ const ProfilePage = () => {
                       width: '36px',
                       height: '36px',
                       borderRadius: '8px',
-                      backgroundColor: '#f0fdf4',
+                      backgroundColor: '#e8f5e9',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#2e7d32',
-                      fontSize: '16px',
                       flexShrink: 0,
                     }}
                   >
-                    📅
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
                   </div>
                   <div>
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280' }}>
+                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Appointment Type
                     </span>
-                    <strong style={{ fontSize: '14px', color: '#111827', display: 'block', marginTop: '1px' }}>
+                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.type}
                     </strong>
                   </div>
@@ -912,22 +1092,25 @@ const ProfilePage = () => {
                       width: '36px',
                       height: '36px',
                       borderRadius: '8px',
-                      backgroundColor: '#f0fdf4',
+                      backgroundColor: '#e8f5e9',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#2e7d32',
-                      fontSize: '16px',
                       flexShrink: 0,
                     }}
                   >
-                    📄
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
                   </div>
                   <div>
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280' }}>
+                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Appointment ID
                     </span>
-                    <strong style={{ fontSize: '14px', color: '#111827', display: 'block', marginTop: '1px' }}>
+                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.appointmentId}
                     </strong>
                   </div>
@@ -940,22 +1123,25 @@ const ProfilePage = () => {
                       width: '36px',
                       height: '36px',
                       borderRadius: '8px',
-                      backgroundColor: '#f0fdf4',
+                      backgroundColor: '#e8f5e9',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#2e7d32',
-                      fontSize: '16px',
                       flexShrink: 0,
                     }}
                   >
-                    📅
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
                   </div>
                   <div>
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280' }}>
+                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Date
                     </span>
-                    <strong style={{ fontSize: '14px', color: '#111827', display: 'block', marginTop: '1px' }}>
+                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.fullDate}
                     </strong>
                   </div>
@@ -967,22 +1153,23 @@ const ProfilePage = () => {
                       width: '36px',
                       height: '36px',
                       borderRadius: '8px',
-                      backgroundColor: '#f0fdf4',
+                      backgroundColor: '#e8f5e9',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#2e7d32',
-                      fontSize: '16px',
                       flexShrink: 0,
                     }}
                   >
-                    🕒
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
                   </div>
                   <div>
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280' }}>
+                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Time
                     </span>
-                    <strong style={{ fontSize: '14px', color: '#111827', display: 'block', marginTop: '1px' }}>
+                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.time}
                     </strong>
                   </div>
@@ -995,22 +1182,23 @@ const ProfilePage = () => {
                       width: '36px',
                       height: '36px',
                       borderRadius: '8px',
-                      backgroundColor: '#f0fdf4',
+                      backgroundColor: '#e8f5e9',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#2e7d32',
-                      fontSize: '16px',
                       flexShrink: 0,
                     }}
                   >
-                    👤
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
                   </div>
                   <div>
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280' }}>
+                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Doctor
                     </span>
-                    <strong style={{ fontSize: '14px', color: '#111827', display: 'block', marginTop: '1px' }}>
+                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.doctor}
                     </strong>
                   </div>
@@ -1022,22 +1210,23 @@ const ProfilePage = () => {
                       width: '36px',
                       height: '36px',
                       borderRadius: '8px',
-                      backgroundColor: '#f0fdf4',
+                      backgroundColor: '#e8f5e9',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#2e7d32',
-                      fontSize: '16px',
                       flexShrink: 0,
                     }}
                   >
-                    ⏱️
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="9 12 11 14 15 10" />
+                    </svg>
                   </div>
                   <div>
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280' }}>
+                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Consultation Status
                     </span>
-                    <strong style={{ fontSize: '14px', color: '#16a34a', display: 'block', marginTop: '1px' }}>
+                    <strong style={{ fontSize: '13.5px', color: '#16a34a', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.status}
                     </strong>
                   </div>
@@ -1052,7 +1241,7 @@ const ProfilePage = () => {
                 border: '1px solid #edf2ee',
                 borderRadius: '16px',
                 padding: '16px 20px',
-                marginBottom: '22px',
+                marginBottom: '20px',
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: '12px',
@@ -1063,23 +1252,26 @@ const ProfilePage = () => {
                   width: '34px',
                   height: '34px',
                   borderRadius: '8px',
-                  backgroundColor: '#f0fdf4',
+                  backgroundColor: '#e8f5e9',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#2e7d32',
-                  fontSize: '16px',
                   flexShrink: 0,
                   marginTop: '1px',
                 }}
               >
-                📄
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
               </div>
               <div>
-                <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: '0 0 3px 0' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '800', color: '#111827', margin: '0 0 3px 0', fontFamily: "'Manrope', sans-serif" }}>
                   Consultation Summary
                 </h4>
-                <p style={{ fontSize: '13px', color: '#6b7280', margin: 0, lineHeight: '1.5' }}>
+                <p style={{ fontSize: '12.5px', color: '#6b7280', margin: 0, lineHeight: '1.5', fontFamily: "'Manrope', sans-serif" }}>
                   Your consultation was completed. Review the visit information and any documents shared by your doctor.
                 </p>
               </div>
@@ -1087,9 +1279,11 @@ const ProfilePage = () => {
 
             {/* Box 3: Attached Documents */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-                <span style={{ fontSize: '15px' }}>📎</span>
-                <h4 style={{ fontSize: '14px', fontWeight: '800', color: '#111827', margin: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+                <h4 style={{ fontSize: '13.5px', fontWeight: '800', color: '#111827', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
                   Attached Documents
                 </h4>
               </div>
@@ -1098,9 +1292,9 @@ const ProfilePage = () => {
               <div
                 style={{
                   backgroundColor: '#ffffff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '12px',
-                  padding: '12px 18px',
+                  border: '1px solid #edf2ee',
+                  borderRadius: '14px',
+                  padding: '14px 18px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -1112,22 +1306,23 @@ const ProfilePage = () => {
                   {/* Red PDF Badge */}
                   <span
                     style={{
-                      backgroundColor: '#fee2e2',
-                      color: '#dc2626',
+                      backgroundColor: '#fef2f2',
+                      color: '#ef4444',
                       fontSize: '11px',
                       fontWeight: '800',
-                      padding: '4px 8px',
+                      padding: '5px 9px',
                       borderRadius: '6px',
                       letterSpacing: '0.5px',
+                      fontFamily: "'Manrope', sans-serif",
                     }}
                   >
                     PDF
                   </span>
                   <div>
-                    <strong style={{ fontSize: '14px', color: '#111827', display: 'block' }}>
+                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.pdfName}
                     </strong>
-                    <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                    <span style={{ fontSize: '11.5px', color: '#9ca3af', fontFamily: "'Manrope', sans-serif" }}>
                       PDF • {selectedAppointment.pdfDate}
                     </span>
                   </div>
@@ -1149,13 +1344,17 @@ const ProfilePage = () => {
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '5px',
+                      gap: '6px',
                       transition: 'all 0.15s ease',
+                      fontFamily: "'Manrope', sans-serif",
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#9ca3af')}
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#d1d5db')}
                   >
-                    <span>👁️</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
                     View PDF
                   </button>
 
@@ -1173,13 +1372,18 @@ const ProfilePage = () => {
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '5px',
+                      gap: '6px',
                       transition: 'all 0.15s ease',
+                      fontFamily: "'Manrope', sans-serif",
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#bbf7d0')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dcfce7')}
                   >
-                    <span>📥</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
                     Download
                   </button>
                 </div>
@@ -1212,93 +1416,190 @@ const ProfilePage = () => {
             <button
               type="button"
               onClick={handleCloseEdit}
+              aria-label="Close Edit Profile"
               style={{
                 background: 'none',
                 border: 'none',
-                fontSize: '18px',
                 cursor: 'pointer',
-                color: '#6b7280',
+                color: '#9ca3af',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '4px',
+                borderRadius: '6px',
+                transition: 'color 0.15s ease',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#111827')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#9ca3af')}
             >
-              ✕
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           </div>
 
-          <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <form onSubmit={handleSaveProfile} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Full Name */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
-                Full Name
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: '#374151', fontFamily: "'Manrope', sans-serif" }}>
+                  Full Name
+                </label>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    color: (editFormData.fullName || '').length >= 35 ? '#dc2626' : '#9ca3af',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  {(editFormData.fullName || '').length}/35
+                </span>
+              </div>
               <input
                 type="text"
                 name="fullName"
+                value={editFormData.fullName || ''}
                 maxLength={35}
-                value={editFormData.fullName}
                 onChange={handleEditChange}
-                required
+                placeholder="Enter full name"
                 style={{
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '8px',
-                  border: '1px solid #d1d5db',
+                  border: editErrors.fullName ? '1px solid #ef4444' : '1px solid #d1d5db',
                   fontSize: '14px',
                   outline: 'none',
+                  fontFamily: "'Manrope', sans-serif",
+                  boxSizing: 'border-box',
+                  backgroundColor: '#ffffff',
+                  transition: 'border-color 0.15s ease',
                 }}
               />
+              {editErrors.fullName && (
+                <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: "'Manrope', sans-serif" }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span>{editErrors.fullName}</span>
+                </div>
+              )}
             </div>
 
+            {/* Mobile Number */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
-                Mobile Number
-              </label>
-              <input
-                type="tel"
-                name="mobileNumber"
-                value={editFormData.mobileNumber}
-                onChange={handleEditChange}
-                required
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: '#374151', fontFamily: "'Manrope', sans-serif" }}>
+                  Mobile Number
+                </label>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    color: (editFormData.mobileNumber || '').length === 10 ? '#16a34a' : '#9ca3af',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  {(editFormData.mobileNumber || '').length}/10 digits
+                </span>
+              </div>
+              <div
                 style={{
-                  width: '100%',
-                  padding: '10px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
                   borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '14px',
-                  outline: 'none',
+                  border: editErrors.mobileNumber ? '1px solid #ef4444' : '1px solid #d1d5db',
+                  overflow: 'hidden',
+                  backgroundColor: '#ffffff',
+                  transition: 'border-color 0.15s ease',
+                  boxSizing: 'border-box',
                 }}
-              />
+              >
+                <span
+                  style={{
+                    padding: '10px 12px',
+                    backgroundColor: '#f9fafb',
+                    color: '#4b5563',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    borderRight: '1px solid #e5e7eb',
+                    userSelect: 'none',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  +91
+                </span>
+                <input
+                  type="tel"
+                  name="mobileNumber"
+                  value={editFormData.mobileNumber || ''}
+                  onChange={handleEditChange}
+                  maxLength={10}
+                  placeholder="Starts with 6, 7, 8 or 9"
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    border: 'none',
+                    fontSize: '14px',
+                    outline: 'none',
+                    fontFamily: "'Manrope', sans-serif",
+                    boxSizing: 'border-box',
+                    letterSpacing: '0.5px',
+                  }}
+                />
+              </div>
+              {editErrors.mobileNumber && (
+                <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: "'Manrope', sans-serif" }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span>{editErrors.mobileNumber}</span>
+                </div>
+              )}
             </div>
 
+            {/* Email Address */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
-                Email Address
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: '#374151', fontFamily: "'Manrope', sans-serif" }}>
+                  Email Address
+                </label>
+              </div>
               <input
                 type="email"
                 name="email"
-                value={editFormData.email}
+                value={editFormData.email || ''}
                 onChange={handleEditChange}
                 onKeyDown={handleProfileEmailKeyDown}
+                placeholder="name@example.com"
                 required
                 style={{
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '8px',
-                  border: '1px solid #d1d5db',
+                  border: editErrors.email ? '1px solid #ef4444' : '1px solid #d1d5db',
                   fontSize: '14px',
                   outline: 'none',
+                  fontFamily: "'Manrope', sans-serif",
+                  boxSizing: 'border-box',
+                  backgroundColor: '#ffffff',
+                  transition: 'border-color 0.15s ease',
                 }}
               />
+              {editErrors.email && (
+                <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: "'Manrope', sans-serif" }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span>{editErrors.email}</span>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#374151', marginBottom: '5px', fontFamily: "'Manrope', sans-serif" }}>
                   Date of Birth
                 </label>
                 <input
                   type="text"
                   name="dateOfBirth"
-                  value={editFormData.dateOfBirth}
+                  value={editFormData.dateOfBirth || ''}
                   onChange={handleEditChange}
                   style={{
                     width: '100%',
@@ -1307,17 +1608,19 @@ const ProfilePage = () => {
                     border: '1px solid #d1d5db',
                     fontSize: '14px',
                     outline: 'none',
+                    fontFamily: "'Manrope', sans-serif",
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#374151', marginBottom: '5px', fontFamily: "'Manrope', sans-serif" }}>
                   Gender
                 </label>
                 <select
                   name="gender"
-                  value={editFormData.gender}
+                  value={editFormData.gender || 'Male'}
                   onChange={handleEditChange}
                   style={{
                     width: '100%',
@@ -1327,6 +1630,8 @@ const ProfilePage = () => {
                     fontSize: '14px',
                     outline: 'none',
                     backgroundColor: '#ffffff',
+                    fontFamily: "'Manrope', sans-serif",
+                    boxSizing: 'border-box',
                   }}
                 >
                   <option value="Male">Male</option>
@@ -1337,13 +1642,13 @@ const ProfilePage = () => {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#374151', marginBottom: '5px', fontFamily: "'Manrope', sans-serif" }}>
                 City, State
               </label>
               <input
                 type="text"
                 name="city"
-                value={editFormData.city}
+                value={editFormData.city || ''}
                 onChange={handleEditChange}
                 style={{
                   width: '100%',
@@ -1352,6 +1657,8 @@ const ProfilePage = () => {
                   border: '1px solid #d1d5db',
                   fontSize: '14px',
                   outline: 'none',
+                  fontFamily: "'Manrope', sans-serif",
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
@@ -1369,6 +1676,7 @@ const ProfilePage = () => {
                   fontSize: '14px',
                   fontWeight: '600',
                   cursor: 'pointer',
+                  fontFamily: "'Manrope', sans-serif",
                 }}
               >
                 Cancel
@@ -1384,6 +1692,7 @@ const ProfilePage = () => {
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
+                  fontFamily: "'Manrope', sans-serif",
                 }}
               >
                 Save Changes
@@ -1404,14 +1713,17 @@ const ProfilePage = () => {
         }}
       >
         <div
-          className="container"
           style={{
+            width: '100%',
+            maxWidth: '1440px',
+            margin: '0 auto',
+            padding: '0 40px',
+            boxSizing: 'border-box',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '12px',
-            maxWidth: '1160px',
           }}
         >
           <p style={{ margin: 0 }}>
@@ -1426,7 +1738,17 @@ const ProfilePage = () => {
       </footer>
 
       <style>{`
+        dialog::backdrop {
+          background: rgba(15, 23, 42, 0.45);
+          backdrop-filter: blur(4px);
+        }
         @media (max-width: 860px) {
+          .profile-header-card {
+            padding: 22px 28px !important;
+          }
+          .profile-herbs-img {
+            height: 135px !important;
+          }
           .profile-personal-grid {
             grid-template-columns: 1fr !important;
             justify-items: center;
@@ -1438,6 +1760,24 @@ const ProfilePage = () => {
           }
           .profile-bottom-grid {
             grid-template-columns: 1fr !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .profile-header-card {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 16px !important;
+            padding: 20px 20px !important;
+          }
+          .profile-herbs-wrapper {
+            align-self: flex-end !important;
+            margin-right: 0 !important;
+          }
+          .profile-herbs-img {
+            height: 110px !important;
+          }
+          .profile-container {
+            padding: 24px 16px 50px !important;
           }
         }
       `}</style>

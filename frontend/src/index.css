@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   --primary-green: #1b4332;
@@ -16,7 +16,7 @@
   --text-gray: #4b5563;
   --text-light-gray: #9ca3af;
   --border-light: #e5e7eb;
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Manrope', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --radius-card: 16px;
   --radius-btn: 9999px;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -36,11 +36,30 @@ html {
   color: var(--text-dark);
   background-color: var(--bg-page);
   -webkit-font-smoothing: antialiased;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   overflow-x: hidden;
   line-height: 1.6;
+  font-family: var(--font-sans);
+  touch-action: manipulation;
+}
+
+button, input, select, textarea {
+  font-family: var(--font-sans);
+}
+
+/* Prevent auto-zoom on input focus in mobile browsers (iOS Safari) */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Container */

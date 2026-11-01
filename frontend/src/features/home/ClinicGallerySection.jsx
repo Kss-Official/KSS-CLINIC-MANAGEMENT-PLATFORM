@@ -16,7 +16,7 @@ const ClinicGallerySection = () => {
     <section
       id="clinic"
       style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: '#f5f8f5',
         width: '100%',
         overflow: 'hidden',
       }}
@@ -27,7 +27,7 @@ const ClinicGallerySection = () => {
           width: '100%',
           maxWidth: '1440px',
           margin: '0 auto',
-          padding: '80px 36px 90px',
+          padding: '90px 40px 90px',
           boxSizing: 'border-box',
         }}
       >
@@ -42,6 +42,7 @@ const ClinicGallerySection = () => {
               letterSpacing: '1.8px',
               color: '#265e38',
               marginBottom: '10px',
+              fontFamily: "'Manrope', sans-serif",
             }}
           >
             OUR CLINIC
@@ -56,6 +57,7 @@ const ClinicGallerySection = () => {
               lineHeight: '1.2',
               letterSpacing: '-0.5px',
               marginBottom: '12px',
+              fontFamily: "'Manrope', sans-serif",
             }}
           >
             A Comfortable Space for Your Care
@@ -69,7 +71,7 @@ const ClinicGallerySection = () => {
               lineHeight: '1.5',
               maxWidth: '900px',
               margin: '0 auto',
-              whiteSpace: 'nowrap',
+              fontFamily: "'Manrope', sans-serif",
             }}
           >
             Our clinic is designed to provide a calm and welcoming environment for a better consultation experience.
@@ -93,18 +95,18 @@ const ClinicGallerySection = () => {
               style={{
                 borderRadius: '16px',
                 overflow: 'hidden',
-                boxShadow: '0 4px 18px rgba(0, 0, 0, 0.05)',
+                boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04)',
                 backgroundColor: '#ffffff',
                 cursor: 'pointer',
                 transition: 'transform 0.3s ease, box-shadow 0.3s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.boxShadow = '0 10px 24px rgba(0, 0, 0, 0.1)';
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 14px 28px -4px rgba(0, 0, 0, 0.12)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 18px rgba(0, 0, 0, 0.05)';
+                e.currentTarget.style.boxShadow = '0 8px 24px -4px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04)';
               }}
             >
               <img
@@ -116,9 +118,9 @@ const ClinicGallerySection = () => {
                   aspectRatio: '1.35 / 1',
                   display: 'block',
                   objectFit: 'cover',
-                  transition: 'transform 0.3s ease',
+                  transition: 'transform 0.4s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.025)')}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.03)')}
                 onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
               />
             </div>
@@ -129,7 +131,7 @@ const ClinicGallerySection = () => {
       <style>{`
         @media (max-width: 1080px) {
           .clinic-inner-container {
-            padding: 60px 24px 70px !important;
+            padding: 65px 24px 65px !important;
           }
           .clinic-subheading {
             white-space: normal !important;
@@ -144,7 +146,7 @@ const ClinicGallerySection = () => {
         }
         @media (max-width: 640px) {
           .clinic-inner-container {
-            padding: 48px 18px 56px !important;
+            padding: 50px 20px 50px !important;
           }
           .clinic-gallery-grid {
             grid-template-columns: 1fr !important;

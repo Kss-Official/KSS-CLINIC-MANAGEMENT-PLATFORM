@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/layout/Navbar';
-import bookingBannerBg from '../../assets/booking-banner-bg.jpg';
+import bookingBannerClean from '../../assets/booking-banner-clean.jpg';
 import confirmedIllustration from '../../assets/confirmed-illustration.png';
 import appointmentApi from '../../api/appointmentApi';
 
@@ -9,14 +9,14 @@ const BookAppointmentPage = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Form state initialized with realistic clinic appointment defaults
+  // Form state initialized matching reference design (empty inputs with clean placeholders)
   const [formData, setFormData] = useState({
-    fullName: 'Rahul Sharma',
-    mobileNumber: '+91 98765 43210',
-    email: 'rahul.sharma@gmail.com',
-    age: '28',
-    gender: 'Male',
-    city: 'Your City',
+    fullName: '',
+    mobileNumber: '',
+    email: '',
+    age: '',
+    gender: '',
+    city: '',
     reasonForVisit: '',
     selectedDay: 16,
     selectedMonth: 9, // 0-indexed: 9 = October
@@ -57,7 +57,70 @@ const BookAppointmentPage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === 'fullName') {
+      // Rule 1: Limit 25 characters, only alphabetic characters and spaces
+      const cleaned = value.replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
+      if (/[^a-zA-Z\s]/.test(value)) {
+        setErrors((prev) => ({
+          ...prev,
+          fullName: 'Only alphabets and spaces are allowed',
+        }));
+      } else if (errors.fullName) {
+        setErrors((prev) => ({ ...prev, fullName: '' }));
+      }
+      setFormData((prev) => ({ ...prev, fullName: cleaned }));
+      return;
+    }
+
+    if (name === 'mobileNumber') {
+      // Rule 2: Limit 10 digits, must start with 6, 7, 8, or 9
+      let digits = value.replace(/\D/g, '');
+
+      // In case full number with 91 is entered or pasted
+      if (digits.length > 10 && digits.startsWith('91')) {
+        digits = digits.slice(2);
+      }
+
+      if (/\D/.test(value)) {
+        setErrors((prev) => ({
+          ...prev,
+          mobileNumber: 'Only numbers are allowed',
+        }));
+      } else if (digits.length > 0 && !/^[6-9]/.test(digits)) {
+        setErrors((prev) => ({
+          ...prev,
+          mobileNumber: 'Mobile number must start with 6, 7, 8, or 9',
+        }));
+        return;
+      } else if (errors.mobileNumber) {
+        setErrors((prev) => ({ ...prev, mobileNumber: '' }));
+      }
+
+      digits = digits.slice(0, 10);
+      setFormData((prev) => ({ ...prev, mobileNumber: digits }));
+      return;
+    }
+
+    if (name === 'email') {
+      // Rule 3: Email format; no words or characters allowed after .com
+      let val = value.replace(/\s/g, '');
+      const comMatch = val.match(/^([^@]+@[a-zA-Z0-9.-]+\.com)(.+)$/i);
+      if (comMatch) {
+        val = comMatch[1];
+        setErrors((prev) => ({
+          ...prev,
+          email: 'No words or characters allowed after .com',
+        }));
+      } else if (errors.email) {
+        setErrors((prev) => ({ ...prev, email: '' }));
+      }
+      setFormData((prev) => ({ ...prev, email: val }));
+      return;
+    }
+
     if (name === 'reasonForVisit' && value.length > 500) return;
+
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
@@ -66,17 +129,45 @@ const BookAppointmentPage = () => {
 
   const validateStep1 = () => {
     const newErrors = {};
-    if (!formData.fullName.trim()) newErrors.fullName = 'Full Name is required';
-    if (!formData.mobileNumber.trim()) {
-      newErrors.mobileNumber = 'Mobile Number is required';
-    } else if (!/^\+?[0-9\s-]{10,15}$/.test(formData.mobileNumber.trim())) {
-      newErrors.mobileNumber = 'Please enter a valid mobile number';
+
+    // 1. Full Name Validation: non-empty, letters & spaces only, max 25 chars
+    const nameTrimmed = (formData.fullName || '').trim();
+    if (!nameTrimmed) {
+      newErrors.fullName = 'Full Name is required';
+    } else if (nameTrimmed.length > 25) {
+      newErrors.fullName = 'Full Name cannot exceed 25 characters';
+    } else if (!/^[a-zA-Z\s]+$/.test(nameTrimmed)) {
+      newErrors.fullName = 'Only alphabets and spaces are allowed';
     }
+
+    // 2. Mobile Number Validation: exactly 10 digits, starts with 6, 7, 8, or 9
+    const mobileDigits = (formData.mobileNumber || '').replace(/\D/g, '');
+    if (!mobileDigits) {
+      newErrors.mobileNumber = 'Whatsapp Mobile Number is required';
+    } else if (mobileDigits.length !== 10) {
+      newErrors.mobileNumber = 'Mobile number must be exactly 10 digits';
+    } else if (!/^[6-9]/.test(mobileDigits)) {
+      newErrors.mobileNumber = 'Mobile number must start with 6, 7, 8, or 9';
+    }
+
+    // 3. Email Validation (if provided): proper email format ending in valid domain, no extra chars after .com
+    const emailVal = (formData.email || '').trim();
+    if (emailVal) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(emailVal)) {
+        newErrors.email = 'Please enter a valid email address (e.g. name@example.com)';
+      } else if (/\.com.+$/i.test(emailVal)) {
+        newErrors.email = 'No words or characters allowed after .com';
+      }
+    }
+
+    // 4. Age Validation
     if (!formData.age.toString().trim()) {
       newErrors.age = 'Age is required';
     } else if (isNaN(formData.age) || Number(formData.age) <= 0 || Number(formData.age) > 120) {
-      newErrors.age = 'Enter a valid age';
+      newErrors.age = 'Enter a valid age (1 - 120)';
     }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -201,23 +292,50 @@ const BookAppointmentPage = () => {
   return (
     <div style={{ backgroundColor: '#f8faf9', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Top Navbar */}
-      <Navbar onOpenBooking={() => window.scrollTo({ top: 260, behavior: 'smooth' })} />
+      <Navbar
+        onOpenBooking={() => {
+          const formEl = document.getElementById('booking-form-section');
+          if (formEl) {
+            formEl.scrollIntoView({ behavior: 'smooth' });
+          } else {
+            window.scrollTo({ top: 280, behavior: 'smooth' });
+          }
+        }}
+      />
 
-      {/* Hero Header Banner */}
-      <div
+      {/* Div 1: Hero Header Banner with Sleek Compact Height matching Reference Image */}
+      <section
+        aria-label="Book Your Appointment"
+        className="booking-hero-banner"
         style={{
           position: 'relative',
-          backgroundImage: `url(${bookingBannerBg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          minHeight: '220px',
-          display: 'flex',
-          alignItems: 'center',
-          color: '#ffffff',
+          width: '100%',
+          height: 'clamp(220px, 18vw, 275px)',
+          backgroundColor: '#143420',
           overflow: 'hidden',
+          display: 'block',
+          margin: 0,
+          padding: 0,
         }}
       >
-        {/* Dark Emerald Overlay for Readability */}
+        {/* Banner Background Image with exact framing matching reference */}
+        <img
+          src={bookingBannerClean}
+          alt=""
+          aria-hidden="true"
+          className="booking-hero-banner-image"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'right center',
+            display: 'block',
+            margin: 0,
+            padding: 0,
+          }}
+        />
+
+        {/* Soft, light gradient overlay: luminous and natural without heavy dark shadow */}
         <div
           style={{
             position: 'absolute',
@@ -226,36 +344,92 @@ const BookAppointmentPage = () => {
             width: '100%',
             height: '100%',
             background:
-              'linear-gradient(90deg, rgba(14, 38, 24, 0.96) 0%, rgba(14, 38, 24, 0.88) 45%, rgba(14, 38, 24, 0.3) 80%, rgba(14, 38, 24, 0.1) 100%)',
-            zIndex: 1,
+              'linear-gradient(90deg, rgba(16, 46, 26, 0.52) 0%, rgba(16, 46, 26, 0.28) 26%, rgba(16, 46, 26, 0.06) 40%, rgba(16, 46, 26, 0) 52%)',
+            pointerEvents: 'none',
           }}
         />
 
-        <div className="container" style={{ position: 'relative', zIndex: 2, padding: '36px 24px' }}>
-          <h1
+        {/* Real HTML Text Layer placed over the soft green bokeh area */}
+        <div
+          className="booking-banner-content-layer"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            lineHeight: '1.2',
+            pointerEvents: 'none',
+          }}
+        >
+          <div
             style={{
-              fontSize: '44px',
-              fontWeight: '800',
-              lineHeight: '1.2',
-              color: '#ffffff',
-              letterSpacing: '-0.5px',
-              marginBottom: '8px',
+              width: '100%',
+              maxWidth: '1440px',
+              margin: '0 auto',
+              padding: '0 40px',
+              boxSizing: 'border-box',
             }}
           >
-            Book Your Appointment
-          </h1>
-          <p style={{ fontSize: '16px', color: '#e2e8f0', margin: 0 }}>
-            Schedule your consultation with Dr. K. Tripathi Ampeh (Pat.).
-          </p>
+            <div
+              style={{
+                maxWidth: '650px',
+                pointerEvents: 'auto',
+              }}
+            >
+              <h1
+                className="booking-banner-title"
+                style={{
+                  fontSize: 'clamp(22px, 2.4vw, 36px)',
+                  fontWeight: '800',
+                  color: '#ffffff',
+                  lineHeight: '1.18',
+                  letterSpacing: '-0.3px',
+                  margin: '0 0 8px 0',
+                  fontFamily: "'Manrope', sans-serif",
+                  textShadow: '0 2px 8px rgba(0, 0, 0, 0.35)',
+                }}
+              >
+                Book Your Appointment
+              </h1>
+              <p
+                className="booking-banner-subtitle"
+                style={{
+                  fontSize: 'clamp(12px, 1.05vw, 15px)',
+                  color: '#e2fbe8',
+                  fontWeight: '500',
+                  lineHeight: '1.45',
+                  margin: 0,
+                  fontFamily: "'Manrope', sans-serif",
+                  textShadow: '0 1px 4px rgba(0, 0, 0, 0.3)',
+                }}
+              >
+                Schedule your consultation with Dr. K. Tripathi Ampeh (Pat.).
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Main Content Area */}
-      <div className="container" style={{ padding: '48px 24px 80px', flex: 1 }}>
+      {/* Main Content Area: Expanded layout covering LHS & RHS nicely */}
+      <div
+        id="booking-form-section"
+        className="booking-main-content"
+        style={{
+          width: '100%',
+          maxWidth: '1440px',
+          margin: '0 auto',
+          padding: '44px 36px 80px',
+          boxSizing: 'border-box',
+          flex: 1,
+        }}
+      >
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1.9fr) minmax(300px, 1fr)',
+            gridTemplateColumns: 'minmax(0, 1.95fr) minmax(340px, 1.05fr)',
             gap: '32px',
             alignItems: 'start',
           }}
@@ -409,18 +583,27 @@ const BookAppointmentPage = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                   {/* Full Name */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
-                      Full Name <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>
+                        Full Name <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <span style={{ fontSize: '12px', color: (formData.fullName || '').length >= 25 ? '#ef4444' : '#9ca3af', fontFamily: "'Manrope', sans-serif" }}>
+                        {(formData.fullName || '').length}/25
+                      </span>
+                    </div>
                     <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: '15px' }}>
-                        👤
+                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
                       </span>
                       <input
                         type="text"
                         name="fullName"
                         value={formData.fullName}
                         onChange={handleChange}
+                        maxLength={25}
                         placeholder="Enter your full name"
                         style={{
                           width: '100%',
@@ -431,27 +614,38 @@ const BookAppointmentPage = () => {
                           outline: 'none',
                           color: '#111827',
                           backgroundColor: '#ffffff',
+                          transition: 'border-color 0.2s',
                         }}
+                        onFocus={(e) => (e.target.style.borderColor = '#265e38')}
+                        onBlur={(e) => (e.target.style.borderColor = errors.fullName ? '#ef4444' : '#e2e8f0')}
                       />
                     </div>
                     {errors.fullName && <p style={{ fontSize: '12px', color: '#ef4444', margin: '4px 0 0' }}>{errors.fullName}</p>}
                   </div>
 
-                  {/* Mobile Number */}
+                  {/* Whatsapp Mobile Number */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
-                      Mobile Number <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>
+                        Whatsapp Mobile Number <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <span style={{ fontSize: '12px', color: (formData.mobileNumber || '').length === 10 ? '#16a34a' : '#9ca3af', fontFamily: "'Manrope', sans-serif" }}>
+                        {(formData.mobileNumber || '').length}/10 digits
+                      </span>
+                    </div>
                     <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: '15px' }}>
-                        📞
+                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                        </svg>
                       </span>
                       <input
                         type="tel"
                         name="mobileNumber"
                         value={formData.mobileNumber}
                         onChange={handleChange}
-                        placeholder="Enter your mobile number"
+                        maxLength={10}
+                        placeholder="Starts with 6, 7, 8 or 9"
                         style={{
                           width: '100%',
                           padding: '11px 14px 11px 40px',
@@ -461,7 +655,10 @@ const BookAppointmentPage = () => {
                           outline: 'none',
                           color: '#111827',
                           backgroundColor: '#ffffff',
+                          transition: 'border-color 0.2s',
                         }}
+                        onFocus={(e) => (e.target.style.borderColor = '#265e38')}
+                        onBlur={(e) => (e.target.style.borderColor = errors.mobileNumber ? '#ef4444' : '#e2e8f0')}
                       />
                     </div>
                     {errors.mobileNumber && <p style={{ fontSize: '12px', color: '#ef4444', margin: '4px 0 0' }}>{errors.mobileNumber}</p>}
@@ -475,27 +672,34 @@ const BookAppointmentPage = () => {
                       Email Address <span style={{ color: '#9ca3af', fontWeight: '400' }}>(Optional)</span>
                     </label>
                     <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: '15px' }}>
-                        ✉️
+                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <rect width="20" height="16" x="2" y="4" rx="2" />
+                          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                        </svg>
                       </span>
                       <input
                         type="email"
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
-                        placeholder="Enter your email address"
+                        placeholder="name@example.com"
                         style={{
                           width: '100%',
                           padding: '11px 14px 11px 40px',
                           borderRadius: '10px',
-                          border: '1px solid #e2e8f0',
+                          border: errors.email ? '1px solid #ef4444' : '1px solid #e2e8f0',
                           fontSize: '14px',
                           outline: 'none',
                           color: '#111827',
                           backgroundColor: '#ffffff',
+                          transition: 'border-color 0.2s',
                         }}
+                        onFocus={(e) => (e.target.style.borderColor = '#265e38')}
+                        onBlur={(e) => (e.target.style.borderColor = errors.email ? '#ef4444' : '#e2e8f0')}
                       />
                     </div>
+                    {errors.email && <p style={{ fontSize: '12px', color: '#ef4444', margin: '4px 0 0' }}>{errors.email}</p>}
                   </div>
 
                   {/* Age */}
@@ -504,8 +708,13 @@ const BookAppointmentPage = () => {
                       Age <span style={{ color: '#ef4444' }}>*</span>
                     </label>
                     <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: '15px' }}>
-                        📅
+                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
                       </span>
                       <input
                         type="number"
@@ -524,7 +733,10 @@ const BookAppointmentPage = () => {
                           outline: 'none',
                           color: '#111827',
                           backgroundColor: '#ffffff',
+                          transition: 'border-color 0.2s',
                         }}
+                        onFocus={(e) => (e.target.style.borderColor = '#265e38')}
+                        onBlur={(e) => (e.target.style.borderColor = errors.age ? '#ef4444' : '#e2e8f0')}
                       />
                       <span
                         style={{
@@ -551,8 +763,11 @@ const BookAppointmentPage = () => {
                       Gender <span style={{ color: '#9ca3af', fontWeight: '400' }}>(Optional)</span>
                     </label>
                     <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: '15px' }}>
-                        👥
+                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="8" r="4" />
+                          <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                        </svg>
                       </span>
                       <select
                         name="gender"
@@ -560,7 +775,7 @@ const BookAppointmentPage = () => {
                         onChange={handleChange}
                         style={{
                           width: '100%',
-                          padding: '11px 14px 11px 40px',
+                          padding: '11px 36px 11px 40px',
                           borderRadius: '10px',
                           border: '1px solid #e2e8f0',
                           fontSize: '14px',
@@ -569,15 +784,20 @@ const BookAppointmentPage = () => {
                           backgroundColor: '#ffffff',
                           appearance: 'none',
                           cursor: 'pointer',
+                          transition: 'border-color 0.2s',
                         }}
+                        onFocus={(e) => (e.target.style.borderColor = '#265e38')}
+                        onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
                       >
                         <option value="">Select gender</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                         <option value="Other">Other</option>
                       </select>
-                      <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#9ca3af', fontSize: '11px' }}>
-                        ▼
+                      <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
                       </span>
                     </div>
                   </div>
@@ -588,8 +808,11 @@ const BookAppointmentPage = () => {
                       City <span style={{ color: '#9ca3af', fontWeight: '400' }}>(Optional)</span>
                     </label>
                     <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: '15px' }}>
-                        📍
+                      <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                          <circle cx="12" cy="10" r="3" />
+                        </svg>
                       </span>
                       <input
                         type="text"
@@ -606,7 +829,10 @@ const BookAppointmentPage = () => {
                           outline: 'none',
                           color: '#111827',
                           backgroundColor: '#ffffff',
+                          transition: 'border-color 0.2s',
                         }}
+                        onFocus={(e) => (e.target.style.borderColor = '#265e38')}
+                        onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
                       />
                     </div>
                   </div>
@@ -618,8 +844,11 @@ const BookAppointmentPage = () => {
                     Reason for Visit <span style={{ color: '#9ca3af', fontWeight: '400' }}>(Optional)</span>
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '14px', top: '14px', color: '#9ca3af', fontSize: '15px' }}>
-                      📝
+                    <span style={{ position: 'absolute', left: '14px', top: '14px', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
                     </span>
                     <textarea
                       name="reasonForVisit"
@@ -638,7 +867,10 @@ const BookAppointmentPage = () => {
                         backgroundColor: '#ffffff',
                         resize: 'none',
                         fontFamily: 'inherit',
+                        transition: 'border-color 0.2s',
                       }}
+                      onFocus={(e) => (e.target.style.borderColor = '#265e38')}
+                      onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
                     />
                     <span
                       style={{
@@ -677,26 +909,37 @@ const BookAppointmentPage = () => {
                       padding: '10px 18px',
                     }}
                   >
-                    <span
+                    <div
                       style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '6px',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
                         backgroundColor: '#dcfce7',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '14px',
-                        color: '#16a34a',
+                        flexShrink: 0,
                       }}
                     >
-                      🔒
-                    </span>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#16a34a"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </div>
                     <div>
-                      <h5 style={{ fontSize: '13px', fontWeight: '700', color: '#166534', margin: 0 }}>
+                      <h5 style={{ fontSize: '13.5px', fontWeight: '700', color: '#111827', margin: 0 }}>
                         Your information is secure
                       </h5>
-                      <p style={{ fontSize: '12px', color: '#15803d', margin: '2px 0 0 0' }}>
+                      <p style={{ fontSize: '12px', color: '#4b5563', margin: '2px 0 0 0' }}>
                         We keep your personal information private and secure.
                       </p>
                     </div>
@@ -705,22 +948,22 @@ const BookAppointmentPage = () => {
                   <button
                     type="submit"
                     style={{
-                      backgroundColor: '#1b4332',
+                      backgroundColor: '#265e38',
                       color: '#ffffff',
                       border: 'none',
                       borderRadius: '10px',
                       padding: '13px 32px',
-                      fontSize: '15px',
+                      fontSize: '14.5px',
                       fontWeight: '700',
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '8px',
-                      boxShadow: '0 4px 14px rgba(27, 67, 50, 0.25)',
-                      transition: 'all 0.2s',
+                      boxShadow: '0 4px 14px rgba(38, 94, 56, 0.25)',
+                      transition: 'all 0.2s ease',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#143527')}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b4332')}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1f4e2e')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#265e38')}
                   >
                     Next Step <span>→</span>
                   </button>
@@ -1393,45 +1636,51 @@ const BookAppointmentPage = () => {
             )}
           </div>
 
-          {/* Right Column: 4 Information Cards (Exact as in image) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {/* Right Column: 4 Information Cards (Exact match to reference design) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Card 1: Homeopathy Consultation */}
             <div
               style={{
                 backgroundColor: '#ffffff',
-                borderRadius: '16px',
-                padding: '24px',
-                boxShadow: '0 4px 18px rgba(0, 0, 0, 0.03)',
+                borderRadius: '20px',
+                padding: '26px 24px',
+                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.03)',
                 border: '1px solid #edf2ee',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
                 <div
                   style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '10px',
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
                     backgroundColor: '#f0fdf4',
+                    border: '1px solid #dcfce7',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#2e7d32',
-                    fontSize: '18px',
+                    color: '#265e38',
+                    flexShrink: 0,
                   }}
                 >
-                  📅
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
                 </div>
                 <div>
                   <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#111827', margin: 0 }}>
                     Homeopathy Consultation
                   </h3>
-                  <p style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '2px 0 0' }}>
+                  <p style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.6px', margin: '3px 0 0' }}>
                     DR. KUMAR TRIPATHI AMPEH (PAT.)
                   </p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {[
                   'Personalized consultation',
                   'Natural and holistic approach',
@@ -1439,8 +1688,23 @@ const BookAppointmentPage = () => {
                   'Customized homeopathic treatment',
                   'Follow-up guidance',
                 ].map((item, idx) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#4b5563' }}>
-                    <span style={{ color: '#16a34a', fontWeight: '700' }}>✓</span>
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13.5px', color: '#4b5563' }}>
+                    <div
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        backgroundColor: '#ecfdf5',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
                     <span>{item}</span>
                   </div>
                 ))}
@@ -1451,41 +1715,45 @@ const BookAppointmentPage = () => {
             <div
               style={{
                 backgroundColor: '#ffffff',
-                borderRadius: '16px',
+                borderRadius: '20px',
                 padding: '24px',
-                boxShadow: '0 4px 18px rgba(0, 0, 0, 0.03)',
+                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.03)',
                 border: '1px solid #edf2ee',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
                 <div
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '12px',
                     backgroundColor: '#f0fdf4',
+                    border: '1px solid #dcfce7',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#2e7d32',
-                    fontSize: '15px',
+                    color: '#265e38',
+                    flexShrink: 0,
                   }}
                 >
-                  🕒
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
                 </div>
-                <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#111827', margin: 0 }}>
+                <h4 style={{ fontSize: '15.5px', fontWeight: '800', color: '#111827', margin: 0 }}>
                   Clinic Timings
                 </h4>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginBottom: '10px' }}>
-                <span style={{ color: '#4b5563' }}>Monday - Saturday</span>
-                <strong style={{ color: '#111827' }}>9:00 AM - 6:00 PM</strong>
+                <span style={{ color: '#4b5563' }}>Monday – Saturday</span>
+                <strong style={{ color: '#111827', fontWeight: '700' }}>9:00 AM – 6:00 PM</strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px' }}>
                 <span style={{ color: '#4b5563' }}>Sunday</span>
-                <span style={{ color: '#ef4444', fontWeight: '600' }}>Closed</span>
+                <span style={{ color: '#dc2626', fontWeight: '700' }}>Closed</span>
               </div>
             </div>
 
@@ -1493,30 +1761,34 @@ const BookAppointmentPage = () => {
             <div
               style={{
                 backgroundColor: '#ffffff',
-                borderRadius: '16px',
+                borderRadius: '20px',
                 padding: '24px',
-                boxShadow: '0 4px 18px rgba(0, 0, 0, 0.03)',
+                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.03)',
                 border: '1px solid #edf2ee',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
                     style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '12px',
                       backgroundColor: '#f0fdf4',
+                      border: '1px solid #dcfce7',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#2e7d32',
-                      fontSize: '15px',
+                      color: '#265e38',
+                      flexShrink: 0,
                     }}
                   >
-                    📍
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
                   </div>
-                  <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#111827', margin: 0 }}>
+                  <h4 style={{ fontSize: '15.5px', fontWeight: '800', color: '#111827', margin: 0 }}>
                     Clinic Address
                   </h4>
                 </div>
@@ -1526,18 +1798,25 @@ const BookAppointmentPage = () => {
                   rel="noreferrer"
                   style={{
                     fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#2e7d32',
+                    fontWeight: '600',
+                    color: '#265e38',
+                    backgroundColor: '#ecfdf5',
+                    padding: '5px 12px',
+                    borderRadius: '9999px',
                     textDecoration: 'none',
+                    display: 'inline-block',
+                    transition: 'all 0.2s',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d1fae5')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ecfdf5')}
                 >
                   View on Map
                 </a>
               </div>
 
-              <p style={{ fontSize: '14px', color: '#6b7280', margin: 0, lineHeight: '1.6' }}>
+              <p style={{ fontSize: '14px', color: '#4b5563', margin: 0, lineHeight: '1.6' }}>
                 123 Clinic Street, Your City,<br />
-                Your State - 123456
+                Your State – 123456
               </p>
             </div>
 
@@ -1545,29 +1824,32 @@ const BookAppointmentPage = () => {
             <div
               style={{
                 backgroundColor: '#ffffff',
-                borderRadius: '16px',
+                borderRadius: '20px',
                 padding: '24px',
-                boxShadow: '0 4px 18px rgba(0, 0, 0, 0.03)',
+                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.03)',
                 border: '1px solid #edf2ee',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                 <div
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '12px',
                     backgroundColor: '#f0fdf4',
+                    border: '1px solid #dcfce7',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#2e7d32',
-                    fontSize: '15px',
+                    color: '#265e38',
+                    flexShrink: 0,
                   }}
                 >
-                  💬
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
                 </div>
-                <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#111827', margin: 0 }}>
+                <h4 style={{ fontSize: '15.5px', fontWeight: '800', color: '#111827', margin: 0 }}>
                   Need Help?
                 </h4>
               </div>
@@ -1579,9 +1861,9 @@ const BookAppointmentPage = () => {
               <a
                 href="tel:+919876543210"
                 style={{
-                  fontSize: '17px',
+                  fontSize: '16.5px',
                   fontWeight: '800',
-                  color: '#111827',
+                  color: '#265e38',
                   textDecoration: 'none',
                   display: 'inline-block',
                 }}
@@ -1593,44 +1875,133 @@ const BookAppointmentPage = () => {
         </div>
       </div>
 
-      {/* Booking Page Specific Light Footer (as shown in image) */}
+      {/* Div 3: Bottom Footer Bar (Exact match to reference design) */}
       <footer
         style={{
           backgroundColor: '#ffffff',
-          borderTop: '1px solid #edf2ee',
-          padding: '24px 0',
-          fontSize: '13px',
-          color: '#6b7280',
+          borderTop: '1px solid #e5e7eb',
+          padding: '28px 0',
+          marginTop: 'auto',
+          width: '100%',
         }}
       >
         <div
-          className="container"
+          className="booking-footer-inner"
           style={{
+            width: '100%',
+            maxWidth: '1440px',
+            margin: '0 auto',
+            padding: '0 40px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '12px',
+            gap: '16px',
+            boxSizing: 'border-box',
           }}
         >
-          <p style={{ margin: 0 }}>
+          {/* Left: Copyright Notice */}
+          <p
+            style={{
+              margin: 0,
+              fontSize: '13.5px',
+              color: '#6b7280',
+              fontFamily: "'Manrope', sans-serif",
+              lineHeight: '1.5',
+            }}
+          >
             © 2026 Dr. Kumar Tripathi Ampeh (Pat.) Homeopathy Clinic. All rights reserved.
           </p>
-          <div style={{ display: 'flex', gap: '20px' }}>
-            <a href="#privacy" style={{ color: '#6b7280', textDecoration: 'none' }}>Privacy Policy</a>
-            <a href="#terms" style={{ color: '#6b7280', textDecoration: 'none' }}>Terms of Consultation</a>
-            <a href="#support" style={{ color: '#6b7280', textDecoration: 'none' }}>Contact Support</a>
+
+          {/* Right: Policy & Support Links */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '32px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <a
+              href="#privacy"
+              style={{
+                color: '#6b7280',
+                textDecoration: 'none',
+                fontSize: '13.5px',
+                fontFamily: "'Manrope', sans-serif",
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#111827')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#6b7280')}
+            >
+              Privacy Policy
+            </a>
+            <a
+              href="#terms"
+              style={{
+                color: '#6b7280',
+                textDecoration: 'none',
+                fontSize: '13.5px',
+                fontFamily: "'Manrope', sans-serif",
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#111827')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#6b7280')}
+            >
+              Terms of Consultation
+            </a>
+            <a
+              href="#support"
+              style={{
+                color: '#6b7280',
+                textDecoration: 'none',
+                fontSize: '13.5px',
+                fontFamily: "'Manrope', sans-serif",
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#111827')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#6b7280')}
+            >
+              Contact Support
+            </a>
           </div>
         </div>
       </footer>
 
       <style>{`
+        @media (max-width: 1024px) {
+          .booking-main-content {
+            padding: 36px 24px 60px !important;
+          }
+        }
         @media (max-width: 900px) {
           .booking-grid {
             grid-template-columns: 1fr !important;
           }
           .step2-split-grid {
             grid-template-columns: 1fr !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .booking-main-content {
+            padding: 24px 16px 50px !important;
+          }
+          .booking-hero-banner-image {
+            min-height: 160px !important;
+            object-fit: cover !important;
+            object-position: 70% center !important;
+          }
+          .booking-banner-title {
+            font-size: 24px !important;
+          }
+          .booking-banner-subtitle {
+            font-size: 13px !important;
+          }
+          .booking-footer-inner {
+            padding: 0 20px !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
           }
         }
       `}</style>

@@ -21,15 +21,31 @@ const CtaBannerSection = ({ onOpenBooking }) => {
         width: '100%',
         backgroundImage: `url(${ctaBg})`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center bottom',
+        backgroundPosition: 'right 80%',
         backgroundRepeat: 'no-repeat',
-        backgroundColor: '#1b3b22',
+        backgroundColor: '#143420',
         overflow: 'hidden',
-        minHeight: '395px',
+        minHeight: '410px',
         display: 'flex',
         alignItems: 'center',
       }}
     >
+      {/* Soft gradient overlay on the left for maximum text contrast matching reference */}
+      <div
+        className="cta-gradient-overlay"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background:
+            'linear-gradient(90deg, rgba(16, 46, 26, 0.90) 0%, rgba(16, 46, 26, 0.72) 35%, rgba(16, 46, 26, 0.25) 50%, rgba(16, 46, 26, 0) 62%)',
+          zIndex: 1,
+          pointerEvents: 'none',
+        }}
+      />
+
       <div
         className="cta-banner-container"
         style={{
@@ -156,6 +172,12 @@ const CtaBannerSection = ({ onOpenBooking }) => {
           }
         }
         @media (max-width: 768px) {
+          #contact {
+            background-position: right 85% !important;
+          }
+          .cta-gradient-overlay {
+            background: linear-gradient(180deg, rgba(16, 46, 26, 0.94) 0%, rgba(16, 46, 26, 0.88) 55%, rgba(16, 46, 26, 0.72) 100%) !important;
+          }
           .cta-banner-container {
             padding: 55px 20px !important;
           }

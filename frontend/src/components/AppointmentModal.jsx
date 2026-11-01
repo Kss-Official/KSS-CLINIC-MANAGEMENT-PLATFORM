@@ -45,15 +45,99 @@ const AppointmentModal = ({ isOpen, onClose }) => {
     }
   };
 
+  const [modalErrors, setModalErrors] = useState({});
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === 'name') {
+      const cleaned = value.replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
+      if (/[^a-zA-Z\s]/.test(value)) {
+        setModalErrors((prev) => ({ ...prev, name: 'Only alphabets and spaces are allowed' }));
+      } else if (modalErrors.name) {
+        setModalErrors((prev) => ({ ...prev, name: '' }));
+      }
+      setFormData((prev) => ({ ...prev, name: cleaned }));
+      return;
+    }
+
+    if (name === 'phone') {
+      let digits = value.replace(/\D/g, '');
+      if (digits.length > 10 && digits.startsWith('91')) {
+        digits = digits.slice(2);
+      }
+      if (/\D/.test(value)) {
+        setModalErrors((prev) => ({ ...prev, phone: 'Only numbers are allowed' }));
+      } else if (digits.length > 0 && !/^[6-9]/.test(digits)) {
+        setModalErrors((prev) => ({ ...prev, phone: 'Mobile number must start with 6, 7, 8, or 9' }));
+        return;
+      } else if (modalErrors.phone) {
+        setModalErrors((prev) => ({ ...prev, phone: '' }));
+      }
+      digits = digits.slice(0, 10);
+      setFormData((prev) => ({ ...prev, phone: digits }));
+      return;
+    }
+
+    if (name === 'email') {
+      let val = value.replace(/\s/g, '');
+      const comMatch = val.match(/^([^@]+@[a-zA-Z0-9.-]+\.com)(.+)$/i);
+      if (comMatch) {
+        val = comMatch[1];
+        setModalErrors((prev) => ({ ...prev, email: 'No words or characters allowed after .com' }));
+      } else if (modalErrors.email) {
+        setModalErrors((prev) => ({ ...prev, email: '' }));
+      }
+      setFormData((prev) => ({ ...prev, email: val }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
+    if (modalErrors[name]) {
+      setModalErrors((prev) => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const errors = {};
+
+    const nameTrimmed = (formData.name || '').trim();
+    if (!nameTrimmed) {
+      errors.name = 'Full Name is required';
+    } else if (nameTrimmed.length > 25) {
+      errors.name = 'Full Name cannot exceed 25 characters';
+    } else if (!/^[a-zA-Z\s]+$/.test(nameTrimmed)) {
+      errors.name = 'Only alphabets and spaces are allowed';
+    }
+
+    const digits = (formData.phone || '').replace(/\D/g, '');
+    if (!digits) {
+      errors.phone = 'Phone number is required';
+    } else if (digits.length !== 10) {
+      errors.phone = 'Phone number must be exactly 10 digits';
+    } else if (!/^[6-9]/.test(digits)) {
+      errors.phone = 'Mobile number must start with 6, 7, 8, or 9';
+    }
+
+    const emailVal = (formData.email || '').trim();
+    if (emailVal) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(emailVal)) {
+        errors.email = 'Please enter a valid email address';
+      } else if (/\.com.+$/i.test(emailVal)) {
+        errors.email = 'No words or characters allowed after .com';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setModalErrors(errors);
+      return;
+    }
+
     appointmentApi.bookAppointment({
       patient_name: formData.name,
       patient_phone: formData.phone,
@@ -172,14 +256,20 @@ const AppointmentModal = ({ isOpen, onClose }) => {
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
-                    Full Name *
-                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>
+                      Full Name *
+                    </label>
+                    <span style={{ fontSize: '12px', color: (formData.name || '').length >= 25 ? '#ef4444' : '#9ca3af' }}>
+                      {(formData.name || '').length}/25
+                    </span>
+                  </div>
                   <input
                     type="text"
                     name="name"
                     required
                     autoFocus
+                    maxLength={25}
                     placeholder="e.g. Ramesh Patel"
                     value={formData.name}
                     onChange={handleChange}
@@ -187,34 +277,42 @@ const AppointmentModal = ({ isOpen, onClose }) => {
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: '8px',
-                      border: '1px solid #d1d5db',
+                      border: modalErrors.name ? '1px solid #ef4444' : '1px solid #d1d5db',
                       fontSize: '14px',
                       outline: 'none',
                     }}
                   />
+                  {modalErrors.name && <p style={{ fontSize: '12px', color: '#ef4444', margin: '4px 0 0' }}>{modalErrors.name}</p>}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
-                      Phone Number *
-                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>
+                        Phone Number *
+                      </label>
+                      <span style={{ fontSize: '12px', color: (formData.phone || '').length === 10 ? '#16a34a' : '#9ca3af' }}>
+                        {(formData.phone || '').length}/10
+                      </span>
+                    </div>
                     <input
                       type="tel"
                       name="phone"
                       required
-                      placeholder="+91 98765 43210"
+                      maxLength={10}
+                      placeholder="Starts with 6-9"
                       value={formData.phone}
                       onChange={handleChange}
                       style={{
                         width: '100%',
                         padding: '10px 14px',
                         borderRadius: '8px',
-                        border: '1px solid #d1d5db',
+                        border: modalErrors.phone ? '1px solid #ef4444' : '1px solid #d1d5db',
                         fontSize: '14px',
                         outline: 'none',
                       }}
                     />
+                    {modalErrors.phone && <p style={{ fontSize: '12px', color: '#ef4444', margin: '4px 0 0' }}>{modalErrors.phone}</p>}
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
@@ -230,11 +328,12 @@ const AppointmentModal = ({ isOpen, onClose }) => {
                         width: '100%',
                         padding: '10px 14px',
                         borderRadius: '8px',
-                        border: '1px solid #d1d5db',
+                        border: modalErrors.email ? '1px solid #ef4444' : '1px solid #d1d5db',
                         fontSize: '14px',
                         outline: 'none',
                       }}
                     />
+                    {modalErrors.email && <p style={{ fontSize: '12px', color: '#ef4444', margin: '4px 0 0' }}>{modalErrors.email}</p>}
                   </div>
                 </div>
 

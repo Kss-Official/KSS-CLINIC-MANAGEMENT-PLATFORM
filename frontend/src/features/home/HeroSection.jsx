@@ -115,6 +115,7 @@ const HeroSection = () => {
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
+                fontFamily: "'Manrope', sans-serif",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#1f4e2e';
@@ -143,99 +144,110 @@ const HeroSection = () => {
               Book an Appointment
             </button>
           </div>
+        </div>
 
-          {/* 3 Bottom Badges (Aligned horizontally) */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '28px',
-              flexWrap: 'wrap',
-            }}
-            className="hero-badges-row"
-          >
-            {/* Badge 1: Safe & Natural */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#72d28f',
-                  fontSize: '17px',
-                  flexShrink: 0,
-                }}
-              >
-                🌱
-              </div>
-              <div>
-                <h4 style={{ fontSize: '13.5px', fontWeight: '700', color: '#ffffff', margin: 0 }}>
-                  Safe & Natural
-                </h4>
-                <p style={{ fontSize: '11.5px', color: '#94a3b8', margin: '1px 0 0' }}>
-                  Gentle and holistic care
-                </p>
-              </div>
+        {/* 3 Bottom Badges (In ONE single line matching Image 2) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '48px',
+            flexWrap: 'nowrap',
+            marginTop: '8px',
+          }}
+          className="hero-badges-row"
+        >
+          {/* Badge 1: Safe & Natural */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 12h10" />
+                <path d="M12 2v10" />
+              </svg>
             </div>
-
-            {/* Badge 2: Personalized Treatment */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#72d28f',
-                  fontSize: '17px',
-                  flexShrink: 0,
-                }}
-              >
-                👤
-              </div>
-              <div>
-                <h4 style={{ fontSize: '13.5px', fontWeight: '700', color: '#ffffff', margin: 0 }}>
-                  Personalized Treatment
-                </h4>
-                <p style={{ fontSize: '11.5px', color: '#94a3b8', margin: '1px 0 0' }}>
-                  Tailored to your needs
-                </p>
-              </div>
+            <div>
+              <h4 style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff', margin: 0, fontFamily: "'Manrope', sans-serif", letterSpacing: '-0.2px' }}>
+                Safe &amp; Natural
+              </h4>
+              <p style={{ fontSize: '13px', color: '#94a3b8', margin: '2px 0 0', fontFamily: "'Manrope', sans-serif" }}>
+                Gentle and holistic care
+              </p>
             </div>
+          </div>
 
-            {/* Badge 3: Trusted by Patients */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#72d28f',
-                  fontSize: '17px',
-                  flexShrink: 0,
-                }}
-              >
-                🛡️
-              </div>
-              <div>
-                <h4 style={{ fontSize: '13.5px', fontWeight: '700', color: '#ffffff', margin: 0 }}>
-                  Trusted by Patients
-                </h4>
-                <p style={{ fontSize: '11.5px', color: '#94a3b8', margin: '1px 0 0' }}>
-                  15K+ happy patients
-                </p>
-              </div>
+          {/* Badge 2: Personalized Treatment */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M6 20v-1a6 6 0 0 1 12 0v1" />
+              </svg>
+            </div>
+            <div>
+              <h4 style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff', margin: 0, fontFamily: "'Manrope', sans-serif", letterSpacing: '-0.2px' }}>
+                Personalized Treatment
+              </h4>
+              <p style={{ fontSize: '13px', color: '#94a3b8', margin: '2px 0 0', fontFamily: "'Manrope', sans-serif" }}>
+                Tailored to your needs
+              </p>
+            </div>
+          </div>
+
+          {/* Badge 3: Trusted by Patients */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M9 21v-2a4 4 0 0 1 3-3.87" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <div>
+              <h4 style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff', margin: 0, fontFamily: "'Manrope', sans-serif", letterSpacing: '-0.2px' }}>
+                Trusted by Patients
+              </h4>
+              <p style={{ fontSize: '13px', color: '#94a3b8', margin: '2px 0 0', fontFamily: "'Manrope', sans-serif" }}>
+                15K+ happy patients
+              </p>
             </div>
           </div>
         </div>
@@ -249,13 +261,19 @@ const HeroSection = () => {
           .hero-title-text {
             font-size: 38px !important;
           }
+          .hero-badges-row {
+            gap: 28px !important;
+          }
+        }
+        @media (max-width: 860px) {
+          .hero-badges-row {
+            flex-wrap: wrap !important;
+            gap: 18px 24px !important;
+          }
         }
         @media (max-width: 640px) {
           .hero-title-text {
             font-size: 32px !important;
-          }
-          .hero-badges-row {
-            gap: 16px !important;
           }
         }
       `}</style>
