@@ -132,10 +132,20 @@ const ProfilePage = () => {
 
   // Fetch real patient profile, appointments, and prescriptions from Neon PostgreSQL
   const fetchPatientData = useCallback(async () => {
-    if (!isAuthenticated) return;
     try {
       setIsLoading(true);
-      const res = await appointmentApi.getMyProfile();
+      const savedPhone = localStorage.getItem('kss_patient_phone') || user?.phone_number || '';
+      const savedEmail = localStorage.getItem('kss_patient_email') || user?.email || '';
+      const savedName = localStorage.getItem('kss_patient_name') || '';
+      const savedId = localStorage.getItem('kss_patient_id') || user?.patient_id || '';
+
+      const queryParams = {};
+      if (savedPhone) queryParams.phone = savedPhone;
+      if (savedEmail) queryParams.email = savedEmail;
+      if (savedName) queryParams.name = savedName;
+      if (savedId) queryParams.patient_id = savedId;
+
+      const res = await appointmentApi.getMyProfile(queryParams);
       if (res) {
         setProfile((prev) => ({
           ...prev,
@@ -149,7 +159,7 @@ const ProfilePage = () => {
         }));
 
         // Format real appointments
-        if (Array.isArray(res.appointments)) {
+        if (Array.isArray(res.appointments) && res.appointments.length > 0) {
           const formattedApts = res.appointments.map((a, idx) => {
             const dateStr = a.date || '';
             const parts = dateStr.trim().split(/[\s-]+/);
@@ -176,7 +186,7 @@ const ProfilePage = () => {
         }
 
         // Format real prescriptions
-        if (Array.isArray(res.prescriptions)) {
+        if (Array.isArray(res.prescriptions) && res.prescriptions.length > 0) {
           const formattedRxs = res.prescriptions.map((r, idx) => {
             return {
               id: r.id || r.rxId || idx + 1,
@@ -199,7 +209,7 @@ const ProfilePage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [user]);
 
   useEffect(() => {
     fetchPatientData();

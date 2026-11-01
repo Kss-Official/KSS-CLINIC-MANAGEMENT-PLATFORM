@@ -2,8 +2,8 @@ import axiosClient from './axiosClient';
 
 export const appointmentApi = {
   // Appointments
-  getAppointments: async () => {
-    const response = await axiosClient.get('/appointments/');
+  getAppointments: async (params = {}) => {
+    const response = await axiosClient.get('/appointments/', { params });
     return response.data;
   },
 
@@ -24,8 +24,8 @@ export const appointmentApi = {
   },
 
   // Patients
-  getMyProfile: async () => {
-    const response = await axiosClient.get('/patients/me/');
+  getMyProfile: async (params = {}) => {
+    const response = await axiosClient.get('/patients/me/', { params });
     return response.data;
   },
 
@@ -34,8 +34,8 @@ export const appointmentApi = {
     return response.data;
   },
 
-  getPatients: async () => {
-    const response = await axiosClient.get('/patients/');
+  getPatients: async (params = {}) => {
+    const response = await axiosClient.get('/patients/', { params });
     return response.data;
   },
 
@@ -50,8 +50,8 @@ export const appointmentApi = {
   },
 
   // Prescriptions
-  getPrescriptions: async () => {
-    const response = await axiosClient.get('/prescriptions/');
+  getPrescriptions: async (params = {}) => {
+    const response = await axiosClient.get('/prescriptions/', { params });
     return response.data;
   },
 

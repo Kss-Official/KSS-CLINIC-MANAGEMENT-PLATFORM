@@ -192,11 +192,6 @@ const BookAppointmentPage = () => {
   const handleNextStep = async (e) => {
     if (e) e.preventDefault();
 
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
-
     if (currentStep === 1) {
       if (validateStep1()) {
         setCurrentStep(2);
@@ -219,6 +214,10 @@ const BookAppointmentPage = () => {
         const realId = res?.appointment?.appointment_id || res?.appointment_id || `APT-${Date.now().toString().slice(-6)}`;
         setFormData((prev) => ({ ...prev, appointmentId: realId }));
         if (typeof window !== 'undefined') {
+          if (formData.mobileNumber) localStorage.setItem('kss_patient_phone', formData.mobileNumber);
+          if (formData.email) localStorage.setItem('kss_patient_email', formData.email);
+          if (formData.fullName) localStorage.setItem('kss_patient_name', formData.fullName);
+          if (realId) localStorage.setItem('kss_last_appointment_id', realId);
           window.dispatchEvent(new CustomEvent('appointment-booked', { detail: res }));
         }
         setCurrentStep(3);
