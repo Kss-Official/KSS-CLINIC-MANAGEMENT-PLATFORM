@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import PrescriptionPreviewCard from './PrescriptionPreviewCard';
+import appointmentApi from '../../api/appointmentApi';
 
 const ViewPrescriptionModal = ({
   isOpen,
@@ -7,6 +8,33 @@ const ViewPrescriptionModal = ({
   prescription,
   onNavigateToPatient,
 }) => {
+  const [activeRx, setActiveRx] = useState(prescription);
+
+  useEffect(() => {
+    setActiveRx(prescription);
+    if (!isOpen || !prescription) return;
+
+    if (!prescription.medicines || prescription.medicines.length === 0) {
+      const rxIdentifier = prescription.id || prescription.rxId;
+      if (rxIdentifier) {
+        appointmentApi.getPrescriptions().then((list) => {
+          if (Array.isArray(list)) {
+            const found = list.find((item) => (item.id === rxIdentifier || item.rxId === rxIdentifier));
+            if (found && found.medicines && found.medicines.length > 0) {
+              setActiveRx((prev) => ({
+                ...prev,
+                ...found,
+                medicines: found.medicines,
+                diagnosis: found.diagnosis || prev?.diagnosis,
+                patientId: found.patientId || prev?.patientId,
+                additionalInstructions: found.additionalInstructions || prev?.additionalInstructions,
+              }));
+            }
+          }
+        }).catch((err) => console.error('Failed to load prescription medicines:', err));
+      }
+    }
+  }, [prescription, isOpen]);
   // Lock background screen scroll and handle ESC key to close
   useEffect(() => {
     if (!isOpen) return;
@@ -44,8 +72,8 @@ const ViewPrescriptionModal = ({
 
   if (!isOpen) return null;
 
-  // Fallback prescription data
-  const rx = prescription || {
+  // Current prescription data (from props or fetched state)
+  const rx = activeRx || prescription || {
     id: 'RX-2026-1016',
     name: 'Rahul Sharma',
     ageGender: '28 Years / Male',
@@ -95,10 +123,10 @@ const ViewPrescriptionModal = ({
     : getPrescriptionMedicines(rx.id);
 
   const patientObj = {
-    name: rx.name || 'Rahul Sharma',
-    id: rx.patientId || 'PAT-1001',
-    ageGender: rx.ageGender || '28 Years / Male',
-    phone: rx.contact || rx.mobile || '+91 98765 43210',
+    name: rx.name || rx.patientName || 'Rahul Sharma',
+    id: rx.patientId || rx.patient_id_ref || rx.patient?.id || 'PAT-1001',
+    ageGender: rx.ageGender || rx.age_gender || '28 Years / Male',
+    phone: rx.contact || rx.mobile || rx.patient_phone || '+91 98765 43210',
   };
 
   return (

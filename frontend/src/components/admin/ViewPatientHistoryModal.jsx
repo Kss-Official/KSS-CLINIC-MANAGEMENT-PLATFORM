@@ -374,13 +374,24 @@ const ViewPatientHistoryModal = ({
                       onClick={() =>
                         onViewPrescription &&
                         onViewPrescription({
-                          id: row.id,
+                          ...row,
+                          id: row.id || row.rxId,
+                          rxId: row.id || row.rxId,
                           name: currentPatient.name,
+                          patientName: currentPatient.name,
+                          patientId: currentPatient.id || row.patientId || row.patient_id_ref || 'PAT-1001',
                           date: row.date,
+                          time: row.time,
                           complaint: row.complaint,
                           status: row.status,
-                          ageGender: currentPatient.ageGender,
-                          mobile: currentPatient.mobile,
+                          ageGender: currentPatient.ageGender || row.ageGender,
+                          mobile: currentPatient.mobile || row.mobile,
+                          contact: currentPatient.mobile || row.mobile,
+                          diagnosis: row.diagnosis || row.complaint || 'General Consultation',
+                          medicines: row.medicines && row.medicines.length > 0 ? row.medicines : [],
+                          symptoms: row.symptoms || '',
+                          additionalInstructions: row.additionalInstructions || row.notes || '',
+                          notes: row.additionalInstructions || row.notes || '',
                         })
                       }
                       style={{

@@ -1100,15 +1100,7 @@ const DashboardPage = () => {
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                         <button
                           type="button"
-                          onClick={() =>
-                            openViewPrescription({
-                              id: row.rxId,
-                              name: row.name,
-                              date: row.date,
-                              status: row.status,
-                              complaint: 'Homeopathic Consultation',
-                            })
-                          }
+                          onClick={() => openViewPrescription(row)}
                           style={{
                             padding: '5px 14px',
                             borderRadius: '6px',
@@ -1136,14 +1128,7 @@ const DashboardPage = () => {
                             {
                               label: 'View Prescription',
                               icon: '👁️',
-                              onClick: () =>
-                                openViewPrescription({
-                                  id: row.rxId,
-                                  name: row.name,
-                                  date: row.date,
-                                  status: row.status,
-                                  complaint: 'Homeopathic Consultation',
-                                }),
+                              onClick: () => openViewPrescription(row),
                             },
                             {
                               label: 'Go to Prescriptions',

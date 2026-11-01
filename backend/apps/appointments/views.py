@@ -221,7 +221,7 @@ class PatientHistoryListView(APIView):
                 unlinked_rx.patient_record = patient
                 unlinked_rx.save(update_fields=['patient_record'])
 
-        patients = Patient.objects.all().prefetch_related('appointments', 'prescriptions').order_by('id')
+        patients = Patient.objects.all().prefetch_related('appointments', 'prescriptions').order_by('-created_at', '-id')
         data = []
 
         for p in patients:
@@ -330,12 +330,16 @@ class PatientDetailUpdateView(APIView):
             } for a in p_apts],
             'prescriptions': [{
                 'id': r.prescription_id,
+                'rxId': r.prescription_id,
                 'date': r.date,
                 'time': r.time,
                 'diagnosis': r.diagnosis,
                 'complaint': r.complaint,
+                'symptoms': r.symptoms,
                 'status': r.status,
                 'medicines': r.medicines or [],
+                'additionalInstructions': r.additional_instructions,
+                'patientId': patient.patient_id,
             } for r in p_rxs],
         })
 
