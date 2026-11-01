@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Navbar from '../../components/layout/Navbar';
 import HeroSection from './HeroSection';
 import AboutSection from './AboutSection';
@@ -17,10 +17,10 @@ const HomePage = () => {
   const [showSplash, setShowSplash] = useState(() => !hasSplashBeenShown());
   const [isBookingOpen, setIsBookingOpen] = useState(false);
 
-  const handleFinishSplash = () => {
+  const handleFinishSplash = useCallback(() => {
     markSplashAsShown();
     setShowSplash(false);
-  };
+  }, []);
 
   const handleOpenBooking = () => {
     setIsBookingOpen(true);

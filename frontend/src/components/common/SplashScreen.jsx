@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import splashLogo from '../../assets/splash-logo-clean.png';
 
-// Clean up any legacy sessionStorage key so current tab is never blocked
-try {
-  sessionStorage.removeItem('clinic_splash_shown');
-} catch {}
-
-// In-memory flag:
-// - Resets automatically on full page reload (F5 / Refresh) -> Splash screen PLAYS on reload!
-// - Persists during client-side navigation between pages (/book-appointment <-> /) -> NO repeated flash!
 let splashAlreadyShown = false;
+try {
+  if (sessionStorage.getItem('clinic_splash_shown') === 'true') {
+    splashAlreadyShown = true;
+  }
+} catch {}
 
 export const markSplashAsShown = () => {
   splashAlreadyShown = true;
+  try {
+    sessionStorage.setItem('clinic_splash_shown', 'true');
+  } catch {}
 };
 
 export const hasSplashBeenShown = () => {
@@ -20,6 +20,10 @@ export const hasSplashBeenShown = () => {
 };
 
 const SplashScreen = ({ onFinish }) => {
+  const onFinishRef = useRef(onFinish);
+  useEffect(() => {
+    onFinishRef.current = onFinish;
+  });
   // Animation phases:
   // 1. 'initial': First clean mint background appears
   // 2. 'center': Logo rises smoothly from bottom to middle / center
@@ -77,44 +81,43 @@ const SplashScreen = ({ onFinish }) => {
   useEffect(() => {
     markSplashAsShown();
 
-    // 1. First, the clean mint page appears (Image 1), then after a brief moment (280ms)
-    // the logo rises up from the bottom into the middle / center (Image 2)
     const riseTimer = setTimeout(() => {
       setPhase('center');
-    }, 280);
+    }, 180);
 
-    // 2. Logo holds prominently in the middle for ~1.5s, then glides to top-left (Image 3)
     const glideTimer = setTimeout(() => {
       setPhase('glide');
-    }, 1850);
+    }, 1100);
 
-    // 3. Once at top-left, the mint overlay fades out to seamlessly reveal the frontpage
     const fadeTimer = setTimeout(() => {
       setPhase('fadeout');
-    }, 2550);
+    }, 1600);
 
-    // 4. Animation complete, unmount splash screen
     const finishTimer = setTimeout(() => {
       setPhase('done');
-      if (onFinish) onFinish();
-    }, 3100);
+      if (onFinishRef.current) onFinishRef.current();
+    }, 2000);
+
+    // Hard fallback: never block screen for more than 2.1s under any circumstances
+    const safetyTimer = setTimeout(() => {
+      setPhase('done');
+      if (onFinishRef.current) onFinishRef.current();
+    }, 2100);
 
     return () => {
       clearTimeout(riseTimer);
       clearTimeout(glideTimer);
       clearTimeout(fadeTimer);
       clearTimeout(finishTimer);
+      clearTimeout(safetyTimer);
     };
-  }, [onFinish]);
+  }, []);
 
-  // Click anywhere to immediately skip to the front page
+  // Click anywhere or press key to immediately dismiss to the front page
   const handleSkip = () => {
     markSplashAsShown();
-    setPhase('fadeout');
-    setTimeout(() => {
-      setPhase('done');
-      if (onFinish) onFinish();
-    }, 350);
+    setPhase('done');
+    if (onFinishRef.current) onFinishRef.current();
   };
 
   if (phase === 'done') return null;
