@@ -11,33 +11,62 @@ from .serializers import AppointmentSerializer, NotificationSerializer, ClinicSe
 
 
 class AppointmentListCreateView(APIView):
-    permission_classes = [AllowAny]
-
     def get(self, request):
-        appointments = Appointment.objects.all().order_by('-created_at')
+        if not request.user.is_authenticated:
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if getattr(request.user, 'role', None) == 'PATIENT':
+            q = models.Q(user=request.user) | models.Q(patient_record__user=request.user)
+            if request.user.email:
+                q |= models.Q(patient_email__iexact=request.user.email)
+            if getattr(request.user, 'phone_number', None):
+                q |= models.Q(patient_phone=request.user.phone_number)
+            appointments = Appointment.objects.filter(q).order_by('-created_at')
+        else:
+            appointments = Appointment.objects.all().order_by('-created_at')
+
         serializer = AppointmentSerializer(appointments, many=True)
         return Response(serializer.data)
 
     def post(self, request):
+        if not request.user.is_authenticated:
+            return Response(
+                {'error': 'Authentication required. Please log in or register before booking an appointment.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
         serializer = AppointmentSerializer(data=request.data)
         if serializer.is_valid():
-            appointment = serializer.save()
+            appointment = serializer.save(user=request.user)
 
-            # Find or create corresponding permanent Patient record in Neon
+            # Link or create corresponding permanent Patient record in Neon
             p_name = appointment.patient_name.strip()
             p_phone = (appointment.patient_phone or '').strip()
-            patient = Patient.objects.filter(
-                models.Q(name__iexact=p_name) | (models.Q(phone=p_phone) if p_phone else models.Q(name__iexact=p_name))
-            ).first()
+            p_email = (appointment.patient_email or request.user.email or '').strip()
 
-            if not patient:
+            patient = None
+            if request.user.is_authenticated:
+                patient = Patient.objects.filter(user=request.user).first()
+            if not patient and p_email:
+                patient = Patient.objects.filter(email__iexact=p_email).first()
+            if not patient and p_phone:
+                patient = Patient.objects.filter(phone=p_phone).first()
+
+            if patient:
+                if not patient.user and request.user.is_authenticated:
+                    patient.user = request.user
+                if not patient.phone and p_phone:
+                    patient.phone = p_phone
+                patient.save()
+            else:
                 clean_name = p_name.lower().replace(' ', '.')
                 patient = Patient.objects.create(
+                    user=request.user,
                     name=p_name,
                     phone=p_phone,
-                    email=appointment.patient_email or f"{clean_name}@gmail.com",
+                    email=p_email or f"{clean_name}@gmail.com",
                     primary_concern=appointment.reason_for_visit or 'General Consultation',
-                    known_allergies=appointment.reason_for_visit or 'None',
+                    known_allergies='None',
                     status='Active'
                 )
 
@@ -263,10 +292,20 @@ class PatientDetailUpdateView(APIView):
 
 
 class PrescriptionListView(APIView):
-    permission_classes = [AllowAny]
-
     def get(self, request):
-        prescriptions = Prescription.objects.all().order_by('-created_at')
+        if not request.user.is_authenticated:
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if getattr(request.user, 'role', None) == 'PATIENT':
+            q = models.Q(patient_record__user=request.user)
+            if request.user.email:
+                q |= models.Q(patient_record__email__iexact=request.user.email)
+            if getattr(request.user, 'phone_number', None):
+                q |= models.Q(patient_phone=request.user.phone_number)
+            prescriptions = Prescription.objects.filter(q).order_by('-created_at')
+        else:
+            prescriptions = Prescription.objects.all().order_by('-created_at')
+
         data = []
         for rx in prescriptions:
             pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else 'PAT-1001')
@@ -401,6 +440,97 @@ def load_clinic_settings():
 def save_clinic_settings(data):
     with open(CLINIC_SETTINGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2)
+
+class PatientMyProfileView(APIView):
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        patient = Patient.objects.filter(user=request.user).first()
+        if not patient and request.user.email:
+            patient = Patient.objects.filter(email__iexact=request.user.email).first()
+            if patient:
+                patient.user = request.user
+                patient.save()
+
+        if not patient:
+            full_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+            patient = Patient.objects.create(
+                user=request.user,
+                name=full_name,
+                email=request.user.email or f"{request.user.username}@gmail.com",
+                phone=request.user.phone_number or '',
+                status='Active',
+                primary_concern='General Consultation',
+                known_allergies='None'
+            )
+
+        p_apts = Appointment.objects.filter(
+            models.Q(patient_record=patient) | models.Q(user=request.user)
+        ).order_by('-created_at')
+
+        p_rxs = Prescription.objects.filter(
+            models.Q(patient_record=patient) |
+            (models.Q(patient_phone=request.user.phone_number) if request.user.phone_number else models.Q(pk__in=[]))
+        ).order_by('-created_at')
+
+        parts = patient.name.strip().split()
+        initials = "".join([part[0].upper() for part in parts[:2]]) if parts else "PT"
+
+        return Response({
+            'id': patient.patient_id,
+            'database_id': patient.id,
+            'name': patient.name,
+            'initials': initials,
+            'ageGender': patient.age_gender,
+            'mobile': patient.phone or request.user.phone_number or '',
+            'email': patient.email or request.user.email or '',
+            'address': patient.address or request.user.address or '',
+            'bloodGroup': patient.blood_group,
+            'knownAllergies': patient.known_allergies,
+            'primaryConcern': patient.primary_concern,
+            'notes': patient.notes,
+            'status': patient.status,
+            'totalVisits': p_apts.count(),
+            'lastVisit': p_apts[0].appointment_date if p_apts.exists() else 'N/A',
+            'appointments': [{
+                'id': a.appointment_id,
+                'appointmentId': a.appointment_id,
+                'date': a.appointment_date,
+                'time': a.time_slot,
+                'reason': a.reason_for_visit,
+                'status': a.status,
+                'consultationType': a.consultation_type,
+            } for a in p_apts],
+            'prescriptions': [{
+                'id': r.prescription_id,
+                'rxId': r.prescription_id,
+                'date': r.date,
+                'time': r.time,
+                'diagnosis': r.diagnosis,
+                'complaint': r.complaint,
+                'symptoms': r.symptoms,
+                'status': r.status,
+                'medicines': r.medicines or [],
+                'additionalInstructions': r.additional_instructions,
+            } for r in p_rxs],
+        })
+
+    def patch(self, request):
+        if not request.user.is_authenticated:
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        patient = Patient.objects.filter(user=request.user).first()
+        if not patient:
+            return Response({'error': 'Patient record not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        for field in ['name', 'phone', 'email', 'address', 'age_gender', 'blood_group', 'known_allergies', 'primary_concern', 'notes']:
+            if field in request.data:
+                setattr(patient, field, request.data[field])
+
+        patient.save()
+        return Response({'status': 'success', 'patient_id': patient.patient_id})
+
 
 class ClinicSettingsView(APIView):
     permission_classes = [AllowAny]

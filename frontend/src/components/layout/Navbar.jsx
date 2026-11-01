@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import logoImg from '../../assets/logo.png';
 import avatarImg from '../../assets/avatar.png';
 
 const Navbar = ({ onOpenBooking }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeNav, setActiveNav] = useState('Home');
 
@@ -180,36 +182,103 @@ const Navbar = ({ onOpenBooking }) => {
             gap: '16px',
           }}
         >
-          {/* Login Button (positioned before Book Appointment) */}
-          <button
-            type="button"
-            onClick={() => navigate('/login')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: '#ffffff',
-              color: '#265e38',
-              border: '1.5px solid #265e38',
-              padding: '9.5px 22px',
-              borderRadius: '9999px',
-              fontSize: '14.5px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f0fdf4';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#ffffff';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            Login
-          </button>
+          {/* Login / Portal Button */}
+          {isAuthenticated ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {(user?.role === 'ADMIN' || user?.role === 'DOCTOR') ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#ffffff',
+                    color: '#265e38',
+                    border: '1.5px solid #265e38',
+                    padding: '8.5px 18px',
+                    borderRadius: '9999px',
+                    fontSize: '13.5px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Admin Portal
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#ffffff',
+                    color: '#265e38',
+                    border: '1.5px solid #265e38',
+                    padding: '8.5px 18px',
+                    borderRadius: '9999px',
+                    fontSize: '13.5px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  My Portal
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  await logout();
+                  navigate('/');
+                }}
+                title="Logout"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#64748b',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  padding: '6px 8px',
+                }}
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#ffffff',
+                color: '#265e38',
+                border: '1.5px solid #265e38',
+                padding: '9.5px 22px',
+                borderRadius: '9999px',
+                fontSize: '14.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f0fdf4';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Login
+            </button>
+          )}
 
           <button
             type="button"
@@ -354,26 +423,74 @@ const Navbar = ({ onOpenBooking }) => {
               </a>
             );
           })}
-          <button
-            type="button"
-            onClick={() => {
-              setMobileMenuOpen(false);
-              navigate('/login');
-            }}
-            style={{
-              backgroundColor: '#ffffff',
-              color: '#265e38',
-              border: '1.5px solid #265e38',
-              padding: '10px',
-              borderRadius: '9999px',
-              fontSize: '15px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              marginTop: '6px',
-            }}
-          >
-            Login
-          </button>
+          {isAuthenticated ? (
+            <>
+              {(user?.role === 'ADMIN' || user?.role === 'DOCTOR') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate('/dashboard');
+                  }}
+                  style={{
+                    backgroundColor: '#ffffff',
+                    color: '#265e38',
+                    border: '1.5px solid #265e38',
+                    padding: '10px',
+                    borderRadius: '9999px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    marginTop: '6px',
+                  }}
+                >
+                  Admin Portal
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  setMobileMenuOpen(false);
+                  await logout();
+                  navigate('/');
+                }}
+                style={{
+                  backgroundColor: '#fee2e2',
+                  color: '#dc2626',
+                  border: 'none',
+                  padding: '10px',
+                  borderRadius: '9999px',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  marginTop: '6px',
+                }}
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                navigate('/login');
+              }}
+              style={{
+                backgroundColor: '#ffffff',
+                color: '#265e38',
+                border: '1.5px solid #265e38',
+                padding: '10px',
+                borderRadius: '9999px',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                marginTop: '6px',
+              }}
+            >
+              Login
+            </button>
+          )}
         </div>
       )}
 

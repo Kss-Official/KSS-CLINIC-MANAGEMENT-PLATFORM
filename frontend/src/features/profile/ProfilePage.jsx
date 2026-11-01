@@ -1,24 +1,35 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/layout/Navbar';
+import useAuth from '../../hooks/useAuth';
+import appointmentApi from '../../api/appointmentApi';
+import PatientAuthModal from '../../components/auth/PatientAuthModal';
 import profileHerbs from '../../assets/profile-banner-herbs.png';
 
 const ProfilePage = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
   // User profile state
   const [profile, setProfile] = useState({
-    fullName: 'Rahul Sharma',
-    mobileNumber: '+91 98765 43210',
-    email: 'rahul.sharma@gmail.com',
+    fullName: user ? (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username) : 'Patient',
+    mobileNumber: user?.phone_number || '',
+    email: user?.email || '',
     dateOfBirth: '12 March 1998',
-    gender: 'Male',
-    city: 'Bangalore, Karnataka',
-    initials: 'RS',
+    gender: 'Adult',
+    city: 'New Delhi',
+    initials: user ? (user.username || 'PT').slice(0, 2).toUpperCase() : 'PT',
+    patientId: user?.patient_id || 'PAT-1001',
+    address: user?.address || '',
   });
 
   // Edit Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({
     ...profile,
-    mobileNumber: '9876543210',
+    mobileNumber: user?.phone_number || '',
   });
   const [editErrors, setEditErrors] = useState({});
   const editDialogRef = useRef(null);
@@ -31,93 +42,101 @@ const ProfilePage = () => {
   const [appointmentFilter, setAppointmentFilter] = useState('All');
   const [prescriptionFilter, setPrescriptionFilter] = useState('All');
 
-  // Appointment History Data
-  const [appointments] = useState([
-    {
-      id: 1,
-      appointmentId: 'APT-2026-1016-001',
-      day: '16',
-      month: 'OCT 2026',
-      fullDate: '16 October 2026',
-      title: 'Homeopathy Consultation',
-      type: 'Homeopathy Consultation',
-      doctor: 'Dr. K. Tripathi Ampeh (Pat.)',
-      time: '09:30 AM',
-      status: 'Completed',
-      pdfName: 'Prescription_16_Oct_2026.pdf',
-      pdfDate: 'Issued 16 Oct 2026',
-    },
-    {
-      id: 2,
-      appointmentId: 'APT-2026-0928-004',
-      day: '28',
-      month: 'SEP 2026',
-      fullDate: '28 September 2026',
-      title: 'Homeopathy Consultation',
-      type: 'Homeopathy Consultation',
-      doctor: 'Dr. K. Tripathi Ampeh (Pat.)',
-      time: '11:00 AM',
-      status: 'Completed',
-      pdfName: 'Prescription_28_Sep_2026.pdf',
-      pdfDate: 'Issued 28 Sep 2026',
-    },
-    {
-      id: 3,
-      appointmentId: 'APT-2026-0812-002',
-      day: '12',
-      month: 'AUG 2026',
-      fullDate: '12 August 2026',
-      title: 'Follow-up Consultation',
-      type: 'Follow-up Consultation',
-      doctor: 'Dr. K. Tripathi Ampeh (Pat.)',
-      time: '10:30 AM',
-      status: 'Completed',
-      pdfName: 'Prescription_12_Aug_2026.pdf',
-      pdfDate: 'Issued 12 Aug 2026',
-    },
-    {
-      id: 4,
-      appointmentId: 'APT-2026-0725-001',
-      day: '25',
-      month: 'JUL 2026',
-      fullDate: '25 July 2026',
-      title: 'Initial Consultation',
-      type: 'Initial Consultation',
-      doctor: 'Dr. K. Tripathi Ampeh (Pat.)',
-      time: '09:00 AM',
-      status: 'Completed',
-      pdfName: 'Prescription_25_Jul_2026.pdf',
-      pdfDate: 'Issued 25 Jul 2026',
-    },
-  ]);
+  // Real Appointment History Data from Neon PostgreSQL
+  const [appointments, setAppointments] = useState([]);
 
-  // Prescriptions Data
-  const [prescriptions] = useState([
-    {
-      id: 1,
-      title: 'Prescription - Follow-up',
-      date: '16 Oct 2026',
-      fileName: 'Prescription_16_Oct_2026.pdf',
-    },
-    {
-      id: 2,
-      title: 'Prescription - Consultation',
-      date: '28 Sep 2026',
-      fileName: 'Prescription_28_Sep_2026.pdf',
-    },
-    {
-      id: 3,
-      title: 'Prescription - Follow-up',
-      date: '12 Aug 2026',
-      fileName: 'Prescription_12_Aug_2026.pdf',
-    },
-    {
-      id: 4,
-      title: 'Prescription - Initial Visit',
-      date: '25 Jul 2026',
-      fileName: 'Prescription_25_Jul_2026.pdf',
-    },
-  ]);
+  // Real Prescriptions Data from Neon PostgreSQL
+  const [prescriptions, setPrescriptions] = useState([]);
+
+  // Fetch real patient profile, appointments, and prescriptions from Neon PostgreSQL
+  const fetchPatientData = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      setIsLoading(true);
+      const res = await appointmentApi.getMyProfile();
+      if (res) {
+        setProfile((prev) => ({
+          ...prev,
+          fullName: res.name || prev.fullName,
+          email: res.email || prev.email,
+          mobileNumber: res.mobile || prev.mobileNumber,
+          initials: res.initials || prev.initials,
+          patientId: res.id || prev.patientId,
+          address: res.address || prev.address,
+          gender: res.ageGender || prev.gender,
+        }));
+
+        // Format real appointments
+        if (Array.isArray(res.appointments)) {
+          const formattedApts = res.appointments.map((a, idx) => {
+            const dateStr = a.date || '';
+            const parts = dateStr.trim().split(/[\s-]+/);
+            const day = parts[0] || '28';
+            const month = parts.length > 2 ? `${parts[1].toUpperCase()} ${parts[2]}` : (parts[1] || 'OCT 2026');
+
+            return {
+              id: a.id || a.appointmentId || idx + 1,
+              appointmentId: a.id || a.appointmentId || `APT-${idx + 1}`,
+              day: day,
+              month: month,
+              fullDate: a.date,
+              title: a.reason || 'Homeopathy Consultation',
+              type: a.consultationType || 'In clinic Visit',
+              doctor: 'Dr. Kumar Tripathi Ampeh (Pat.)',
+              time: a.time || '10:00 AM',
+              status: a.status || 'Confirmed',
+              pdfName: `Appointment_${a.id || idx + 1}.pdf`,
+              pdfDate: a.date,
+              reason: a.reason,
+            };
+          });
+          setAppointments(formattedApts);
+        }
+
+        // Format real prescriptions
+        if (Array.isArray(res.prescriptions)) {
+          const formattedRxs = res.prescriptions.map((r, idx) => {
+            return {
+              id: r.id || r.rxId || idx + 1,
+              title: `Prescription - ${r.diagnosis || r.complaint || 'Clinical Consultation'}`,
+              date: r.date || 'Today',
+              fileName: `Prescription_${r.id || idx + 1}.pdf`,
+              diagnosis: r.diagnosis,
+              complaint: r.complaint,
+              symptoms: r.symptoms,
+              medicines: r.medicines || [],
+              additionalInstructions: r.additionalInstructions,
+              status: r.status || 'Delivered',
+            };
+          });
+          setPrescriptions(formattedRxs);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load patient profile from Neon:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchPatientData();
+
+    // Real-time synchronization: refresh on event or focus
+    window.addEventListener('appointment-booked', fetchPatientData);
+    window.addEventListener('prescription-created', fetchPatientData);
+    window.addEventListener('focus', fetchPatientData);
+
+    // Reliable 10-second polling for automatic sync across Patient and Admin portals
+    const interval = setInterval(fetchPatientData, 10000);
+
+    return () => {
+      window.removeEventListener('appointment-booked', fetchPatientData);
+      window.removeEventListener('prescription-created', fetchPatientData);
+      window.removeEventListener('focus', fetchPatientData);
+      clearInterval(interval);
+    };
+  }, [fetchPatientData]);
 
   // Edit Modal Dialog Lifecycle
   useEffect(() => {
@@ -297,6 +316,12 @@ const ProfilePage = () => {
     // Format mobile for display (+91 98765 43210)
     const formattedMobile = `+91 ${mobileDigits.slice(0, 5)} ${mobileDigits.slice(5)}`;
 
+    appointmentApi.updateMyProfile({
+      name: nameTrimmed,
+      phone: mobileDigits,
+      email: emailVal,
+    }).catch((err) => console.error('Failed to update profile in Neon:', err));
+
     setProfile({
       ...editFormData,
       fullName: nameTrimmed,
@@ -336,6 +361,44 @@ const ProfilePage = () => {
       onClose();
     }
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8faf9' }}>
+        <Navbar onOpenBooking={() => setShowAuthModal(true)} />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px' }}>
+          <div style={{ maxWidth: '440px', width: '100%', backgroundColor: '#ffffff', borderRadius: '20px', padding: '36px 28px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.06)' }}>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0' }}>Patient Portal Access</h2>
+            <p style={{ fontSize: '13.5px', color: '#64748b', margin: '0 0 24px 0', lineHeight: 1.5 }}>
+              Please sign in or create a patient account to view your appointment history, diagnosis records, and prescriptions.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowAuthModal(true)}
+              style={{
+                width: '100%',
+                padding: '13px',
+                borderRadius: '9999px',
+                backgroundColor: '#265e38',
+                color: '#ffffff',
+                border: 'none',
+                fontSize: '14.5px',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              Sign In / Register →
+            </button>
+          </div>
+        </div>
+        <PatientAuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => fetchPatientData()}
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{ backgroundColor: '#f8faf9', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -717,7 +780,36 @@ const ProfilePage = () => {
 
             {/* Appointments List (Clicking opens details modal) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {appointments.map((item) => (
+              {appointments.length === 0 ? (
+                <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '500' }}>
+                    No appointment records found in your account.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/book-appointment')}
+                    style={{
+                      padding: '9px 18px',
+                      borderRadius: '9999px',
+                      backgroundColor: '#265e38',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Book Your First Appointment →
+                  </button>
+                </div>
+              ) : appointments
+                .filter((item) => {
+                  if (appointmentFilter === 'All') return true;
+                  if (appointmentFilter === 'Upcoming') return item.status === 'Confirmed' || item.status === 'Pending';
+                  if (appointmentFilter === 'Completed') return item.status === 'Completed';
+                  return true;
+                })
+                .map((item) => (
                 <div
                   key={item.id}
                   onClick={() => handleOpenAppointmentModal(item)}
@@ -874,7 +966,18 @@ const ProfilePage = () => {
 
             {/* Prescriptions List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {prescriptions.map((item) => (
+              {prescriptions.length === 0 ? (
+                <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                    No prescriptions issued yet. Once your doctor creates a prescription, it will appear here permanently.
+                  </p>
+                </div>
+              ) : prescriptions
+                .filter((item) => {
+                  if (prescriptionFilter === 'All') return true;
+                  return true;
+                })
+                .map((item) => (
                 <div
                   key={item.id}
                   style={{

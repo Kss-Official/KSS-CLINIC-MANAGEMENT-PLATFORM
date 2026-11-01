@@ -1,9 +1,17 @@
 from django.db import models
 from apps.core.models import TimeStampedModel
+from django.conf import settings
 import uuid
 
 
 class Patient(TimeStampedModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='patient_records'
+    )
     patient_id = models.CharField(max_length=50, unique=True, blank=True)
     name = models.CharField(max_length=150)
     phone = models.CharField(max_length=50, blank=True, default='')
@@ -38,6 +46,13 @@ class Appointment(TimeStampedModel):
         ('Cancelled', 'Cancelled'),
     ]
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='patient_appointments'
+    )
     patient_record = models.ForeignKey(
         Patient,
         on_delete=models.SET_NULL,

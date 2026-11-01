@@ -7,6 +7,7 @@ from .views import (
     NotificationMarkAllReadView,
     PatientHistoryListView,
     PatientDetailUpdateView,
+    PatientMyProfileView,
     PrescriptionListView,
     ClinicSettingsView,
 )
@@ -18,6 +19,7 @@ urlpatterns = [
     path('notifications/<int:pk>/read/', NotificationMarkReadView.as_view(), name='notification-mark-read'),
     path('notifications/mark-all-read/', NotificationMarkAllReadView.as_view(), name='notification-mark-all-read'),
     path('patients/', PatientHistoryListView.as_view(), name='patient-history-list'),
+    path('patients/me/', PatientMyProfileView.as_view(), name='patient-my-profile'),
     path('patients/<str:patient_id>/', PatientDetailUpdateView.as_view(), name='patient-detail-update'),
     path('prescriptions/', PrescriptionListView.as_view(), name='prescription-list'),
     path('settings/clinic/', ClinicSettingsView.as_view(), name='clinic-settings'),

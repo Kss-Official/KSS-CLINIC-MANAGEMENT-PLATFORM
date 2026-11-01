@@ -26,8 +26,12 @@ const LoginPage = () => {
     setError('');
 
     try {
-      await login(formData);
-      navigate('/dashboard');
+      const data = await login(formData);
+      if (data?.user?.role === 'PATIENT') {
+        navigate('/profile');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(extractErrorMessage(err) || 'Invalid credentials. Please try again.');
     } finally {

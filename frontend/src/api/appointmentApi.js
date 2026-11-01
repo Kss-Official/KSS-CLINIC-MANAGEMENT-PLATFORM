@@ -24,6 +24,16 @@ export const appointmentApi = {
   },
 
   // Patients
+  getMyProfile: async () => {
+    const response = await axiosClient.get('/patients/me/');
+    return response.data;
+  },
+
+  updateMyProfile: async (data) => {
+    const response = await axiosClient.patch('/patients/me/', data);
+    return response.data;
+  },
+
   getPatients: async () => {
     const response = await axiosClient.get('/patients/');
     return response.data;

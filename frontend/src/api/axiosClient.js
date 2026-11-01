@@ -13,7 +13,7 @@ axiosClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = token.startsWith('Token ') || token.startsWith('Bearer ') ? token : `Token ${token}`;
     }
     return config;
   },

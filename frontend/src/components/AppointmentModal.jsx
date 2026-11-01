@@ -1,7 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import appointmentApi from '../api/appointmentApi';
+import useAuth from '../hooks/useAuth';
+import PatientAuthModal from './auth/PatientAuthModal';
 
 const AppointmentModal = ({ isOpen, onClose }) => {
+  const { user, isAuthenticated } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const dialogRef = useRef(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -12,12 +16,32 @@ const AppointmentModal = ({ isOpen, onClose }) => {
     notes: '',
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isBookingLoading, setIsBookingLoading] = useState(false);
+  const [serverError, setServerError] = useState('');
+
+  // Auto-populate authenticated patient details
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || '';
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || fullName,
+        email: prev.email || user.email || '',
+        phone: prev.phone || user.phone_number || '',
+      }));
+    }
+  }, [user, isAuthenticated]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
 
     if (isOpen) {
+      if (!isAuthenticated) {
+        setShowAuthModal(true);
+        return;
+      }
+      setShowAuthModal(false);
       if (!dialog.open) {
         dialog.showModal();
       }
@@ -138,18 +162,46 @@ const AppointmentModal = ({ isOpen, onClose }) => {
       return;
     }
 
+    setIsBookingLoading(true);
+    setServerError('');
+    const bookingDate = formData.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
     appointmentApi.bookAppointment({
       patient_name: formData.name,
       patient_phone: formData.phone,
       patient_email: formData.email,
-      appointment_date: formData.date || '28 Oct 2026',
+      appointment_date: bookingDate,
       time_slot: formData.time || '10:00 AM',
       reason_for_visit: formData.notes || 'Homeopathic Consultation',
       consultation_type: 'In clinic Visit',
       status: 'Confirmed',
-    }).catch((err) => console.error('Booking failed:', err));
-    setIsSubmitted(true);
+    })
+      .then((res) => {
+        setIsSubmitted(true);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('appointment-booked', { detail: res }));
+        }
+      })
+      .catch((err) => {
+        console.error('Booking failed:', err);
+        setServerError(err.response?.data?.error || err.response?.data?.detail || 'Failed to save appointment. Please verify details.');
+      })
+      .finally(() => {
+        setIsBookingLoading(false);
+      });
   };
+
+  if (!isAuthenticated && isOpen) {
+    return (
+      <PatientAuthModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onSuccess={() => {
+          setShowAuthModal(false);
+        }}
+      />
+    );
+  }
 
   return (
     <dialog
