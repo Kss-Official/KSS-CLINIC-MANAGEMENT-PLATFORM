@@ -54,6 +54,59 @@ const LoginPage = () => {
         position: 'relative',
       }}
     >
+      {/* Back to Home Option on the Left Side */}
+      <button
+        type="button"
+        onClick={() => navigate('/')}
+        aria-label="Back to Home"
+        className="back-to-home-btn"
+        style={{
+          position: 'absolute',
+          top: '28px',
+          left: '32px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '10px 18px',
+          borderRadius: '9999px',
+          backgroundColor: '#ffffff',
+          color: '#1b4332',
+          fontSize: '13.5px',
+          fontWeight: '600',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          zIndex: 10,
+          textDecoration: 'none',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#f8fafc';
+          e.currentTarget.style.transform = 'translateX(-3px)';
+          e.currentTarget.style.boxShadow = '0 6px 18px rgba(0, 0, 0, 0.12)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = '#ffffff';
+          e.currentTarget.style.transform = 'translateX(0)';
+          e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.08)';
+        }}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="19" y1="12" x2="5" y2="12" />
+          <polyline points="12 19 5 12 12 5" />
+        </svg>
+        <span>Back to Home</span>
+      </button>
+
       {/* Main Login Card - Exactly 530px width matching Figma Frame 11 specifications */}
       <div
         className="login-card"
@@ -71,14 +124,17 @@ const LoginPage = () => {
           position: 'relative',
         }}
       >
-        {/* Top Logo Emblem */}
+        {/* Top Logo Emblem (clickable to navigate to home) */}
         <div
+          onClick={() => navigate('/')}
+          title="Back to Home"
           style={{
             display: 'inline-flex',
             flexDirection: 'column',
             alignItems: 'center',
             marginBottom: '8px',
             userSelect: 'none',
+            cursor: 'pointer',
           }}
         >
           <img
@@ -390,6 +446,12 @@ const LoginPage = () => {
 
       <style>{`
         @media (max-width: 580px) {
+          .back-to-home-btn {
+            top: 14px !important;
+            left: 14px !important;
+            padding: 8px 14px !important;
+            font-size: 12.5px !important;
+          }
           .login-card {
             padding: 28px 20px 24px 20px !important;
             border-radius: 20px !important;
