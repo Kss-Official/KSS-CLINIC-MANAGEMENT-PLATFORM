@@ -5,76 +5,101 @@ import ProtectedRoute from './ProtectedRoute';
 // Public Homepage with exact UI from design
 import HomePage from '../features/home/HomePage';
 
-// Dedicated Book Appointment Page (exact UI from uploaded booking design)
+// Dedicated Book Appointment Page
 import BookAppointmentPage from '../features/booking/BookAppointmentPage';
 
-// Patient Profile Page (exact matching UI from uploaded profile design)
+// Patient Profile Page
 import ProfilePage from '../features/profile/ProfilePage';
 
-// Management Layout
-import Navbar from '../components/layout/Navbar';
-import Sidebar from '../components/layout/Sidebar';
-import Footer from '../components/layout/Footer';
-
-// Features / Admin & Portal Pages
+// Public Authentication
 import LoginPage from '../features/auth/LoginPage';
 import RegisterPage from '../features/auth/RegisterPage';
+
+// Admin Portal Layout & Pages matching reference images exactly
+import AdminLayout from '../components/admin/AdminLayout';
 import DashboardPage from '../features/dashboard/DashboardPage';
+import AppointmentsPage from '../features/appointments/AppointmentsPage';
+import PrescriptionsPage from '../features/prescriptions/PrescriptionsPage';
+import PatientHistoryPage from '../features/patients/PatientHistoryPage';
+import SettingsPage from '../features/settings/SettingsPage';
+
+// Fallback legacy management
 import UserListPage from '../features/users/UserListPage';
 import UserDetailPage from '../features/users/UserDetailPage';
-
-const DashboardLayout = ({ children }) => {
-  return (
-    <div className="app-container">
-      <Navbar onOpenBooking={() => {}} />
-      <div className="main-layout">
-        <Sidebar />
-        <main className="content-area">{children}</main>
-      </div>
-      <Footer />
-    </div>
-  );
-};
 
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* 1. Main Homepage with exact design */}
+      {/* 1. Main Homepage */}
       <Route path="/" element={<HomePage />} />
 
-      {/* 2. Book Appointment Page (exact matching UI) */}
+      {/* 2. Public Book Appointment Page */}
       <Route path="/book-appointment" element={<BookAppointmentPage />} />
 
-      {/* 3. Patient Profile Page (exact matching UI) */}
+      {/* 3. Patient Profile Page */}
       <Route path="/profile" element={<ProfilePage />} />
 
-      {/* 3. Authentication */}
+      {/* 4. Authentication */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      {/* 4. Portal / Management Routes */}
+      {/* 5. Admin Portal Routes (Fixed Header & Sidebar across all sections) */}
       <Route
         path="/dashboard"
         element={
-          <DashboardLayout>
+          <AdminLayout>
             <DashboardPage />
-          </DashboardLayout>
+          </AdminLayout>
         }
       />
       <Route
+        path="/appointments"
+        element={
+          <AdminLayout>
+            <AppointmentsPage />
+          </AdminLayout>
+        }
+      />
+      <Route
+        path="/prescriptions"
+        element={
+          <AdminLayout>
+            <PrescriptionsPage />
+          </AdminLayout>
+        }
+      />
+      <Route
+        path="/patient-history"
+        element={
+          <AdminLayout>
+            <PatientHistoryPage />
+          </AdminLayout>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <AdminLayout>
+            <SettingsPage />
+          </AdminLayout>
+        }
+      />
+
+      {/* Legacy / User management */}
+      <Route
         path="/users"
         element={
-          <DashboardLayout>
+          <AdminLayout>
             <UserListPage />
-          </DashboardLayout>
+          </AdminLayout>
         }
       />
       <Route
         path="/users/:id"
         element={
-          <DashboardLayout>
+          <AdminLayout>
             <UserDetailPage />
-          </DashboardLayout>
+          </AdminLayout>
         }
       />
 

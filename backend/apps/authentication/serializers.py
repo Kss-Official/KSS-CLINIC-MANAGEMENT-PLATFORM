@@ -34,6 +34,16 @@ class LoginSerializer(serializers.Serializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
 
+
+    def validate_email(self, value):
+        if value:
+            val = value.strip().lower()
+            if '.com' in val:
+                idx = val.find('.com')
+                if idx + 4 < len(val):
+                    raise serializers.ValidationError("No characters are allowed after .com in the email address.")
+        return value
+
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'password', 'first_name', 'last_name', 'role']

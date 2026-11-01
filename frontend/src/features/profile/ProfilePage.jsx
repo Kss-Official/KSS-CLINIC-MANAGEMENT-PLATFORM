@@ -147,10 +147,46 @@ const ProfilePage = () => {
   };
 
   const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    let filtered = value;
+    if (name === 'fullName') {
+      filtered = value.replace(/[^a-zA-Z\s.()]/g, '').slice(0, 35);
+    } else if (name === 'email') {
+      filtered = value.toLowerCase();
+      const comIndex = filtered.indexOf('.com');
+      if (comIndex !== -1) {
+        filtered = filtered.slice(0, comIndex + 4);
+      }
+    }
     setEditFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: filtered,
     }));
+  };
+
+  const handleProfileEmailKeyDown = (e) => {
+    if (
+      e.key === 'Backspace' ||
+      e.key === 'Delete' ||
+      e.key === 'Tab' ||
+      e.key === 'ArrowLeft' ||
+      e.key === 'ArrowRight' ||
+      e.key === 'ArrowUp' ||
+      e.key === 'ArrowDown' ||
+      e.key === 'Home' ||
+      e.key === 'End' ||
+      e.ctrlKey ||
+      e.metaKey
+    ) {
+      return;
+    }
+    const currentVal = (editFormData.email || '').toLowerCase();
+    const comIndex = currentVal.indexOf('.com');
+    if (comIndex !== -1) {
+      if (e.target.selectionStart >= comIndex + 4) {
+        e.preventDefault();
+      }
+    }
   };
 
   const handleSaveProfile = (e) => {
@@ -1196,6 +1232,7 @@ const ProfilePage = () => {
               <input
                 type="text"
                 name="fullName"
+                maxLength={35}
                 value={editFormData.fullName}
                 onChange={handleEditChange}
                 required
@@ -1240,6 +1277,7 @@ const ProfilePage = () => {
                 name="email"
                 value={editFormData.email}
                 onChange={handleEditChange}
+                onKeyDown={handleProfileEmailKeyDown}
                 required
                 style={{
                   width: '100%',

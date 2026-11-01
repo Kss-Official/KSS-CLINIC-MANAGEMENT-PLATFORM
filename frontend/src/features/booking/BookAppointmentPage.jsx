@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/layout/Navbar';
 import bookingBannerBg from '../../assets/booking-banner-bg.jpg';
 import confirmedIllustration from '../../assets/confirmed-illustration.png';
+import appointmentApi from '../../api/appointmentApi';
 
 const BookAppointmentPage = () => {
   const navigate = useNavigate();
@@ -88,6 +89,19 @@ const BookAppointmentPage = () => {
         window.scrollTo({ top: 260, behavior: 'smooth' });
       }
     } else if (currentStep === 2) {
+      // Book real appointment in backend to trigger notification
+      const formattedDate = `${formData.selectedDay} ${months[formData.selectedMonth]} ${formData.selectedYear}`;
+      appointmentApi.bookAppointment({
+        patient_name: formData.fullName,
+        patient_phone: formData.mobileNumber,
+        patient_email: formData.email,
+        appointment_date: formattedDate,
+        time_slot: formData.selectedTimeSlot,
+        reason_for_visit: formData.reasonForVisit || 'Homeopathic Consultation',
+        consultation_type: 'In clinic Visit',
+        status: 'Confirmed',
+      }).catch((err) => console.error('Booking failed:', err));
+
       // Step 2 leads directly to the Confirmed Appointment UI
       setCurrentStep(3);
       window.scrollTo({ top: 260, behavior: 'smooth' });

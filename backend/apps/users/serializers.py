@@ -3,6 +3,16 @@ from .models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
+
+    def validate_email(self, value):
+        if value:
+            val = value.strip().lower()
+            if '.com' in val:
+                idx = val.find('.com')
+                if idx + 4 < len(val):
+                    raise serializers.ValidationError("No characters are allowed after .com in the email address.")
+        return value
+
     class Meta:
         model = User
         fields = [
@@ -23,6 +33,16 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserCreateUpdateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
+
+
+    def validate_email(self, value):
+        if value:
+            val = value.strip().lower()
+            if '.com' in val:
+                idx = val.find('.com')
+                if idx + 4 < len(val):
+                    raise serializers.ValidationError("No characters are allowed after .com in the email address.")
+        return value
 
     class Meta:
         model = User

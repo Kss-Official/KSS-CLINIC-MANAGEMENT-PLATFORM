@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { extractErrorMessage } from '../../utils/helpers';
 import doctorPortalLogo from '../../assets/doctor-portal-logo.png';
-import loginBg from '../../assets/doctor-login-bg.jpg';
+import loginBg from '../../assets/doctor-login-clean-bg.jpg?v=figma_frame11';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -37,6 +37,7 @@ const LoginPage = () => {
 
   return (
     <div
+      className="login-viewport"
       style={{
         minHeight: '100vh',
         width: '100%',
@@ -47,20 +48,24 @@ const LoginPage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '32px 16px',
+        padding: '24px 16px',
         boxSizing: 'border-box',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        position: 'relative',
       }}
     >
+      {/* Main Login Card - Exactly 530px width matching Figma Frame 11 specifications */}
       <div
         className="login-card"
         style={{
           backgroundColor: '#ffffff',
-          borderRadius: '30px',
-          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.08)',
+          borderRadius: '24px',
+          boxShadow: 'none',
+          border: 'none',
+          outline: 'none',
           width: '100%',
-          maxWidth: '520px',
-          padding: '44px 48px 40px 48px',
+          maxWidth: '530px',
+          padding: '40px 44px 38px 44px',
           boxSizing: 'border-box',
           textAlign: 'center',
           position: 'relative',
@@ -68,14 +73,11 @@ const LoginPage = () => {
       >
         {/* Top Logo Emblem */}
         <div
-          onClick={() => navigate('/')}
-          title="Return to Home"
           style={{
-            cursor: 'pointer',
             display: 'inline-flex',
             flexDirection: 'column',
             alignItems: 'center',
-            marginBottom: '14px',
+            marginBottom: '8px',
             userSelect: 'none',
           }}
         >
@@ -83,7 +85,7 @@ const LoginPage = () => {
             src={doctorPortalLogo}
             alt="Doctor Clinic Emblem"
             style={{
-              width: '82px',
+              width: '56px',
               height: 'auto',
               display: 'block',
               margin: '0 auto',
@@ -95,11 +97,11 @@ const LoginPage = () => {
         {/* Clinic Name */}
         <h3
           style={{
-            fontSize: '15.5px',
+            fontSize: '13px',
             fontWeight: '700',
-            color: '#162534',
+            color: '#1e293b',
             letterSpacing: '0.4px',
-            margin: '0 0 4px 0',
+            margin: '6px 0 2px 0',
             textTransform: 'uppercase',
           }}
         >
@@ -109,35 +111,35 @@ const LoginPage = () => {
         {/* Clinic Subtitle */}
         <p
           style={{
-            fontSize: '12px',
+            fontSize: '10px',
             fontWeight: '600',
-            color: '#627588',
-            letterSpacing: '2.5px',
-            margin: '0 0 24px 0',
+            color: '#6b7c8d',
+            letterSpacing: '1.4px',
+            margin: '0 0 16px 0',
             textTransform: 'uppercase',
           }}
         >
           HOMEOPATHY CLINIC
         </p>
 
-        {/* Thin Divider Line */}
+        {/* Divider line matching reference */}
         <div
           style={{
             height: '1px',
-            backgroundColor: '#e6ebf1',
+            backgroundColor: '#e2e8f0',
+            margin: '0 auto 20px auto',
             width: '100%',
-            margin: '0 0 26px 0',
           }}
         />
 
         {/* Doctor Portal Title */}
         <h1
           style={{
-            fontSize: '34px',
+            fontSize: '30px',
             fontWeight: '800',
             color: '#111827',
-            margin: '0 0 8px 0',
-            letterSpacing: '-0.5px',
+            margin: '0 0 6px 0',
+            letterSpacing: '-0.3px',
           }}
         >
           Doctor Portal
@@ -146,9 +148,9 @@ const LoginPage = () => {
         {/* Subtitle */}
         <p
           style={{
-            fontSize: '15px',
-            color: '#596773',
-            margin: '0 0 28px 0',
+            fontSize: '13.5px',
+            color: '#6b7280',
+            margin: '0 0 24px 0',
             fontWeight: '400',
           }}
         >
@@ -159,20 +161,20 @@ const LoginPage = () => {
         {error && (
           <div
             style={{
-              padding: '11px 16px',
+              padding: '10px 14px',
               backgroundColor: '#fee2e2',
               border: '1px solid #fecaca',
               color: '#dc2626',
-              borderRadius: '10px',
-              fontSize: '13.5px',
-              marginBottom: '20px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              marginBottom: '18px',
               textAlign: 'left',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              gap: '6px',
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -184,17 +186,17 @@ const LoginPage = () => {
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
           {/* Email / Username Field */}
-          <div style={{ position: 'relative', marginBottom: '16px' }}>
+          <div style={{ position: 'relative', marginBottom: '14px' }}>
             <div
               style={{
                 position: 'absolute',
-                left: '16px',
+                left: '14px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 pointerEvents: 'none',
                 display: 'flex',
                 alignItems: 'center',
-                color: '#64748b',
+                color: '#8a99a8',
               }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -211,12 +213,12 @@ const LoginPage = () => {
               required
               style={{
                 width: '100%',
-                height: '52px',
-                paddingLeft: '48px',
-                paddingRight: '16px',
-                borderRadius: '12px',
-                border: '1px solid #cbd5e1',
-                fontSize: '15px',
+                height: '46px',
+                paddingLeft: '44px',
+                paddingRight: '14px',
+                borderRadius: '10px',
+                border: '1px solid #d2dbe6',
+                fontSize: '14px',
                 color: '#1e293b',
                 backgroundColor: '#ffffff',
                 boxSizing: 'border-box',
@@ -224,28 +226,28 @@ const LoginPage = () => {
                 transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#2e623f';
-                e.target.style.boxShadow = '0 0 0 3px rgba(46, 98, 63, 0.12)';
+                e.target.style.borderColor = '#286241';
+                e.target.style.boxShadow = '0 0 0 3px rgba(40, 98, 65, 0.12)';
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = '#cbd5e1';
+                e.target.style.borderColor = '#d2dbe6';
                 e.target.style.boxShadow = 'none';
               }}
             />
           </div>
 
           {/* Password Field */}
-          <div style={{ position: 'relative', marginBottom: '12px' }}>
+          <div style={{ position: 'relative', marginBottom: '10px' }}>
             <div
               style={{
                 position: 'absolute',
-                left: '16px',
+                left: '14px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 pointerEvents: 'none',
                 display: 'flex',
                 alignItems: 'center',
-                color: '#64748b',
+                color: '#8a99a8',
               }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -263,12 +265,12 @@ const LoginPage = () => {
               required
               style={{
                 width: '100%',
-                height: '52px',
-                paddingLeft: '48px',
-                paddingRight: '48px',
-                borderRadius: '12px',
-                border: '1px solid #cbd5e1',
-                fontSize: '15px',
+                height: '46px',
+                paddingLeft: '44px',
+                paddingRight: '44px',
+                borderRadius: '10px',
+                border: '1px solid #d2dbe6',
+                fontSize: '14px',
                 color: '#1e293b',
                 backgroundColor: '#ffffff',
                 boxSizing: 'border-box',
@@ -276,11 +278,11 @@ const LoginPage = () => {
                 transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#2e623f';
-                e.target.style.boxShadow = '0 0 0 3px rgba(46, 98, 63, 0.12)';
+                e.target.style.borderColor = '#286241';
+                e.target.style.boxShadow = '0 0 0 3px rgba(40, 98, 65, 0.12)';
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = '#cbd5e1';
+                e.target.style.borderColor = '#d2dbe6';
                 e.target.style.boxShadow = 'none';
               }}
             />
@@ -291,7 +293,7 @@ const LoginPage = () => {
               aria-label={showPassword ? 'Hide password' : 'Show password'}
               style={{
                 position: 'absolute',
-                right: '16px',
+                right: '12px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 background: 'none',
@@ -300,10 +302,10 @@ const LoginPage = () => {
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                color: '#64748b',
+                color: '#8a99a8',
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                 <circle cx="12" cy="12" r="3" />
                 {showPassword && <line x1="2" y1="2" x2="22" y2="22" strokeWidth="1.8" />}
@@ -316,14 +318,14 @@ const LoginPage = () => {
             style={{
               display: 'flex',
               justifyContent: 'flex-end',
-              marginBottom: '24px',
+              marginBottom: '20px',
             }}
           >
             <span
               onClick={() => alert('Please contact the clinic administrator to reset your password.')}
               style={{
-                color: '#2e623f',
-                fontSize: '14.5px',
+                color: '#2d6a4f',
+                fontSize: '12px',
                 fontWeight: '600',
                 cursor: 'pointer',
                 userSelect: 'none',
@@ -342,31 +344,31 @@ const LoginPage = () => {
             disabled={isLoading}
             style={{
               width: '100%',
-              height: '52px',
-              backgroundColor: '#2e623f',
+              height: '44px',
+              backgroundColor: '#366a44',
               color: '#ffffff',
               borderRadius: '10px',
               border: 'none',
-              fontSize: '16px',
+              fontSize: '14.5px',
               fontWeight: '600',
               cursor: isLoading ? 'not-allowed' : 'pointer',
               opacity: isLoading ? 0.75 : 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
+              gap: '6px',
               transition: 'background-color 0.2s ease, transform 0.1s ease',
               boxShadow: 'none',
             }}
             onMouseEnter={(e) => {
               if (!isLoading) {
-                e.currentTarget.style.backgroundColor = '#244e32';
+                e.currentTarget.style.backgroundColor = '#2a5335';
                 e.currentTarget.style.transform = 'translateY(-1px)';
               }
             }}
             onMouseLeave={(e) => {
               if (!isLoading) {
-                e.currentTarget.style.backgroundColor = '#2e623f';
+                e.currentTarget.style.backgroundColor = '#366a44';
                 e.currentTarget.style.transform = 'translateY(0)';
               }
             }}
@@ -376,7 +378,7 @@ const LoginPage = () => {
             ) : (
               <>
                 <span>Login</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="5" y1="12" x2="19" y2="12" />
                   <polyline points="12 5 19 12 12 19" />
                 </svg>
@@ -389,8 +391,9 @@ const LoginPage = () => {
       <style>{`
         @media (max-width: 580px) {
           .login-card {
-            padding: 36px 24px 32px 24px !important;
-            border-radius: 24px !important;
+            padding: 28px 20px 24px 20px !important;
+            border-radius: 20px !important;
+            max-width: 92% !important;
           }
         }
       `}</style>

@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import appointmentApi from '../api/appointmentApi';
 
 const AppointmentModal = ({ isOpen, onClose }) => {
   const dialogRef = useRef(null);
@@ -53,6 +54,16 @@ const AppointmentModal = ({ isOpen, onClose }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    appointmentApi.bookAppointment({
+      patient_name: formData.name,
+      patient_phone: formData.phone,
+      patient_email: formData.email,
+      appointment_date: formData.date || '28 Oct 2026',
+      time_slot: formData.time || '10:00 AM',
+      reason_for_visit: formData.notes || 'Homeopathic Consultation',
+      consultation_type: 'In clinic Visit',
+      status: 'Confirmed',
+    }).catch((err) => console.error('Booking failed:', err));
     setIsSubmitted(true);
   };
 
