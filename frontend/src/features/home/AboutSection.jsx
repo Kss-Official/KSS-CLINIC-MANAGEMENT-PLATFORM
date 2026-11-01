@@ -1,7 +1,9 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import aboutImg from '../../assets/about-clinic.jpg';
 
 const AboutSection = () => {
+  const navigate = useNavigate();
   return (
     <section
       id="about"
@@ -17,14 +19,14 @@ const AboutSection = () => {
           width: '100%',
           maxWidth: '1440px',
           margin: '0 auto',
-          padding: '85px 40px 95px',
+          padding: '90px 40px 90px',
         }}
       >
         <div
           className="about-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.14fr)',
+            gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1fr)',
             gap: '64px',
             alignItems: 'center',
           }}
@@ -40,6 +42,7 @@ const AboutSection = () => {
                 letterSpacing: '1.8px',
                 color: '#265e38',
                 marginBottom: '14px',
+                fontFamily: "'Manrope', sans-serif",
               }}
             >
               ABOUT OUR CLINIC
@@ -54,6 +57,7 @@ const AboutSection = () => {
                 lineHeight: '1.18',
                 letterSpacing: '-0.5px',
                 marginBottom: '22px',
+                fontFamily: "'Manrope', sans-serif",
               }}
             >
               A Gentle Path to<br />
@@ -68,13 +72,15 @@ const AboutSection = () => {
                 lineHeight: '1.7',
                 marginBottom: '30px',
                 maxWidth: '545px',
+                fontFamily: "'Manrope', sans-serif",
               }}
             >
               At Dr. Kumar Tripathi Ampeh (Pat.) Homeopathy Clinic, we believe in treating the person, not just the symptoms. Our approach focuses on understanding your unique health concerns and providing personalized homeopathic care for long-term well-being.
             </p>
 
-            <a
-              href="#services"
+            <button
+              type="button"
+              onClick={() => navigate('/about')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -82,8 +88,12 @@ const AboutSection = () => {
                 fontSize: '15px',
                 fontWeight: '700',
                 color: '#265e38',
-                textDecoration: 'none',
+                backgroundColor: 'transparent',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
                 transition: 'color 0.2s ease',
+                fontFamily: "'Manrope', sans-serif",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = '#1b4332';
@@ -111,7 +121,7 @@ const AboutSection = () => {
                 <line x1="5" y1="12" x2="19" y2="12" />
                 <polyline points="12 5 19 12 12 19" />
               </svg>
-            </a>
+            </button>
           </div>
 
           {/* Right Column: Clinic Image */}
@@ -119,10 +129,12 @@ const AboutSection = () => {
             <div
               style={{
                 position: 'relative',
-                borderRadius: '22px',
+                borderRadius: '24px',
                 overflow: 'hidden',
-                boxShadow: '0 12px 35px -8px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
-                backgroundColor: '#f3f4f6',
+                boxShadow: '0 16px 40px -8px rgba(0, 0, 0, 0.10), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
+                backgroundColor: '#ffffff',
+                aspectRatio: '1.38 / 1',
+                width: '100%',
               }}
             >
               <img
@@ -130,12 +142,12 @@ const AboutSection = () => {
                 alt="Dr. Kumar Tripathi Ampeh Clinic Reception & Pharmacy"
                 style={{
                   width: '100%',
-                  height: 'auto',
+                  height: '100%',
                   display: 'block',
                   objectFit: 'cover',
                   transition: 'transform 0.4s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.015)')}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.02)')}
                 onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
               />
             </div>
@@ -146,7 +158,7 @@ const AboutSection = () => {
       <style>{`
         @media (max-width: 1024px) {
           .about-inner-container {
-            padding: 60px 24px 70px !important;
+            padding: 65px 24px 65px !important;
           }
           .about-heading {
             font-size: 38px !important;
@@ -166,7 +178,7 @@ const AboutSection = () => {
         }
         @media (max-width: 640px) {
           .about-inner-container {
-            padding: 50px 20px 60px !important;
+            padding: 50px 20px 50px !important;
           }
           .about-heading {
             font-size: 32px !important;

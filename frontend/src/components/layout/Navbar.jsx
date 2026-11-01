@@ -21,6 +21,35 @@ const Navbar = ({ onOpenBooking }) => {
     setActiveNav(label);
     setMobileMenuOpen(false);
 
+    if (label === 'About') {
+      navigate('/about');
+      return;
+    }
+
+    if (label === 'Services') {
+      navigate('/services');
+      return;
+    }
+
+    if (label === 'Stories') {
+      navigate('/stories');
+      return;
+    }
+
+    if (label === 'Contact') {
+      navigate('/contact');
+      return;
+    }
+
+    if (label === 'Home') {
+      if (location.pathname !== '/') {
+        navigate('/');
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
+
     if (location.pathname !== '/') {
       navigate('/' + href);
     } else {
@@ -66,6 +95,7 @@ const Navbar = ({ onOpenBooking }) => {
       >
         {/* Left: Brand Logo */}
         <div
+          id="navbar-brand-logo"
           onClick={() => navigate('/')}
           style={{
             display: 'inline-flex',
@@ -97,7 +127,12 @@ const Navbar = ({ onOpenBooking }) => {
           }}
         >
           {navLinks.map((link) => {
-            const isActive = location.pathname === '/' && activeNav === link.label;
+            const isActive =
+              (location.pathname === '/about' && link.label === 'About') ||
+              (location.pathname === '/services' && link.label === 'Services') ||
+              (location.pathname === '/stories' && link.label === 'Stories') ||
+              (location.pathname === '/contact' && link.label === 'Contact') ||
+              (location.pathname === '/' && activeNav === link.label);
             return (
               <a
                 key={link.label}
@@ -200,16 +235,19 @@ const Navbar = ({ onOpenBooking }) => {
               height: '40px',
               borderRadius: '50%',
               overflow: 'hidden',
-              border: location.pathname === '/profile' ? '2px solid #265e38' : '1px solid #e5e7eb',
+              boxSizing: 'border-box',
+              border: location.pathname === '/profile' ? '2.5px solid #265e38' : '1px solid #e5e7eb',
               cursor: 'pointer',
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: '#f3f4f6',
-              transition: 'transform 0.15s ease',
+              backgroundColor: location.pathname === '/profile' ? '#265e38' : '#ffffff',
+              transition: 'all 0.15s ease',
+              boxShadow: location.pathname === '/profile' ? '0 0 0 1px rgba(38, 94, 56, 0.15)' : 'none',
+              padding: 0,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.06)')}
             onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
             <img
@@ -220,6 +258,7 @@ const Navbar = ({ onOpenBooking }) => {
                 height: '100%',
                 objectFit: 'cover',
                 display: 'block',
+                borderRadius: '50%',
               }}
             />
           </div>
@@ -257,25 +296,33 @@ const Navbar = ({ onOpenBooking }) => {
             gap: '12px',
           }}
         >
-          {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              onClick={(e) => {
-                e.preventDefault();
-                handleNavClick(link.label, link.href);
-              }}
-              style={{
-                textDecoration: 'none',
-                fontSize: '16px',
-                fontWeight: activeNav === link.label ? '700' : '500',
-                color: activeNav === link.label ? '#265e38' : '#596773',
-                padding: '8px 0',
-              }}
-            >
-              {link.label}
-            </a>
-          ))}
+          {navLinks.map((link) => {
+            const isActive =
+              (location.pathname === '/about' && link.label === 'About') ||
+              (location.pathname === '/services' && link.label === 'Services') ||
+              (location.pathname === '/stories' && link.label === 'Stories') ||
+              (location.pathname === '/contact' && link.label === 'Contact') ||
+              (location.pathname === '/' && activeNav === link.label);
+            return (
+              <a
+                key={link.label}
+                href={link.href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavClick(link.label, link.href);
+                }}
+                style={{
+                  textDecoration: 'none',
+                  fontSize: '16px',
+                  fontWeight: isActive ? '700' : '500',
+                  color: isActive ? '#265e38' : '#596773',
+                  padding: '8px 0',
+                }}
+              >
+                {link.label}
+              </a>
+            );
+          })}
         </div>
       )}
 

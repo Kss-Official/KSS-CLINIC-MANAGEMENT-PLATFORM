@@ -10,11 +10,17 @@ import ClinicGallerySection from './ClinicGallerySection';
 import CtaBannerSection from './CtaBannerSection';
 import Footer from '../../components/layout/Footer';
 import AppointmentModal from '../../components/AppointmentModal';
-import SplashScreen from '../../components/common/SplashScreen';
+import SplashScreen, { hasSplashBeenShown, markSplashAsShown } from '../../components/common/SplashScreen';
 
 const HomePage = () => {
-  const [showSplash, setShowSplash] = useState(true);
+  // Flash / Splash screen runs ONLY ONCE at the start of the website (never again when navigating between pages)
+  const [showSplash, setShowSplash] = useState(() => !hasSplashBeenShown());
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+
+  const handleFinishSplash = () => {
+    markSplashAsShown();
+    setShowSplash(false);
+  };
 
   const handleOpenBooking = () => {
     setIsBookingOpen(true);
@@ -26,8 +32,8 @@ const HomePage = () => {
 
   return (
     <div className="homepage-wrapper">
-      {/* Flash / Splash Screen before frontpage displays */}
-      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+      {/* Flash / Splash Screen only on website initial start */}
+      {showSplash && <SplashScreen onFinish={handleFinishSplash} />}
 
       {/* Top Navbar */}
       <Navbar onOpenBooking={handleOpenBooking} />

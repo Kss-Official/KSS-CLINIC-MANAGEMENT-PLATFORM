@@ -28,27 +28,29 @@ const DoctorSection = ({ onOpenBooking }) => {
           width: '100%',
           maxWidth: '1440px',
           margin: '0 auto',
-          padding: '85px 40px 95px',
+          padding: '90px 40px 90px',
+          boxSizing: 'border-box',
         }}
       >
         <div
           className="doctor-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: '430px minmax(0, 1fr)',
+            gridTemplateColumns: 'minmax(0, 500px) minmax(0, 1fr)',
             gap: '64px',
             alignItems: 'center',
           }}
         >
-          {/* Left Column: Mortar & Pestle Photo */}
+          {/* Left Column: Mortar & Pestle Photo Card */}
           <div className="doctor-photo-col" style={{ width: '100%' }}>
             <div
               style={{
                 borderRadius: '24px',
                 overflow: 'hidden',
-                boxShadow: '0 12px 35px -8px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
-                backgroundColor: '#f3f4f6',
-                aspectRatio: '1.02 / 1',
+                boxShadow: '0 14px 36px -6px rgba(0, 0, 0, 0.10), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
+                backgroundColor: '#ffffff',
+                aspectRatio: '1 / 1',
+                width: '100%',
               }}
             >
               <img
@@ -59,6 +61,7 @@ const DoctorSection = ({ onOpenBooking }) => {
                   height: '100%',
                   display: 'block',
                   objectFit: 'cover',
+                  objectPosition: 'center',
                   transition: 'transform 0.4s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.02)')}
@@ -68,16 +71,17 @@ const DoctorSection = ({ onOpenBooking }) => {
           </div>
 
           {/* Right Column: Doctor Info */}
-          <div className="doctor-info-col" style={{ maxWidth: '640px' }}>
+          <div className="doctor-info-col" style={{ width: '100%' }}>
             <span
               style={{
                 display: 'inline-block',
-                fontSize: '12.5px',
+                fontSize: '12px',
                 fontWeight: '700',
                 textTransform: 'uppercase',
-                letterSpacing: '1.8px',
+                letterSpacing: '1.6px',
                 color: '#265e38',
                 marginBottom: '12px',
+                fontFamily: "'Manrope', sans-serif",
               }}
             >
               MEET OUR DOCTOR
@@ -86,12 +90,13 @@ const DoctorSection = ({ onOpenBooking }) => {
             <h2
               className="doctor-title"
               style={{
-                fontSize: '40px',
+                fontSize: '38px',
                 fontWeight: '800',
                 color: '#111827',
-                lineHeight: '1.2',
+                lineHeight: '1.18',
                 letterSpacing: '-0.5px',
                 marginBottom: '8px',
+                fontFamily: "'Manrope', sans-serif",
               }}
             >
               Dr. Kumar Tripathi Ampeh (Pat.)
@@ -99,10 +104,11 @@ const DoctorSection = ({ onOpenBooking }) => {
 
             <p
               style={{
-                fontSize: '15.5px',
+                fontSize: '14.5px',
                 fontWeight: '600',
                 color: '#265e38',
                 marginBottom: '20px',
+                fontFamily: "'Manrope', sans-serif",
               }}
             >
               Homeopathy Practitioner
@@ -111,11 +117,12 @@ const DoctorSection = ({ onOpenBooking }) => {
             <p
               className="doctor-desc"
               style={{
-                fontSize: '15px',
+                fontSize: '14.5px',
                 color: '#4b5563',
-                lineHeight: '1.68',
-                marginBottom: '32px',
-                maxWidth: '600px',
+                lineHeight: '1.65',
+                marginBottom: '30px',
+                width: '100%',
+                fontFamily: "'Manrope', sans-serif",
               }}
             >
               With years of experience in homeopathic care, Dr. K. Tripathi Ampeh (Pat.) is dedicated to providing compassionate and personalized treatment. His approach focuses on understanding the root cause of health concerns and supporting each patient's overall well-being.
@@ -127,7 +134,7 @@ const DoctorSection = ({ onOpenBooking }) => {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '16px',
-                marginBottom: '36px',
+                marginBottom: '34px',
               }}
             >
               {/* Row 1: Points 1 and 2 side by side */}
@@ -136,7 +143,7 @@ const DoctorSection = ({ onOpenBooking }) => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '32px',
+                  gap: '36px',
                   flexWrap: 'wrap',
                 }}
               >
@@ -144,10 +151,10 @@ const DoctorSection = ({ onOpenBooking }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div
                     style={{
-                      width: '28px',
-                      height: '28px',
+                      width: '26px',
+                      height: '26px',
                       borderRadius: '50%',
-                      backgroundColor: '#e8f5ec',
+                      backgroundColor: '#edf7f0',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -156,8 +163,8 @@ const DoctorSection = ({ onOpenBooking }) => {
                     }}
                   >
                     <svg
-                      width="15"
-                      height="15"
+                      width="14"
+                      height="14"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -169,7 +176,14 @@ const DoctorSection = ({ onOpenBooking }) => {
                       <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
                     </svg>
                   </div>
-                  <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#111827' }}>
+                  <span
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#111827',
+                      fontFamily: "'Manrope', sans-serif",
+                    }}
+                  >
                     Qualified & Experienced Practitioner
                   </span>
                 </div>
@@ -178,10 +192,10 @@ const DoctorSection = ({ onOpenBooking }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div
                     style={{
-                      width: '28px',
-                      height: '28px',
+                      width: '26px',
+                      height: '26px',
                       borderRadius: '50%',
-                      backgroundColor: '#e8f5ec',
+                      backgroundColor: '#edf7f0',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -190,8 +204,8 @@ const DoctorSection = ({ onOpenBooking }) => {
                     }}
                   >
                     <svg
-                      width="15"
-                      height="15"
+                      width="14"
+                      height="14"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -199,11 +213,18 @@ const DoctorSection = ({ onOpenBooking }) => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                      <polyline points="9 12 11 14 15 10" />
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="m9 12 2 2 4-4" />
                     </svg>
                   </div>
-                  <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#111827' }}>
+                  <span
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#111827',
+                      fontFamily: "'Manrope', sans-serif",
+                    }}
+                  >
                     Trusted by 15K+ Patients
                   </span>
                 </div>
@@ -213,10 +234,10 @@ const DoctorSection = ({ onOpenBooking }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div
                   style={{
-                    width: '28px',
-                    height: '28px',
+                    width: '26px',
+                    height: '26px',
                     borderRadius: '50%',
-                    backgroundColor: '#e8f5ec',
+                    backgroundColor: '#edf7f0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -225,8 +246,8 @@ const DoctorSection = ({ onOpenBooking }) => {
                   }}
                 >
                   <svg
-                    width="14"
-                    height="14"
+                    width="13"
+                    height="13"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -234,10 +255,17 @@ const DoctorSection = ({ onOpenBooking }) => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
                   </svg>
                 </div>
-                <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#111827' }}>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#111827',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
                   Commitment to Natural Healing
                 </span>
               </div>
@@ -261,6 +289,7 @@ const DoctorSection = ({ onOpenBooking }) => {
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 boxShadow: 'none',
+                fontFamily: "'Manrope', sans-serif",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#1f4e2e';
@@ -300,14 +329,15 @@ const DoctorSection = ({ onOpenBooking }) => {
         }
         @media (max-width: 1080px) {
           .doctor-inner-container {
-            padding: 65px 24px 75px !important;
+            padding: 80px 32px 80px !important;
           }
           .doctor-grid {
-            grid-template-columns: 360px minmax(0, 1fr) !important;
-            gap: 40px !important;
+            grid-template-columns: 370px minmax(0, 1fr) !important;
+            gap: 48px !important;
           }
           .doctor-title {
             font-size: 34px !important;
+            white-space: nowrap !important;
           }
         }
         @media (max-width: 860px) {
@@ -319,13 +349,16 @@ const DoctorSection = ({ onOpenBooking }) => {
             max-width: 380px !important;
             margin: 0 auto !important;
           }
+          .doctor-title {
+            white-space: normal !important;
+          }
         }
         @media (max-width: 640px) {
           .doctor-inner-container {
-            padding: 50px 20px 60px !important;
+            padding: 50px 20px 50px !important;
           }
           .doctor-title {
-            font-size: 28px !important;
+            font-size: 26px !important;
           }
           .doctor-points-row1 {
             gap: 16px !important;

@@ -5,6 +5,18 @@ import ProtectedRoute from './ProtectedRoute';
 // Public Homepage with exact UI from design
 import HomePage from '../features/home/HomePage';
 
+// Dedicated About Page (exact UI from uploaded about design)
+import AboutPage from '../features/about/AboutPage';
+
+// Dedicated Services Page (exact UI from uploaded services design)
+import ServicesPage from '../features/services/ServicesPage';
+
+// Dedicated Stories Page (exact UI from uploaded stories design)
+import StoriesPage from '../features/stories/StoriesPage';
+
+// Dedicated Contact Page (exact UI from uploaded contact design)
+import ContactPage from '../features/contact/ContactPage';
+
 // Dedicated Book Appointment Page (exact UI from uploaded booking design)
 import BookAppointmentPage from '../features/booking/BookAppointmentPage';
 
@@ -42,7 +54,19 @@ const AppRoutes = () => {
       {/* 1. Main Homepage with exact design */}
       <Route path="/" element={<HomePage />} />
 
-      {/* 2. Book Appointment Page (exact matching UI) */}
+      {/* 2. Dedicated About Page (exact matching UI) */}
+      <Route path="/about" element={<AboutPage />} />
+
+      {/* 3. Dedicated Services Page (exact matching UI) */}
+      <Route path="/services" element={<ServicesPage />} />
+
+      {/* 4. Dedicated Stories Page (exact matching UI) */}
+      <Route path="/stories" element={<StoriesPage />} />
+
+      {/* 5. Dedicated Contact Page (exact matching UI) */}
+      <Route path="/contact" element={<ContactPage />} />
+
+      {/* 3. Book Appointment Page (exact matching UI) */}
       <Route path="/book-appointment" element={<BookAppointmentPage />} />
 
       {/* 3. Patient Profile Page (exact matching UI) */}

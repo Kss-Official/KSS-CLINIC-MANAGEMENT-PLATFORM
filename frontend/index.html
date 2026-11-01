@@ -3,13 +3,108 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/src/assets/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no"
+    />
     <title>Dr. Kumar Tripathi Ampeh (Pat.) | Homeopathy Clinic</title>
-    <!-- Google Fonts: Plus Jakarta Sans -->
+    <!-- Prevent zoom: keyboard shortcuts, mouse wheel, pinch, gestures -->
+    <script>
+      (function () {
+        // 1. Prevent Ctrl / Cmd + Mouse Wheel & Trackpad Pinch Zoom
+        window.addEventListener(
+          'wheel',
+          function (e) {
+            if (e.ctrlKey) {
+              e.preventDefault();
+            }
+          },
+          { passive: false }
+        );
+
+        // 2. Prevent Ctrl / Cmd + (+, -, 0) Keyboard Zoom
+        window.addEventListener('keydown', function (e) {
+          if (e.ctrlKey || e.metaKey) {
+            var k = e.key;
+            var c = e.keyCode || e.which;
+            if (
+              k === '+' ||
+              k === '-' ||
+              k === '=' ||
+              k === '_' ||
+              k === '0' ||
+              c === 187 ||
+              c === 189 ||
+              c === 107 ||
+              c === 109 ||
+              c === 48 ||
+              c === 96
+            ) {
+              e.preventDefault();
+            }
+          }
+        });
+
+        // 3. Prevent Multi-touch Pinch Zoom on Mobile & Tablets
+        document.addEventListener(
+          'touchstart',
+          function (e) {
+            if (e.touches && e.touches.length > 1) {
+              e.preventDefault();
+            }
+          },
+          { passive: false }
+        );
+
+        document.addEventListener(
+          'touchmove',
+          function (e) {
+            if (e.touches && e.touches.length > 1) {
+              e.preventDefault();
+            }
+          },
+          { passive: false }
+        );
+
+        // 4. Prevent Double-tap to Zoom on Mobile (excluding form inputs)
+        var lastTouchEnd = 0;
+        document.addEventListener(
+          'touchend',
+          function (e) {
+            var targetTag = e.target && e.target.tagName;
+            if (
+              targetTag === 'INPUT' ||
+              targetTag === 'TEXTAREA' ||
+              targetTag === 'SELECT'
+            ) {
+              return;
+            }
+            var now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+              e.preventDefault();
+            }
+            lastTouchEnd = now;
+          },
+          { passive: false }
+        );
+
+        // 5. Prevent iOS Safari Gesture Zooming
+        document.addEventListener('gesturestart', function (e) {
+          e.preventDefault();
+        });
+        document.addEventListener('gesturechange', function (e) {
+          e.preventDefault();
+        });
+        document.addEventListener('gestureend', function (e) {
+          e.preventDefault();
+        });
+      })();
+    </script>
+    <!-- Google Fonts: Manrope -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
   </head>

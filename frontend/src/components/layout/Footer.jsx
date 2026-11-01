@@ -1,5 +1,6 @@
 import React from 'react';
-import footerLogo from '../../assets/footer-logo.png';
+import { Link } from 'react-router-dom';
+import logoWhite from '../../assets/logo-white.png';
 
 const Footer = () => {
   return (
@@ -33,36 +34,27 @@ const Footer = () => {
         >
           {/* Column 1: Brand & Description */}
           <div>
-            <div
+            <Link
+              to="/"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '12px',
+                textDecoration: 'none',
                 marginBottom: '18px',
+                cursor: 'pointer',
               }}
             >
               <img
-                src={footerLogo}
+                src={logoWhite}
                 alt="Homeopathy Clinic"
                 style={{
-                  width: '32px',
-                  height: '32px',
+                  height: '44px',
+                  width: 'auto',
                   display: 'block',
                   objectFit: 'contain',
                 }}
               />
-              <span
-                style={{
-                  color: '#ffffff',
-                  fontWeight: '800',
-                  fontSize: '16.5px',
-                  letterSpacing: '0.6px',
-                  lineHeight: '1',
-                }}
-              >
-                HOMEOPATHY CLINIC
-              </span>
-            </div>
+            </Link>
 
             <p
               style={{
