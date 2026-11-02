@@ -1,11 +1,17 @@
 import { create } from 'zustand';
 import { STORAGE_KEYS } from '../utils/constants';
 
-const storedUser = localStorage.getItem(STORAGE_KEYS.USER_DATA);
+let storedUser = null;
+try {
+  const raw = localStorage.getItem(STORAGE_KEYS.USER_DATA);
+  storedUser = raw && raw !== 'undefined' && raw !== 'null' ? JSON.parse(raw) : null;
+} catch (e) {
+  storedUser = null;
+}
 const storedToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
 
 export const useAppStore = create((set) => ({
-  user: storedUser ? JSON.parse(storedUser) : null,
+  user: storedUser,
   token: storedToken || null,
   isAuthenticated: !!storedToken,
 
