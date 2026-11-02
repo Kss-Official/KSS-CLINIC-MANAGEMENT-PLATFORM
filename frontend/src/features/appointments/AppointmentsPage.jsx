@@ -38,6 +38,7 @@ const AppointmentsPage = () => {
   const dateInputRef = useRef(null);
 
   const [statusFilter, setStatusFilter] = useState('All');
+  const [prescriptionFilter, setPrescriptionFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
@@ -147,6 +148,7 @@ const AppointmentsPage = () => {
     setCustomDate('');
     setIsPickingDate(false);
     setStatusFilter('All');
+    setPrescriptionFilter('All');
     setSearchQuery('');
     setCurrentPage(1);
   };
@@ -200,9 +202,15 @@ const AppointmentsPage = () => {
     const matchesStatus =
       statusFilter === 'All' || item.status.toLowerCase() === statusFilter.toLowerCase();
 
+    const matchesPrescription =
+      prescriptionFilter === 'All' ||
+      (prescriptionFilter.toLowerCase() === 'complete'
+        ? ['complete', 'completed'].includes((item.prescriptionStatus || '').toLowerCase())
+        : (item.prescriptionStatus || 'Pending').toLowerCase() === prescriptionFilter.toLowerCase());
+
     const matchesDate = matchesDateFilter(item.date);
 
-    return matchesSearch && matchesStatus && matchesDate;
+    return matchesSearch && matchesStatus && matchesPrescription && matchesDate;
   });
 
   // Dynamic pagination calculation based on data and page size
@@ -627,6 +635,29 @@ const AppointmentsPage = () => {
               <option value="Confirmed">Confirmed</option>
               <option value="Complete">Complete</option>
               <option value="Cancelled">Cancelled</option>
+            </select>
+
+            {/* All Prescriptions Filter */}
+            <select
+              value={prescriptionFilter}
+              onChange={(e) => {
+                setPrescriptionFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                fontSize: '13px',
+                color: '#334155',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="All">All Prescriptions</option>
+              <option value="Pending">Pending</option>
+              <option value="Complete">Complete</option>
             </select>
 
             {/* Search Input */}
