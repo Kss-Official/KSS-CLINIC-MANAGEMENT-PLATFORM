@@ -1,24 +1,35 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/layout/Navbar';
+import useAuth from '../../hooks/useAuth';
+import appointmentApi from '../../api/appointmentApi';
+import PatientAuthModal from '../../components/auth/PatientAuthModal';
 import profileHerbs from '../../assets/profile-banner-herbs.png';
 
 const ProfilePage = () => {
-  // User profile state
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // User profile state initialized with clinic reference design defaults
   const [profile, setProfile] = useState({
-    fullName: 'Rahul Sharma',
-    mobileNumber: '+91 98765 43210',
-    email: 'rahul.sharma@gmail.com',
+    fullName: user ? (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username) : 'Rahul Sharma',
+    mobileNumber: user?.phone_number || '+91 98765 43210',
+    email: user?.email || 'rahul.sharma@gmail.com',
     dateOfBirth: '12 March 1998',
     gender: 'Male',
     city: 'Bangalore, Karnataka',
-    initials: 'RS',
+    initials: user ? (user.username || 'RS').slice(0, 2).toUpperCase() : 'RS',
+    patientId: user?.patient_id || 'PAT-1001',
+    address: user?.address || '123 Clinic Street, Indiranagar, Bangalore',
   });
 
   // Edit Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({
     ...profile,
-    mobileNumber: '9876543210',
+    mobileNumber: user?.phone_number || '9876543210',
   });
   const [editErrors, setEditErrors] = useState({});
   const editDialogRef = useRef(null);
@@ -32,7 +43,7 @@ const ProfilePage = () => {
   const [prescriptionFilter, setPrescriptionFilter] = useState('All');
 
   // Appointment History Data
-  const [appointments] = useState([
+  const [appointments, setAppointments] = useState([
     {
       id: 1,
       appointmentId: 'APT-2026-1016-001',
@@ -92,7 +103,7 @@ const ProfilePage = () => {
   ]);
 
   // Prescriptions Data
-  const [prescriptions] = useState([
+  const [prescriptions, setPrescriptions] = useState([
     {
       id: 1,
       title: 'Prescription - Follow-up',
@@ -118,6 +129,106 @@ const ProfilePage = () => {
       fileName: 'Prescription_25_Jul_2026.pdf',
     },
   ]);
+
+  // Fetch real patient profile, appointments, and prescriptions from Neon PostgreSQL
+  const fetchPatientData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const savedPhone = localStorage.getItem('kss_patient_phone') || user?.phone_number || '';
+      const savedEmail = localStorage.getItem('kss_patient_email') || user?.email || '';
+      const savedName = localStorage.getItem('kss_patient_name') || '';
+      const savedId = localStorage.getItem('kss_patient_id') || user?.patient_id || '';
+
+      const queryParams = {};
+      if (savedPhone) queryParams.phone = savedPhone;
+      if (savedEmail) queryParams.email = savedEmail;
+      if (savedName) queryParams.name = savedName;
+      if (savedId) queryParams.patient_id = savedId;
+
+      const res = await appointmentApi.getMyProfile(queryParams);
+      if (res) {
+        setProfile((prev) => ({
+          ...prev,
+          fullName: res.name || prev.fullName,
+          email: res.email || prev.email,
+          mobileNumber: res.mobile || prev.mobileNumber,
+          initials: res.initials || prev.initials,
+          patientId: res.id || prev.patientId,
+          address: res.address || prev.address,
+          gender: res.ageGender || prev.gender,
+        }));
+
+        // Format real appointments
+        if (Array.isArray(res.appointments) && res.appointments.length > 0) {
+          const formattedApts = res.appointments.map((a, idx) => {
+            const dateStr = a.date || '';
+            const parts = dateStr.trim().split(/[\s-]+/);
+            const day = parts[0] || '28';
+            const month = parts.length > 2 ? `${parts[1].toUpperCase()} ${parts[2]}` : (parts[1] || 'OCT 2026');
+
+            return {
+              id: a.id || a.appointmentId || idx + 1,
+              appointmentId: a.id || a.appointmentId || `APT-${idx + 1}`,
+              day: day,
+              month: month,
+              fullDate: a.date,
+              title: a.reason || 'Homeopathy Consultation',
+              type: a.consultationType || 'In clinic Visit',
+              doctor: 'Dr. Kumar Tripathi Ampeh (Pat.)',
+              time: a.time || '10:00 AM',
+              status: a.status || 'Confirmed',
+              pdfName: `Appointment_${a.id || idx + 1}.pdf`,
+              pdfDate: a.date,
+              reason: a.reason,
+            };
+          });
+          setAppointments(formattedApts);
+        }
+
+        // Format real prescriptions
+        if (Array.isArray(res.prescriptions) && res.prescriptions.length > 0) {
+          const formattedRxs = res.prescriptions.map((r, idx) => {
+            return {
+              id: r.id || r.rxId || idx + 1,
+              title: `Prescription - ${r.diagnosis || r.complaint || 'Clinical Consultation'}`,
+              date: r.date || 'Today',
+              fileName: `Prescription_${r.id || idx + 1}.pdf`,
+              diagnosis: r.diagnosis,
+              complaint: r.complaint,
+              symptoms: r.symptoms,
+              medicines: r.medicines || [],
+              additionalInstructions: r.additionalInstructions,
+              status: r.status || 'Delivered',
+            };
+          });
+          setPrescriptions(formattedRxs);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load patient profile from Neon:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchPatientData();
+
+    // Real-time synchronization: refresh on event or focus
+    window.addEventListener('appointment-booked', fetchPatientData);
+    window.addEventListener('prescription-created', fetchPatientData);
+    window.addEventListener('focus', fetchPatientData);
+
+    // Reliable 10-second polling for automatic sync across Patient and Admin portals
+    const interval = setInterval(fetchPatientData, 10000);
+
+    return () => {
+      window.removeEventListener('appointment-booked', fetchPatientData);
+      window.removeEventListener('prescription-created', fetchPatientData);
+      window.removeEventListener('focus', fetchPatientData);
+      clearInterval(interval);
+    };
+  }, [fetchPatientData]);
 
   // Edit Modal Dialog Lifecycle
   useEffect(() => {
@@ -165,14 +276,12 @@ const ProfilePage = () => {
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
-
     if (name === 'fullName') {
-      // Rule 1: Limit 25 characters, only alphabetic characters and spaces
-      const cleaned = value.replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
-      if (/[^a-zA-Z\s]/.test(value)) {
+      const cleaned = value.replace(/[^a-zA-Z\s.()]/g, '').slice(0, 35);
+      if (/[^a-zA-Z\s.()]/.test(value)) {
         setEditErrors((prev) => ({
           ...prev,
-          fullName: 'Only alphabets and spaces are allowed',
+          fullName: 'Only letters, spaces, dots, and parentheses are allowed',
         }));
       } else if (editErrors.fullName) {
         setEditErrors((prev) => ({ ...prev, fullName: '' }));
@@ -182,14 +291,10 @@ const ProfilePage = () => {
     }
 
     if (name === 'mobileNumber') {
-      // Rule 2: Limit 10 digits, must start with 6, 7, 8, or 9
       let digits = value.replace(/\D/g, '');
-
-      // In case full number with 91 is entered or pasted
       if (digits.length > 10 && digits.startsWith('91')) {
         digits = digits.slice(2);
       }
-
       if (/\D/.test(value)) {
         setEditErrors((prev) => ({
           ...prev,
@@ -204,23 +309,18 @@ const ProfilePage = () => {
       } else if (editErrors.mobileNumber) {
         setEditErrors((prev) => ({ ...prev, mobileNumber: '' }));
       }
-
       digits = digits.slice(0, 10);
       setEditFormData((prev) => ({ ...prev, mobileNumber: digits }));
       return;
     }
 
     if (name === 'email') {
-      // Rule 3: Email format; no words or characters allowed after .com
-      let val = value.replace(/\s/g, '');
-      const comMatch = val.match(/^([^@]+@[a-zA-Z0-9.-]+\.com)(.+)$/i);
-      if (comMatch) {
-        val = comMatch[1];
-        setEditErrors((prev) => ({
-          ...prev,
-          email: 'No words or characters allowed after .com',
-        }));
-      } else if (editErrors.email) {
+      let val = value.replace(/\s/g, '').toLowerCase();
+      const comIndex = val.indexOf('.com');
+      if (comIndex !== -1) {
+        val = val.slice(0, comIndex + 4);
+      }
+      if (editErrors.email) {
         setEditErrors((prev) => ({ ...prev, email: '' }));
       }
       setEditFormData((prev) => ({ ...prev, email: val }));
@@ -233,6 +333,31 @@ const ProfilePage = () => {
     }));
   };
 
+  const handleProfileEmailKeyDown = (e) => {
+    if (
+      e.key === 'Backspace' ||
+      e.key === 'Delete' ||
+      e.key === 'Tab' ||
+      e.key === 'ArrowLeft' ||
+      e.key === 'ArrowRight' ||
+      e.key === 'ArrowUp' ||
+      e.key === 'ArrowDown' ||
+      e.key === 'Home' ||
+      e.key === 'End' ||
+      e.ctrlKey ||
+      e.metaKey
+    ) {
+      return;
+    }
+    const currentVal = (editFormData.email || '').toLowerCase();
+    const comIndex = currentVal.indexOf('.com');
+    if (comIndex !== -1) {
+      if (e.target.selectionStart >= comIndex + 4) {
+        e.preventDefault();
+      }
+    }
+  };
+
   const handleSaveProfile = (e) => {
     e.preventDefault();
     const errors = {};
@@ -241,9 +366,9 @@ const ProfilePage = () => {
     const nameTrimmed = (editFormData.fullName || '').trim();
     if (!nameTrimmed) {
       errors.fullName = 'Full Name is required';
-    } else if (nameTrimmed.length > 25) {
-      errors.fullName = 'Full Name cannot exceed 25 characters';
-    } else if (!/^[a-zA-Z\s]+$/.test(nameTrimmed)) {
+    } else if (nameTrimmed.length > 35) {
+      errors.fullName = 'Full Name cannot exceed 35 characters';
+    } else if (!/^[a-zA-Z\s.()]+$/.test(nameTrimmed)) {
       errors.fullName = 'Only alphabets and spaces are allowed';
     }
 
@@ -282,6 +407,12 @@ const ProfilePage = () => {
 
     // Format mobile for display (+91 98765 43210)
     const formattedMobile = `+91 ${mobileDigits.slice(0, 5)} ${mobileDigits.slice(5)}`;
+
+    appointmentApi.updateMyProfile({
+      name: nameTrimmed,
+      phone: mobileDigits,
+      email: emailVal,
+    }).catch((err) => console.error('Failed to update profile in Neon:', err));
 
     setProfile({
       ...editFormData,
@@ -322,6 +453,8 @@ const ProfilePage = () => {
       onClose();
     }
   };
+
+
 
   return (
     <div style={{ backgroundColor: '#f8faf9', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -703,7 +836,36 @@ const ProfilePage = () => {
 
             {/* Appointments List (Clicking opens details modal) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {appointments.map((item) => (
+              {appointments.length === 0 ? (
+                <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '500' }}>
+                    No appointment records found in your account.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/book-appointment')}
+                    style={{
+                      padding: '9px 18px',
+                      borderRadius: '9999px',
+                      backgroundColor: '#265e38',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Book Your First Appointment →
+                  </button>
+                </div>
+              ) : appointments
+                .filter((item) => {
+                  if (appointmentFilter === 'All') return true;
+                  if (appointmentFilter === 'Upcoming') return item.status === 'Confirmed' || item.status === 'Pending';
+                  if (appointmentFilter === 'Completed') return item.status === 'Completed';
+                  return true;
+                })
+                .map((item) => (
                 <div
                   key={item.id}
                   onClick={() => handleOpenAppointmentModal(item)}
@@ -860,7 +1022,18 @@ const ProfilePage = () => {
 
             {/* Prescriptions List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {prescriptions.map((item) => (
+              {prescriptions.length === 0 ? (
+                <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                    No prescriptions issued yet. Once your doctor creates a prescription, it will appear here permanently.
+                  </p>
+                </div>
+              ) : prescriptions
+                .filter((item) => {
+                  if (prescriptionFilter === 'All') return true;
+                  return true;
+                })
+                .map((item) => (
                 <div
                   key={item.id}
                   style={{
@@ -1436,20 +1609,20 @@ const ProfilePage = () => {
                   style={{
                     fontSize: '11px',
                     fontWeight: '600',
-                    color: (editFormData.fullName || '').length >= 25 ? '#dc2626' : '#9ca3af',
+                    color: (editFormData.fullName || '').length >= 35 ? '#dc2626' : '#9ca3af',
                     fontFamily: "'Manrope', sans-serif",
                   }}
                 >
-                  {(editFormData.fullName || '').length}/25
+                  {(editFormData.fullName || '').length}/35
                 </span>
               </div>
               <input
                 type="text"
                 name="fullName"
                 value={editFormData.fullName || ''}
+                maxLength={35}
                 onChange={handleEditChange}
-                maxLength={25}
-                placeholder="Enter full name (letters only)"
+                placeholder="Enter full name"
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -1553,7 +1726,9 @@ const ProfilePage = () => {
                 name="email"
                 value={editFormData.email || ''}
                 onChange={handleEditChange}
+                onKeyDown={handleProfileEmailKeyDown}
                 placeholder="name@example.com"
+                required
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -1685,6 +1860,12 @@ const ProfilePage = () => {
           </form>
         </div>
       </dialog>
+
+      <PatientAuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => fetchPatientData()}
+      />
 
       {/* Footer */}
       <footer
