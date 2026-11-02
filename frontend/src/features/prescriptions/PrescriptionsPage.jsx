@@ -37,8 +37,7 @@ const PrescriptionsPage = () => {
   const [isPickingDate, setIsPickingDate] = useState(false);
   const dateInputRef = useRef(null);
 
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [patientFilter, setPatientFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('Delivered');
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
@@ -101,8 +100,7 @@ const PrescriptionsPage = () => {
     setDateFilter('All Dates');
     setCustomDate('');
     setIsPickingDate(false);
-    setStatusFilter('All');
-    setPatientFilter('All');
+    setStatusFilter('Delivered');
     setSearchQuery('');
     setCurrentPage(1);
   };
@@ -152,14 +150,13 @@ const PrescriptionsPage = () => {
       item.complaint.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus =
-      statusFilter === 'All' || item.status.toLowerCase() === statusFilter.toLowerCase();
-
-    const matchesPatient =
-      patientFilter === 'All' || item.name.toLowerCase() === patientFilter.toLowerCase();
+      !statusFilter ||
+      statusFilter === 'All' ||
+      (item.status && item.status.toLowerCase() === statusFilter.toLowerCase());
 
     const matchesDate = matchesDateFilter(item.date);
 
-    return matchesSearch && matchesStatus && matchesPatient && matchesDate;
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   // Dynamic pagination calculation based on data and page size
@@ -581,37 +578,8 @@ const PrescriptionsPage = () => {
                 outline: 'none',
               }}
             >
-              <option value="All">All Status</option>
               <option value="Delivered">Delivered</option>
-              <option value="Sent">Sent</option>
               <option value="Pending">Pending</option>
-              <option value="Failed">Failed</option>
-            </select>
-
-            {/* Patients Dropdown */}
-            <select
-              value={patientFilter}
-              onChange={(e) => {
-                setPatientFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: '1px solid #e2e8f0',
-                backgroundColor: '#ffffff',
-                fontSize: '13px',
-                color: '#334155',
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            >
-              <option value="All">All Patients</option>
-              {Array.from(new Set(prescriptionsList.map((p) => p.name).filter(Boolean))).map((patientName) => (
-                <option key={patientName} value={patientName}>
-                  {patientName}
-                </option>
-              ))}
             </select>
 
             {/* Search Input */}
