@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
+import PatientAuthModal from '../../components/auth/PatientAuthModal';
 import Navbar from '../../components/layout/Navbar';
 import bookingBannerClean from '../../assets/booking-banner-clean.jpg';
 import confirmedIllustration from '../../assets/confirmed-illustration.png';
+import appointmentApi from '../../api/appointmentApi';
 
 const BookAppointmentPage = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
 
   // Form state initialized matching reference design (empty inputs with clean placeholders)
@@ -25,6 +30,19 @@ const BookAppointmentPage = () => {
   });
 
   const [errors, setErrors] = useState({});
+  const [bookingLoading, setBookingLoading] = useState(false);
+
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      const full = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || '';
+      setFormData((prev) => ({
+        ...prev,
+        fullName: prev.fullName === 'Rahul Sharma' && full ? full : (prev.fullName || full),
+        mobileNumber: prev.mobileNumber === '+91 98765 43210' && user.phone_number ? user.phone_number : (prev.mobileNumber || user.phone_number || ''),
+        email: prev.email === 'rahul.sharma@gmail.com' && user.email ? user.email : (prev.email || user.email || ''),
+      }));
+    }
+  }, [user, isAuthenticated]);
 
   // Calendar view month & year state
   const [calendarMonth, setCalendarMonth] = useState(9); // October
@@ -171,17 +189,45 @@ const BookAppointmentPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNextStep = (e) => {
+  const handleNextStep = async (e) => {
     if (e) e.preventDefault();
+
     if (currentStep === 1) {
       if (validateStep1()) {
         setCurrentStep(2);
         window.scrollTo({ top: 260, behavior: 'smooth' });
       }
     } else if (currentStep === 2) {
-      // Step 2 leads directly to the Confirmed Appointment UI
-      setCurrentStep(3);
-      window.scrollTo({ top: 260, behavior: 'smooth' });
+      setBookingLoading(true);
+      const formattedDate = `${formData.selectedDay} ${months[formData.selectedMonth]} ${formData.selectedYear}`;
+      try {
+        const res = await appointmentApi.bookAppointment({
+          patient_name: formData.fullName,
+          patient_phone: formData.mobileNumber,
+          patient_email: formData.email,
+          appointment_date: formattedDate,
+          time_slot: formData.selectedTimeSlot,
+          reason_for_visit: formData.reasonForVisit || 'Homeopathic Consultation',
+          consultation_type: 'In clinic Visit',
+          status: 'Confirmed',
+        });
+        const realId = res?.appointment?.appointment_id || res?.appointment_id || `APT-${Date.now().toString().slice(-6)}`;
+        setFormData((prev) => ({ ...prev, appointmentId: realId }));
+        if (typeof window !== 'undefined') {
+          if (formData.mobileNumber) localStorage.setItem('kss_patient_phone', formData.mobileNumber);
+          if (formData.email) localStorage.setItem('kss_patient_email', formData.email);
+          if (formData.fullName) localStorage.setItem('kss_patient_name', formData.fullName);
+          if (realId) localStorage.setItem('kss_last_appointment_id', realId);
+          window.dispatchEvent(new CustomEvent('appointment-booked', { detail: res }));
+        }
+        setCurrentStep(3);
+        window.scrollTo({ top: 260, behavior: 'smooth' });
+      } catch (err) {
+        console.error('Booking failed:', err);
+        alert(err.response?.data?.error || err.response?.data?.detail || 'Failed to book appointment. Please try again.');
+      } finally {
+        setBookingLoading(false);
+      }
     }
   };
 
@@ -286,6 +332,15 @@ const BookAppointmentPage = () => {
           } else {
             window.scrollTo({ top: 280, behavior: 'smooth' });
           }
+        }}
+      />
+
+      {/* Patient Auth Modal */}
+      <PatientAuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={(authenticatedUser) => {
+          setShowAuthModal(false);
         }}
       />
 

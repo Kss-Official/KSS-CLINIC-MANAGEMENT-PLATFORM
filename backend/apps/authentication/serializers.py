@@ -12,6 +12,13 @@ class LoginSerializer(serializers.Serializer):
         password = attrs.get('password')
 
         if username and password:
+            if '@' in username:
+                try:
+                    user_obj = User.objects.filter(email__iexact=username).first()
+                    if user_obj:
+                        username = user_obj.username
+                except Exception:
+                    pass
             user = authenticate(username=username, password=password)
             if not user:
                 raise serializers.ValidationError('Invalid username or password.')
@@ -27,9 +34,19 @@ class LoginSerializer(serializers.Serializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
 
+
+    def validate_email(self, value):
+        if value:
+            val = value.strip().lower()
+            if '.com' in val:
+                idx = val.find('.com')
+                if idx + 4 < len(val):
+                    raise serializers.ValidationError("No characters are allowed after .com in the email address.")
+        return value
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'first_name', 'last_name', 'role']
+        fields = ['id', 'username', 'email', 'password', 'first_name', 'last_name', 'role', 'phone_number']
 
     def create(self, validated_data):
         password = validated_data.pop('password')

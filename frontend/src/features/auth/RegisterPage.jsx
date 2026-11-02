@@ -32,8 +32,12 @@ const RegisterPage = () => {
     setError('');
 
     try {
-      await register(formData);
-      navigate('/dashboard');
+      const data = await register(formData);
+      if (data?.user?.role === 'PATIENT') {
+        navigate('/profile');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {

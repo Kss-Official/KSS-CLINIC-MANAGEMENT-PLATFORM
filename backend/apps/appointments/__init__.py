@@ -1,0 +1,2 @@
+# backend/apps/appointments/__init__.py
+
