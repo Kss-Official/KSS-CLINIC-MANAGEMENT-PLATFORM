@@ -115,9 +115,12 @@ const DashboardPage = () => {
     window.addEventListener('appointment-booked', handleAppointmentBooked);
     window.addEventListener('focus', fetchAppointments);
 
+    const interval = setInterval(fetchAppointments, 5000);
+
     return () => {
       window.removeEventListener('appointment-booked', handleAppointmentBooked);
       window.removeEventListener('focus', fetchAppointments);
+      clearInterval(interval);
     };
   }, [fetchAppointments]);
   const [prescriptionsData, setPrescriptionsData] = useState([]);
@@ -133,6 +136,8 @@ const DashboardPage = () => {
             name: item.name || item.patientName || 'Patient',
             rxId: item.rxId || item.id,
             id: item.rxId || item.id,
+            database_id: item.database_id,
+            created_at: item.created_at,
             date: item.date,
             time: item.time || '10:00 AM',
             ageGender: item.ageGender || '',
@@ -157,16 +162,42 @@ const DashboardPage = () => {
   useEffect(() => {
     fetchPrescriptions();
 
-    const handlePrescriptionCreated = () => {
+    const handlePrescriptionCreated = (e) => {
       fetchPrescriptions();
+      if (e?.detail) {
+        const item = e.detail;
+        const formatted = {
+          name: item.name || item.patientName || 'Patient',
+          rxId: item.rxId || item.id,
+          id: item.rxId || item.id,
+          database_id: item.database_id,
+          created_at: item.created_at,
+          date: item.date,
+          time: item.time || '10:00 AM',
+          ageGender: item.ageGender || '',
+          complaint: item.complaint || 'Consultation',
+          symptoms: item.symptoms || '',
+          diagnosis: item.diagnosis || '',
+          medicines: item.medicines || [],
+          additionalInstructions: item.additionalInstructions || '',
+          status: item.status || 'Delivered',
+        };
+        setPrescriptionsData((prev) => [
+          formatted,
+          ...prev.filter((p) => (p.rxId || p.id) !== formatted.rxId),
+        ]);
+      }
     };
 
     window.addEventListener('prescription-created', handlePrescriptionCreated);
     window.addEventListener('focus', fetchPrescriptions);
 
+    const interval = setInterval(fetchPrescriptions, 5000);
+
     return () => {
       window.removeEventListener('prescription-created', handlePrescriptionCreated);
       window.removeEventListener('focus', fetchPrescriptions);
+      clearInterval(interval);
     };
   }, [fetchPrescriptions]);
 
@@ -271,14 +302,31 @@ const DashboardPage = () => {
 
   const matchesPrescriptionDateFilter = (itemDate) => {
     if (prescriptionDateFilter === 'All Dates' || !prescriptionDateFilter) return true;
-    if (prescriptionDateFilter === 'Today') return itemDate === '28 Oct 2026';
-    if (prescriptionDateFilter === 'Tomorrow') return itemDate === '29 Oct 2026';
+    const nowIso = new Date().toISOString().split('T')[0];
+    const todayDataset = formatDateForDataset(nowIso);
+    if (prescriptionDateFilter === 'Today') {
+      return itemDate === todayDataset || itemDate === 'Today' || itemDate === '28 Oct 2026';
+    }
+    if (prescriptionDateFilter === 'Tomorrow') {
+      const tmrw = new Date();
+      tmrw.setDate(tmrw.getDate() + 1);
+      const tmrwDataset = formatDateForDataset(tmrw.toISOString().split('T')[0]);
+      return itemDate === tmrwDataset || itemDate === '29 Oct 2026';
+    }
     if (prescriptionDateFilter === 'This Week') {
       const d = parseDateString(itemDate);
       if (!d) return false;
-      const startOfWeek = new Date(2026, 9, 25);
-      const endOfWeek = new Date(2026, 9, 31, 23, 59, 59);
-      return d >= startOfWeek && d <= endOfWeek;
+      const now = new Date();
+      const day = now.getDay();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - day);
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      const mockStart = new Date(2026, 9, 25);
+      const mockEnd = new Date(2026, 9, 31, 23, 59, 59);
+      return (d >= startOfWeek && d <= endOfWeek) || (d >= mockStart && d <= mockEnd);
     }
     if (prescriptionDateFilter.startsWith('Custom:')) {
       const targetDate = prescriptionDateFilter.replace('Custom: ', '').trim();
@@ -287,7 +335,7 @@ const DashboardPage = () => {
     return itemDate === prescriptionDateFilter;
   };
 
-  // Sort most recently created prescriptions first (descending by date and time)
+  // Sort most recently created prescriptions first (newest created at the top)
   const allFilteredPrescriptions = prescriptionsData
     .filter((item) => {
       const matchesDate = matchesPrescriptionDateFilter(item.date);
@@ -297,10 +345,18 @@ const DashboardPage = () => {
       return matchesDate && matchesStatus;
     })
     .sort((a, b) => {
+      if (b.database_id && a.database_id && b.database_id !== a.database_id) {
+        return b.database_id - a.database_id;
+      }
+      if (b.created_at && a.created_at && b.created_at !== a.created_at) {
+        return new Date(b.created_at) - new Date(a.created_at);
+      }
+      if (b.rxId && a.rxId && b.rxId !== a.rxId) {
+        return b.rxId.localeCompare(a.rxId, undefined, { numeric: true });
+      }
       const timeA = parseDateTimeString(a.date, a.time);
       const timeB = parseDateTimeString(b.date, b.time);
-      if (timeB !== timeA) return timeB - timeA;
-      return (b.rxId || '').localeCompare(a.rxId || '');
+      return timeB - timeA;
     });
 
   // Dynamic pagination for Recent Prescriptions

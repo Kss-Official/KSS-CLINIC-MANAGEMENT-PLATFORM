@@ -409,6 +409,7 @@ class PrescriptionListView(APIView):
                 'medicines': rx.medicines or [],
                 'additionalInstructions': rx.additional_instructions,
                 'status': rx.status,
+                'created_at': rx.created_at.isoformat() if rx.created_at else None,
             })
         return Response(data)
 
@@ -494,6 +495,7 @@ class PrescriptionListView(APIView):
             'medicines': rx.medicines or [],
             'additionalInstructions': rx.additional_instructions,
             'status': rx.status,
+            'created_at': rx.created_at.isoformat() if rx.created_at else None,
             'message': f"Prescription {rx.prescription_id} saved successfully for {rx.patient_name}!"
         }, status=status.HTTP_201_CREATED)
 
