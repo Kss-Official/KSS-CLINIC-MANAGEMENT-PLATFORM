@@ -386,6 +386,7 @@ const AppointmentModal = ({ isOpen, onClose }) => {
                       type="date"
                       name="date"
                       required
+                      min={new Date().toISOString().split('T')[0]}
                       value={formData.date}
                       onChange={handleChange}
                       style={{

@@ -136,6 +136,21 @@ class AppointmentListCreateView(APIView):
             req_date = serializer.validated_data.get('appointment_date')
             req_slot = serializer.validated_data.get('time_slot')
 
+            # Ensure requested date is not in the past
+            if req_date:
+                try:
+                    from datetime import datetime, date
+                    norm_d = normalize_date_str(req_date)
+                    if norm_d and len(norm_d.split('-')) == 3:
+                        apt_date_obj = datetime.strptime(norm_d, '%Y-%m-%d').date()
+                        if apt_date_obj < date.today():
+                            return Response({
+                                'error': 'Cannot book an appointment for a past date. Please select today or a future date.',
+                                'detail': f"Requested date '{req_date}' is in the past."
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                except Exception:
+                    pass
+
             # Prevent double booking: ensure slot on requested date is available
             if req_date and req_slot:
                 norm_date = normalize_date_str(req_date)
