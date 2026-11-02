@@ -564,14 +564,15 @@ const SettingsPage = () => {
           </button>
         </div>
 
-        {/* Row 1: 4 columns with vertical dividers */}
+        {/* Unified 4-Column Grid: Row 1 & Row 2 perfectly aligned */}
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: '1.15fr 1.55fr 1.25fr 1.25fr',
-            marginBottom: '22px',
+            rowGap: '22px',
           }}
         >
+          {/* Row 1, Col 1: Clinic Name */}
           <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               CLINIC NAME
@@ -581,6 +582,7 @@ const SettingsPage = () => {
             </div>
           </div>
 
+          {/* Row 1, Col 2: Doctor Name */}
           <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               DOCTOR NAME
@@ -590,6 +592,7 @@ const SettingsPage = () => {
             </div>
           </div>
 
+          {/* Row 1, Col 3: Contact Number */}
           <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               CONTACT NUMBER
@@ -602,6 +605,7 @@ const SettingsPage = () => {
             </div>
           </div>
 
+          {/* Row 1, Col 4: Alternate Number */}
           <div style={{ paddingLeft: '24px' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               ALTERNATE NUMBER
@@ -613,15 +617,8 @@ const SettingsPage = () => {
               <span>{clinicInfo.alternateNumber}</span>
             </div>
           </div>
-        </div>
 
-        {/* Row 2: Email Address | Address */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1.15fr 2.8fr',
-          }}
-        >
+          {/* Row 2, Col 1: Email Address (Directly under Clinic Name) */}
           <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               EMAIL ADDRESS
@@ -635,7 +632,8 @@ const SettingsPage = () => {
             </div>
           </div>
 
-          <div style={{ paddingLeft: '24px' }}>
+          {/* Row 2, Col 2: Address (Directly under Doctor Name!) */}
+          <div style={{ gridColumn: '2 / span 3', paddingLeft: '24px' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               ADDRESS
             </div>
