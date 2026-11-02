@@ -89,81 +89,105 @@ const DashboardPage = () => {
     doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
   });
 
-  const fetchAppointments = useCallback(async () => {
+  const fetchAppointments = useCallback(async (silent = false) => {
     try {
-      setIsAppointmentsLoading(true);
+      if (!silent) {
+        setIsAppointmentsLoading(true);
+      }
       const data = await appointmentApi.getAppointments();
       if (Array.isArray(data)) {
-        setAppointmentsData(data.map(mapApiAppointment));
+        const mapped = data.map(mapApiAppointment);
+        setAppointmentsData((prev) => {
+          if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
+            return prev;
+          }
+          return mapped;
+        });
       } else {
         setAppointmentsData([]);
       }
     } catch (err) {
       console.error('Failed to load dashboard appointments:', err);
     } finally {
-      setIsAppointmentsLoading(false);
+      if (!silent) {
+        setIsAppointmentsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchAppointments();
+    fetchAppointments(false);
 
     const handleAppointmentBooked = () => {
-      fetchAppointments();
+      fetchAppointments(true);
+    };
+
+    const handleFocus = () => {
+      fetchAppointments(true);
     };
 
     window.addEventListener('appointment-booked', handleAppointmentBooked);
-    window.addEventListener('focus', fetchAppointments);
+    window.addEventListener('focus', handleFocus);
 
-    const interval = setInterval(fetchAppointments, 5000);
+    const interval = setInterval(() => {
+      fetchAppointments(true);
+    }, 5000);
 
     return () => {
       window.removeEventListener('appointment-booked', handleAppointmentBooked);
-      window.removeEventListener('focus', fetchAppointments);
+      window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };
   }, [fetchAppointments]);
   const [prescriptionsData, setPrescriptionsData] = useState([]);
   const [isPrescriptionsLoading, setIsPrescriptionsLoading] = useState(true);
 
-  const fetchPrescriptions = useCallback(async () => {
+  const fetchPrescriptions = useCallback(async (silent = false) => {
     try {
-      setIsPrescriptionsLoading(true);
+      if (!silent) {
+        setIsPrescriptionsLoading(true);
+      }
       const data = await appointmentApi.getPrescriptions();
       if (Array.isArray(data)) {
-        setPrescriptionsData(
-          data.map((item) => ({
-            name: item.name || item.patientName || 'Patient',
-            rxId: item.rxId || item.id,
-            id: item.rxId || item.id,
-            database_id: item.database_id,
-            created_at: item.created_at,
-            date: item.date,
-            time: item.time || '10:00 AM',
-            ageGender: item.ageGender || '',
-            complaint: item.complaint || 'Consultation',
-            symptoms: item.symptoms || '',
-            diagnosis: item.diagnosis || '',
-            medicines: item.medicines || [],
-            additionalInstructions: item.additionalInstructions || '',
-            status: item.status || 'Delivered',
-          }))
-        );
+        const mapped = data.map((item) => ({
+          name: item.name || item.patientName || 'Patient',
+          rxId: item.rxId || item.id,
+          id: item.rxId || item.id,
+          database_id: item.database_id,
+          created_at: item.created_at,
+          date: item.date,
+          time: item.time || '10:00 AM',
+          ageGender: item.ageGender || '',
+          complaint: item.complaint || 'Consultation',
+          symptoms: item.symptoms || '',
+          diagnosis: item.diagnosis || '',
+          medicines: item.medicines || [],
+          additionalInstructions: item.additionalInstructions || '',
+          status: item.status || 'Delivered',
+        }));
+        setPrescriptionsData((prev) => {
+          if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
+            return prev;
+          }
+          return mapped;
+        });
       } else {
         setPrescriptionsData([]);
       }
     } catch (err) {
       console.error('Failed to load dashboard prescriptions from Neon:', err);
     } finally {
-      setIsPrescriptionsLoading(false);
+      if (!silent) {
+        setIsPrescriptionsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchPrescriptions();
+    fetchPrescriptions(false);
 
     const handlePrescriptionCreated = (e) => {
-      fetchPrescriptions();
+      fetchPrescriptions(true);
       if (e?.detail) {
         const item = e.detail;
         const formatted = {
@@ -189,14 +213,20 @@ const DashboardPage = () => {
       }
     };
 
-    window.addEventListener('prescription-created', handlePrescriptionCreated);
-    window.addEventListener('focus', fetchPrescriptions);
+    const handleFocus = () => {
+      fetchPrescriptions(true);
+    };
 
-    const interval = setInterval(fetchPrescriptions, 5000);
+    window.addEventListener('prescription-created', handlePrescriptionCreated);
+    window.addEventListener('focus', handleFocus);
+
+    const interval = setInterval(() => {
+      fetchPrescriptions(true);
+    }, 5000);
 
     return () => {
       window.removeEventListener('prescription-created', handlePrescriptionCreated);
-      window.removeEventListener('focus', fetchPrescriptions);
+      window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };
   }, [fetchPrescriptions]);

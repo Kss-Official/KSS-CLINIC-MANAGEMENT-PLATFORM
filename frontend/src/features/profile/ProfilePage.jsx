@@ -131,9 +131,11 @@ const ProfilePage = () => {
   ]);
 
   // Fetch real patient profile, appointments, and prescriptions from Neon PostgreSQL
-  const fetchPatientData = useCallback(async () => {
+  const fetchPatientData = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       const savedPhone = localStorage.getItem('kss_patient_phone') || user?.phone_number || '';
       const savedEmail = localStorage.getItem('kss_patient_email') || user?.email || '';
       const savedName = localStorage.getItem('kss_patient_name') || '';
@@ -182,7 +184,10 @@ const ProfilePage = () => {
               reason: a.reason,
             };
           });
-          setAppointments(formattedApts);
+          setAppointments((prev) => {
+            if (JSON.stringify(prev) === JSON.stringify(formattedApts)) return prev;
+            return formattedApts;
+          });
         }
 
         // Format real prescriptions
@@ -201,31 +206,38 @@ const ProfilePage = () => {
               status: r.status || 'Delivered',
             };
           });
-          setPrescriptions(formattedRxs);
+          setPrescriptions((prev) => {
+            if (JSON.stringify(prev) === JSON.stringify(formattedRxs)) return prev;
+            return formattedRxs;
+          });
         }
       }
     } catch (err) {
       console.error('Failed to load patient profile from Neon:', err);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, [user]);
 
   useEffect(() => {
-    fetchPatientData();
+    fetchPatientData(false);
+
+    const handleEvent = () => fetchPatientData(true);
 
     // Real-time synchronization: refresh on event or focus
-    window.addEventListener('appointment-booked', fetchPatientData);
-    window.addEventListener('prescription-created', fetchPatientData);
-    window.addEventListener('focus', fetchPatientData);
+    window.addEventListener('appointment-booked', handleEvent);
+    window.addEventListener('prescription-created', handleEvent);
+    window.addEventListener('focus', handleEvent);
 
     // Reliable 10-second polling for automatic sync across Patient and Admin portals
-    const interval = setInterval(fetchPatientData, 10000);
+    const interval = setInterval(() => fetchPatientData(true), 10000);
 
     return () => {
-      window.removeEventListener('appointment-booked', fetchPatientData);
-      window.removeEventListener('prescription-created', fetchPatientData);
-      window.removeEventListener('focus', fetchPatientData);
+      window.removeEventListener('appointment-booked', handleEvent);
+      window.removeEventListener('prescription-created', handleEvent);
+      window.removeEventListener('focus', handleEvent);
       clearInterval(interval);
     };
   }, [fetchPatientData]);
