@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { extractErrorMessage } from '../../utils/helpers';
+import authApi from '../../api/authApi';
 import doctorPortalLogo from '../../assets/doctor-portal-logo.png';
 import loginBg from '../../assets/doctor-login-clean-bg.jpg?v=figma_frame11';
 
@@ -12,6 +13,101 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Forgot Password Modal State
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1: Enter email/username, 2: Enter code & new pass, 3: Success
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotCode, setForgotCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+
+  const handleOpenForgotModal = () => {
+    setShowForgotModal(true);
+    setForgotStep(1);
+    setForgotError('');
+    setForgotCode('');
+    setNewPassword('');
+    setConfirmPassword('');
+    if (formData.username && formData.username.trim()) {
+      setForgotIdentifier(formData.username.trim());
+    }
+  };
+
+  const handleCloseForgotModal = () => {
+    setShowForgotModal(false);
+    setForgotStep(1);
+    setForgotError('');
+    setForgotCode('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const handleSendResetCode = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!forgotIdentifier.trim()) {
+      setForgotError('Please enter your username or registered email address.');
+      return;
+    }
+    setForgotLoading(true);
+    setForgotError('');
+
+    try {
+      const res = await authApi.forgotPassword(forgotIdentifier.trim());
+      if (res?.success) {
+        setMaskedEmail(res.email || forgotIdentifier);
+        setForgotStep(2);
+      } else {
+        setForgotError(res?.error || 'Failed to send reset code. Please try again.');
+      }
+    } catch (err) {
+      setForgotError(extractErrorMessage(err) || 'No account found with this username or email.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!forgotCode.trim()) {
+      setForgotError('Please enter the 6-digit verification code.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setForgotError('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setForgotError('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotError('');
+
+    try {
+      const res = await authApi.resetPassword({
+        identifier: forgotIdentifier.trim(),
+        code: forgotCode.trim(),
+        newPassword: newPassword,
+      });
+
+      if (res?.success) {
+        setForgotStep(3);
+        setFormData((prev) => ({ ...prev, username: forgotIdentifier, password: '' }));
+      } else {
+        setForgotError(res?.error || 'Invalid or expired verification code.');
+      }
+    } catch (err) {
+      setForgotError(extractErrorMessage(err) || 'Invalid or expired verification code.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData((prev) => ({
@@ -382,7 +478,7 @@ const LoginPage = () => {
             }}
           >
             <span
-              onClick={() => alert('Please contact the clinic administrator to reset your password.')}
+              onClick={handleOpenForgotModal}
               style={{
                 color: '#2d6a4f',
                 fontSize: '12px',
@@ -447,6 +543,405 @@ const LoginPage = () => {
           </button>
         </form>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px',
+            boxSizing: 'border-box',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCloseForgotModal();
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '460px',
+              padding: '32px 32px 28px',
+              boxSizing: 'border-box',
+              position: 'relative',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+            }}
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={handleCloseForgotModal}
+              style={{
+                position: 'absolute',
+                top: '18px',
+                right: '18px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '6px',
+                color: '#94a3b8',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'color 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#1e293b')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+              aria-label="Close"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            {/* Step 1: Request Code */}
+            {forgotStep === 1 && (
+              <div>
+                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      backgroundColor: '#e8f5e9',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#1b4332',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </div>
+                  <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#111827', margin: '0 0 6px 0' }}>
+                    Reset Password
+                  </h3>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.5' }}>
+                    Enter your username or registered email. We will send a 6-digit verification code to your email.
+                  </p>
+                </div>
+
+                {forgotError && (
+                  <div
+                    style={{
+                      padding: '10px 12px',
+                      backgroundColor: '#fee2e2',
+                      border: '1px solid #fecaca',
+                      color: '#dc2626',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      marginBottom: '14px',
+                      textAlign: 'left',
+                    }}
+                  >
+                    {forgotError}
+                  </div>
+                )}
+
+                <form onSubmit={handleSendResetCode}>
+                  <div style={{ marginBottom: '18px' }}>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+                      Username or Email Address
+                    </label>
+                    <input
+                      type="text"
+                      value={forgotIdentifier}
+                      onChange={(e) => setForgotIdentifier(e.target.value)}
+                      placeholder="e.g. admin or your email"
+                      required
+                      autoFocus
+                      style={{
+                        width: '100%',
+                        height: '44px',
+                        padding: '0 14px',
+                        borderRadius: '10px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '14px',
+                        color: '#1e293b',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = '#286241')}
+                      onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      backgroundColor: '#1b4332',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      cursor: forgotLoading ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                  >
+                    {forgotLoading ? 'Sending code via Brevo...' : 'Send Verification Code'}
+                  </button>
+
+                  <div style={{ textAlign: 'center', marginTop: '14px' }}>
+                    <span
+                      onClick={handleCloseForgotModal}
+                      style={{
+                        fontSize: '12.5px',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                      }}
+                    >
+                      Cancel & Return to Login
+                    </span>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Step 2: Enter Code & New Password */}
+            {forgotStep === 2 && (
+              <div>
+                <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      backgroundColor: '#e0f2fe',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#0284c7',
+                      marginBottom: '10px',
+                    }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                    </svg>
+                  </div>
+                  <h3 style={{ fontSize: '19px', fontWeight: '800', color: '#111827', margin: '0 0 4px 0' }}>
+                    Enter Verification Code
+                  </h3>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.4' }}>
+                    We sent a 6-digit code to <strong>{maskedEmail}</strong>.
+                  </p>
+                </div>
+
+                {forgotError && (
+                  <div
+                    style={{
+                      padding: '10px 12px',
+                      backgroundColor: '#fee2e2',
+                      border: '1px solid #fecaca',
+                      color: '#dc2626',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      marginBottom: '14px',
+                      textAlign: 'left',
+                    }}
+                  >
+                    {forgotError}
+                  </div>
+                )}
+
+                <form onSubmit={handleResetPassword}>
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '5px' }}>
+                      6-Digit Code
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={forgotCode}
+                      onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="e.g. 767891"
+                      required
+                      autoFocus
+                      style={{
+                        width: '100%',
+                        height: '44px',
+                        padding: '0 14px',
+                        borderRadius: '10px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        color: '#1b4332',
+                        letterSpacing: '4px',
+                        textAlign: 'center',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = '#286241')}
+                      onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '5px' }}>
+                      New Password (min 6 characters)
+                    </label>
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter new password"
+                      required
+                      style={{
+                        width: '100%',
+                        height: '44px',
+                        padding: '0 14px',
+                        borderRadius: '10px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '14px',
+                        color: '#1e293b',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = '#286241')}
+                      onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '18px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#334155', marginBottom: '5px' }}>
+                      Confirm New Password
+                    </label>
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter new password"
+                      required
+                      style={{
+                        width: '100%',
+                        height: '44px',
+                        padding: '0 14px',
+                        borderRadius: '10px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '14px',
+                        color: '#1e293b',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = '#286241')}
+                      onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      backgroundColor: '#1b4332',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      cursor: forgotLoading ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                  >
+                    {forgotLoading ? 'Updating Password...' : 'Save New Password'}
+                  </button>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '14px', fontSize: '12.5px' }}>
+                    <span
+                      onClick={handleSendResetCode}
+                      style={{ color: '#2d6a4f', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      Resend Code
+                    </span>
+                    <span
+                      onClick={handleCloseForgotModal}
+                      style={{ color: '#64748b', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </span>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Step 3: Success Screen */}
+            {forgotStep === 3 && (
+              <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    backgroundColor: '#dcfce7',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#16a34a',
+                    marginBottom: '16px',
+                  }}
+                >
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#111827', margin: '0 0 8px 0' }}>
+                  Password Reset Successfully!
+                </h3>
+                <p style={{ fontSize: '13.5px', color: '#475569', margin: '0 0 24px 0', lineHeight: '1.5' }}>
+                  Your password has been updated. You can now login to your clinic portal with your new password.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCloseForgotModal}
+                  style={{
+                    width: '100%',
+                    height: '44px',
+                    backgroundColor: '#1b4332',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Back to Login
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media (max-width: 580px) {

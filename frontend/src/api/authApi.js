@@ -20,6 +20,20 @@ export const authApi = {
     const response = await axiosClient.get('/auth/me/');
     return response.data;
   },
+
+  forgotPassword: async (identifier) => {
+    const response = await axiosClient.post('/auth/forgot-password/', { identifier });
+    return response.data;
+  },
+
+  resetPassword: async ({ identifier, code, newPassword }) => {
+    const response = await axiosClient.post('/auth/reset-password/', {
+      identifier,
+      code,
+      new_password: newPassword,
+    });
+    return response.data;
+  },
 };
 
 export default authApi;
