@@ -20,6 +20,7 @@ const ContactPage = () => {
   const [focusedField, setFocusedField] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formSuccess, setFormSuccess] = useState(false);
+  const [formErrorMsg, setFormErrorMsg] = useState('');
   const [mapZoom, setMapZoom] = useState(1);
 
   useEffect(() => {
@@ -151,7 +152,7 @@ const ContactPage = () => {
     }
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
 
@@ -198,19 +199,49 @@ const ContactPage = () => {
     }
 
     setFormErrors({});
+    setFormErrorMsg('');
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setFormSuccess(true);
-      setFormData({
-        fullName: '',
-        phone: '',
-        email: '',
-        purpose: '',
-        message: '',
+
+    try {
+      const response = await fetch('/api/contact/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: nameTrimmed,
+          phone: phoneDigits,
+          email: emailVal,
+          purpose: formData.purpose || 'General Consultation',
+          message: msgTrimmed,
+        }),
       });
-      setTimeout(() => setFormSuccess(false), 6000);
-    }, 700);
+
+      const resData = await response.json().catch(() => ({}));
+
+      if (response.ok && resData.success !== false) {
+        setFormSuccess(true);
+        setFormData({
+          fullName: '',
+          phone: '',
+          email: '',
+          purpose: '',
+          message: '',
+        });
+        setTimeout(() => setFormSuccess(false), 8000);
+      } else {
+        setFormErrorMsg(
+          resData.error || 'Failed to send your message. Please try again or call our clinic directly.'
+        );
+      }
+    } catch (err) {
+      console.error('Contact submission error:', err);
+      setFormErrorMsg(
+        'Network error while sending message. Please check your connection or contact us by phone.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleOpenGoogleMaps = () => {
@@ -1022,16 +1053,36 @@ const ContactPage = () => {
                           backgroundColor: '#ecfdf5',
                           border: '1px solid #a7f3d0',
                           borderRadius: '10px',
-                          padding: '12px 16px',
+                          padding: '14px 18px',
                           marginTop: '14px',
                           color: '#065f46',
                           fontSize: '13.5px',
                           fontWeight: '600',
                           textAlign: 'center',
                           fontFamily: "'Manrope', sans-serif",
+                          lineHeight: '1.5',
                         }}
                       >
-                        Thank you! Your message has been sent successfully. We will get back to you shortly.
+                        Thank you! Your message has been sent successfully to the clinic doctor. We will get back to you shortly.
+                      </div>
+                    )}
+
+                    {formErrorMsg && (
+                      <div
+                        style={{
+                          backgroundColor: '#fef2f2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '10px',
+                          padding: '12px 16px',
+                          marginTop: '14px',
+                          color: '#b91c1c',
+                          fontSize: '13.5px',
+                          fontWeight: '600',
+                          textAlign: 'center',
+                          fontFamily: "'Manrope', sans-serif",
+                        }}
+                      >
+                        {formErrorMsg}
                       </div>
                     )}
                   </form>
