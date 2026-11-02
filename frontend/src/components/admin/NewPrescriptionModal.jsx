@@ -68,10 +68,10 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
     {
       id: 1,
       name: '',
-      potency: '30C',
+      potency: '',
       dosage: '',
-      duration: '15 Days',
-      instructions: 'Twice daily',
+      duration: '',
+      instructions: '',
     },
   ]);
 
@@ -869,11 +869,11 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '10px 12px', color: '#64748b', width: '36px' }}>No.</th>
-                    <th style={{ padding: '10px 12px', color: '#64748b' }}>Medicine Name <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px' }}>Medicine Name <span style={{ color: '#ef4444' }}>*</span></th>
                     <th style={{ padding: '10px 12px', color: '#64748b', width: '110px' }}>Potency <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ padding: '10px 12px', color: '#64748b', width: '110px' }}>Dosage <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ padding: '10px 12px', color: '#64748b', width: '75px' }}>Duration <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ padding: '10px 12px', color: '#64748b' }}>Instructions (Optional)</th>
+                    <th style={{ padding: '10px 12px', color: '#64748b', width: '125px' }}>Dosage <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th style={{ padding: '10px 12px', color: '#64748b', width: '105px' }}>Duration <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px' }}>Instructions (Optional)</th>
                     <th style={{ padding: '10px 12px', color: '#64748b', width: '45px', textAlign: 'center' }}>Action</th>
                   </tr>
                 </thead>
@@ -884,59 +884,91 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                         {idx + 1}
                       </td>
                       <td style={{ padding: '8px 10px' }}>
-                        <select
+                        <input
+                          type="text"
                           value={med.name}
                           onChange={(e) => handleMedicineChange(med.id, 'name', e.target.value)}
-                          style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12.5px' }}
-                        >
-                          <option value="">Select medicine</option>
-                          <option value="Arsenicum Album">Arsenicum Album</option>
-                          <option value="Nux Vomica">Nux Vomica</option>
-                          <option value="Pulsatilla">Pulsatilla</option>
-                          <option value="Sepia">Sepia</option>
-                          <option value="Belladonna">Belladonna</option>
-                          <option value="Bryonia">Bryonia</option>
-                          <option value="Natrum Muriaticum">Natrum Muriaticum</option>
-                          <option value="Lycopodium">Lycopodium</option>
-                          <option value="Sulphur">Sulphur</option>
-                          <option value="Calcarea Carbonica">Calcarea Carbonica</option>
-                          <option value="Thuja Occidentalis">Thuja Occidentalis</option>
-                        </select>
+                          placeholder="Medicine name"
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            padding: '0 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12.5px',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                        />
                       </td>
                       <td style={{ padding: '8px 10px' }}>
-                        <select
+                        <input
+                          type="text"
                           value={med.potency}
                           onChange={(e) => handleMedicineChange(med.id, 'potency', e.target.value)}
-                          style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12.5px' }}
-                        >
-                          <option value="">Select</option>
-                          <option value="30C">30C</option>
-                          <option value="200C">200C</option>
-                          <option value="1M">1M</option>
-                          <option value="6X">6X</option>
-                          <option value="Mother Tincture (Q)">Mother Tincture (Q)</option>
-                        </select>
+                          placeholder="e.g. 30C, 200C"
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            padding: '0 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12.5px',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                        />
                       </td>
                       <td style={{ padding: '8px 10px' }}>
-                        <select
+                        <input
+                          type="text"
                           value={med.dosage}
                           onChange={(e) => handleMedicineChange(med.id, 'dosage', e.target.value)}
-                          style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12.5px' }}
-                        >
-                          <option value="">Select</option>
-                          <option value="2 drops">2 drops</option>
-                          <option value="4 pills">4 pills</option>
-                          <option value="1 teaspoon">1 teaspoon</option>
-                          <option value="10 drops in water">10 drops in water</option>
-                        </select>
+                          placeholder="e.g. 4 pills, 2 drops"
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            padding: '0 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12.5px',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                        />
                       </td>
                       <td style={{ padding: '8px 10px' }}>
                         <input
                           type="text"
                           value={med.duration}
                           onChange={(e) => handleMedicineChange(med.id, 'duration', e.target.value)}
-                          placeholder="Days"
-                          style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                          placeholder="e.g. 15 Days"
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            padding: '0 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12.5px',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                         />
                       </td>
                       <td style={{ padding: '8px 10px' }}>
@@ -944,8 +976,21 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                           type="text"
                           value={med.instructions}
                           onChange={(e) => handleMedicineChange(med.id, 'instructions', e.target.value)}
-                          placeholder="e.g., 2 drops twice da..."
-                          style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                          placeholder="e.g. Twice daily"
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            padding: '0 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12.5px',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                         />
                       </td>
                       <td style={{ padding: '8px 10px', textAlign: 'center' }}>
