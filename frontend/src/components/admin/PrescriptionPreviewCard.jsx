@@ -12,6 +12,7 @@ const PrescriptionPreviewCard = ({
   additionalInstructions = 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.',
   onSendWhatsApp,
   onDownloadPdf,
+  cardId = 'printable-prescription-card',
 }) => {
   const cardRef = useRef(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -85,7 +86,7 @@ const PrescriptionPreviewCard = ({
 
       {/* 2. Prescription Paper / Card Container */}
       <div
-        id="printable-prescription-card"
+        id={cardId}
         ref={cardRef}
         style={{
           backgroundColor: '#ffffff',

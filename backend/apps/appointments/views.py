@@ -754,14 +754,31 @@ class PatientMyProfileView(APIView):
             'prescriptions': [{
                 'id': r.prescription_id,
                 'rxId': r.prescription_id,
+                'prescription_id': r.prescription_id,
                 'date': r.date,
                 'time': r.time,
+                'patientName': r.patient_name,
+                'name': r.patient_name,
+                'patientId': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
+                'patient_id_ref': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
+                'ageGender': r.age_gender or (r.patient_record.age_gender if r.patient_record else ''),
+                'contact': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
+                'mobile': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
                 'diagnosis': r.diagnosis,
                 'complaint': r.complaint,
                 'symptoms': r.symptoms,
                 'status': r.status,
                 'medicines': r.medicines or [],
                 'additionalInstructions': r.additional_instructions,
+                'additional_instructions': r.additional_instructions,
+                'notes': r.additional_instructions,
+                'patient': {
+                    'name': r.patient_name,
+                    'id': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
+                    'ageGender': r.age_gender or (r.patient_record.age_gender if r.patient_record else ''),
+                    'phone': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
+                    'contact': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
+                }
             } for r in p_rxs],
         })
 
