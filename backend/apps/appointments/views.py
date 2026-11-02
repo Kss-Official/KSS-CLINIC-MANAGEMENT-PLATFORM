@@ -772,6 +772,7 @@ class PatientMyProfileView(APIView):
                 'additionalInstructions': r.additional_instructions,
                 'additional_instructions': r.additional_instructions,
                 'notes': r.additional_instructions,
+                'created_at': r.created_at.isoformat() if r.created_at else None,
                 'patient': {
                     'name': r.patient_name,
                     'id': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),

@@ -220,6 +220,8 @@ const ProfilePage = () => {
                 title: `Prescription - ${diagnosis}`,
                 date: r.date || 'Today',
                 time: r.time || '10:00 AM',
+                created_at: r.created_at,
+                createdAt: r.created_at,
                 fileName: `Prescription_${safePatientName}_${rxId}.pdf`,
                 diagnosis,
                 complaint: r.complaint || diagnosis,
@@ -1099,24 +1101,48 @@ const ProfilePage = () => {
                 }}
               >
                 <option value="All">All Prescriptions</option>
-                <option value="Recent">Recent</option>
+                <option value="Recent">Recent Prescriptions</option>
               </select>
             </div>
 
             {/* Prescriptions List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {prescriptions.length === 0 ? (
-                <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
-                    No prescriptions issued yet. Once your doctor creates a prescription, it will appear here permanently.
-                  </p>
-                </div>
-              ) : prescriptions
-                .filter((item) => {
+              {(() => {
+                if (prescriptions.length === 0) {
+                  return (
+                    <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                        No prescriptions issued yet. Once your doctor creates a prescription, it will appear here permanently.
+                      </p>
+                    </div>
+                  );
+                }
+
+                const filteredPrescriptions = prescriptions.filter((item, index) => {
                   if (prescriptionFilter === 'All') return true;
+                  if (prescriptionFilter === 'Recent') {
+                    // Only show recently created prescriptions, not the full history
+                    if (index === 0) return true;
+                    if (item.created_at && prescriptions[0]?.created_at) {
+                      const diffMs = Math.abs(new Date(prescriptions[0].created_at) - new Date(item.created_at));
+                      return diffMs < 12 * 60 * 60 * 1000;
+                    }
+                    return false;
+                  }
                   return true;
-                })
-                .map((item) => (
+                });
+
+                if (filteredPrescriptions.length === 0) {
+                  return (
+                    <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                        No recent prescriptions found.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return filteredPrescriptions.map((item) => (
                 <div
                   key={item.id}
                   onClick={() => handleViewPrescription(item)}
@@ -1218,7 +1244,8 @@ const ProfilePage = () => {
                     )}
                   </button>
                 </div>
-              ))}
+              ));
+            })()}
             </div>
           </div>
         </div>
