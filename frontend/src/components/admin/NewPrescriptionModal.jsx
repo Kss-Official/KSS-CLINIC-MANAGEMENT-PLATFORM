@@ -381,7 +381,6 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                 handleFinalSave('WhatsApp');
               }}
               onDownloadPdf={() => {
-                alert(`Downloading Prescription PDF for ${selectedPatient.name}...`);
                 handleFinalSave('PDF');
               }}
             />

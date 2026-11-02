@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import doctorLogoImg from '../../assets/doctor-portal-logo.png';
+import { downloadPrescriptionPdf } from '../../utils/prescriptionPdf';
 
 const PrescriptionPreviewCard = ({
+  prescriptionId,
   patient = {},
   date = '28 Oct 2026',
   consultationType = 'Follow-up',
@@ -11,6 +13,10 @@ const PrescriptionPreviewCard = ({
   onSendWhatsApp,
   onDownloadPdf,
 }) => {
+  const cardRef = useRef(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
+
   // Normalize patient fields
   const patientName = patient.name || 'Rahul Sharma';
   const patientId = patient.id || patient.patientId || 'PAT-1001';
@@ -27,11 +33,26 @@ const PrescriptionPreviewCard = ({
     ? medicines
     : defaultMedicines;
 
-  const handlePrintDownload = () => {
-    if (onDownloadPdf) {
-      onDownloadPdf();
-    } else {
-      window.print();
+  const handlePrintDownload = async () => {
+    setDownloadError('');
+    setIsDownloading(true);
+    try {
+      const rxIdentifier = prescriptionId || patient.rxId || patient.id || 'RX';
+      const safePatientName = patientName.replace(/\s+/g, '_');
+      const filename = `Prescription_${safePatientName}_${rxIdentifier}.pdf`;
+
+      await downloadPrescriptionPdf(cardRef.current, filename);
+
+      if (onDownloadPdf) {
+        await onDownloadPdf();
+      }
+    } catch (err) {
+      console.error('Failed to download prescription PDF:', err);
+      setDownloadError(
+        err?.message || 'Failed to download prescription PDF. Please check your browser permissions or try again.'
+      );
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -65,6 +86,7 @@ const PrescriptionPreviewCard = ({
       {/* 2. Prescription Paper / Card Container */}
       <div
         id="printable-prescription-card"
+        ref={cardRef}
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '16px',
@@ -378,6 +400,63 @@ const PrescriptionPreviewCard = ({
         </div>
       </div>
 
+      {/* Download Error Banner */}
+      {downloadError && (
+        <div
+          role="alert"
+          style={{
+            marginTop: '16px',
+            padding: '12px 16px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            color: '#991b1b',
+            fontSize: '13px',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ flexShrink: 0 }}
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{downloadError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDownloadError('')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#991b1b',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '600',
+              padding: '2px 6px',
+              textDecoration: 'underline',
+              flexShrink: 0,
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* 3. Bottom Action Buttons */}
       <div
         style={{
@@ -391,6 +470,7 @@ const PrescriptionPreviewCard = ({
         <button
           type="button"
           onClick={handleWhatsApp}
+          disabled={isDownloading}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -403,16 +483,21 @@ const PrescriptionPreviewCard = ({
             color: '#15803d',
             fontSize: '13.5px',
             fontWeight: '600',
-            cursor: 'pointer',
+            cursor: isDownloading ? 'not-allowed' : 'pointer',
+            opacity: isDownloading ? 0.7 : 1,
             transition: 'all 0.15s ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#f0fdf4';
-            e.currentTarget.style.borderColor = '#15803d';
+            if (!isDownloading) {
+              e.currentTarget.style.backgroundColor = '#f0fdf4';
+              e.currentTarget.style.borderColor = '#15803d';
+            }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#ffffff';
-            e.currentTarget.style.borderColor = '#16a34a';
+            if (!isDownloading) {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.borderColor = '#16a34a';
+            }
           }}
         >
           <svg
@@ -434,6 +519,7 @@ const PrescriptionPreviewCard = ({
         <button
           type="button"
           onClick={handlePrintDownload}
+          disabled={isDownloading}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -446,27 +532,54 @@ const PrescriptionPreviewCard = ({
             color: '#ffffff',
             fontSize: '13.5px',
             fontWeight: '600',
-            cursor: 'pointer',
+            cursor: isDownloading ? 'not-allowed' : 'pointer',
+            opacity: isDownloading ? 0.8 : 1,
             transition: 'background-color 0.15s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#0f3d21')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#14532d')}
+          onMouseEnter={(e) => {
+            if (!isDownloading) {
+              e.currentTarget.style.backgroundColor = '#0f3d21';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isDownloading) {
+              e.currentTarget.style.backgroundColor = '#14532d';
+            }
+          }}
         >
-          <svg
-            width="17"
-            height="17"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          <span>Download Prescription (PDF)</span>
+          {isDownloading ? (
+            <>
+              <div
+                style={{
+                  width: '15px',
+                  height: '15px',
+                  border: '2px solid rgba(255, 255, 255, 0.4)',
+                  borderTopColor: '#ffffff',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                }}
+              />
+              <span>Generating PDF...</span>
+            </>
+          ) : (
+            <>
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Download Prescription (PDF)</span>
+            </>
+          )}
         </button>
       </div>
     </div>

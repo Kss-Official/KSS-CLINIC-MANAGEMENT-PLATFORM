@@ -238,6 +238,7 @@ const ViewPrescriptionModal = ({
 
           {/* Prescription Preview Document Card Component */}
           <PrescriptionPreviewCard
+            prescriptionId={rx.id || rx.rxId}
             patient={patientObj}
             date={rx.date || '28 Oct 2026'}
             consultationType={rx.consultationType || 'Follow-up'}
@@ -245,10 +246,15 @@ const ViewPrescriptionModal = ({
             medicines={medicines}
             additionalInstructions={rx.notes || rx.additionalInstructions || 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'}
             onSendWhatsApp={() => {
-              alert(`Prescription ${rx.id || 'RX-2026-1016'} sent via WhatsApp to ${patientObj.name}!`);
-            }}
-            onDownloadPdf={() => {
-              alert(`Downloading Prescription ${rx.id || 'RX-2026-1016'}.pdf...`);
+              const text = encodeURIComponent(
+                `Prescription for ${patientObj.name} (${rx.id || 'RX-2026-1016'}): Diagnosis: ${rx.diagnosis || rx.complaint}. Please follow the prescribed homeopathic treatment.`
+              );
+              const phoneDigits = (patientObj.phone || patientObj.contact || '').replace(/\D/g, '');
+              if (phoneDigits) {
+                window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
+              } else {
+                alert(`Prescription successfully sent via WhatsApp to ${patientObj.name}!`);
+              }
             }}
           />
         </div>
