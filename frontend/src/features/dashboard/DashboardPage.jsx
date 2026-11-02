@@ -163,7 +163,7 @@ const DashboardPage = () => {
           diagnosis: item.diagnosis || '',
           medicines: item.medicines || [],
           additionalInstructions: item.additionalInstructions || '',
-          status: item.status || 'Delivered',
+          status: item.status || 'Pending',
         }));
         setPrescriptionsData((prev) => {
           if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
@@ -204,7 +204,7 @@ const DashboardPage = () => {
           diagnosis: item.diagnosis || '',
           medicines: item.medicines || [],
           additionalInstructions: item.additionalInstructions || '',
-          status: item.status || 'Delivered',
+          status: item.status || 'Pending',
         };
         setPrescriptionsData((prev) => [
           formatted,
@@ -218,6 +218,7 @@ const DashboardPage = () => {
     };
 
     window.addEventListener('prescription-created', handlePrescriptionCreated);
+    window.addEventListener('prescription-updated', handlePrescriptionCreated);
     window.addEventListener('focus', handleFocus);
 
     const interval = setInterval(() => {
@@ -226,6 +227,7 @@ const DashboardPage = () => {
 
     return () => {
       window.removeEventListener('prescription-created', handlePrescriptionCreated);
+      window.removeEventListener('prescription-updated', handlePrescriptionCreated);
       window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };
@@ -1224,8 +1226,18 @@ const DashboardPage = () => {
                             {
                               label: 'Resend via WhatsApp',
                               icon: '📲',
-                              onClick: () =>
-                                alert(`Prescription ${row.rxId} resent via WhatsApp to ${row.name}!`),
+                              onClick: async () => {
+                                const text = encodeURIComponent(
+                                  `Prescription for ${row.name} (${row.rxId}): Diagnosis: ${row.complaint || 'Prescription Details'}. Please follow the prescribed homeopathic treatment.`
+                                );
+                                const phoneDigits = (row.contact || row.mobile || '').replace(/\D/g, '');
+                                if (phoneDigits) {
+                                  window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
+                                }
+                                await appointmentApi.updatePrescriptionStatus(row.rxId, 'Delivered');
+                                fetchPrescriptions(true);
+                                alert(`Prescription ${row.rxId} resent via WhatsApp to ${row.name}! Status updated to Delivered.`);
+                              },
                             },
                           ]}
                         />

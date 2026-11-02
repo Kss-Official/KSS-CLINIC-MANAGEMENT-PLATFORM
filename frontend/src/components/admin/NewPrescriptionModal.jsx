@@ -174,7 +174,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         diagnosis: diagnosis || 'Clinical Consultation',
         medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
         additionalInstructions,
-        status: 'Delivered',
+        status: 'Pending',
       };
 
       const savedRx = await appointmentApi.createPrescription(payload);
@@ -215,7 +215,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         diagnosis: diagnosis || 'Skin allergy due to seasonal change.',
         medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
         additionalInstructions,
-        status: deliveryMethod === 'WhatsApp' ? 'Delivered' : 'Sent',
+        status: deliveryMethod === 'WhatsApp' ? 'Delivered' : 'Pending',
       };
 
       const savedRx = await appointmentApi.createPrescription(payload);
@@ -355,9 +355,21 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                 additionalInstructions ||
                 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'
               }
-              onSendWhatsApp={() => {
-                alert(`Prescription successfully sent via WhatsApp to ${selectedPatient.name}!`);
-                handleFinalSave('WhatsApp');
+              onSendWhatsApp={async () => {
+                try {
+                  const phoneDigits = (selectedPatient?.phone || '').replace(/\D/g, '');
+                  const text = encodeURIComponent(
+                    `Prescription for ${selectedPatient?.name || 'Patient'}: Diagnosis: ${diagnosis || 'Homeopathic Consultation'}. Please follow the prescribed medicines.`
+                  );
+                  if (phoneDigits) {
+                    window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
+                  }
+                  await handleFinalSave('WhatsApp');
+                  alert(`Prescription successfully sent via WhatsApp to ${selectedPatient?.name}! Status updated to Delivered.`);
+                } catch (err) {
+                  console.error('WhatsApp delivery failed:', err);
+                  await handleFinalSave('PDF');
+                }
               }}
               onDownloadPdf={() => {
                 handleFinalSave('PDF');

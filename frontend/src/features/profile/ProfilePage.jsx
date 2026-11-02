@@ -229,7 +229,7 @@ const ProfilePage = () => {
                 medicines,
                 additionalInstructions,
                 notes: additionalInstructions,
-                status: r.status || 'Delivered',
+                status: r.status || 'Pending',
                 patientName,
                 name: patientName,
                 patientId,

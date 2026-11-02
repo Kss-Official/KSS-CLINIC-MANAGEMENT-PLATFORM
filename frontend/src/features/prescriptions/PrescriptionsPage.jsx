@@ -37,7 +37,7 @@ const PrescriptionsPage = () => {
   const [isPickingDate, setIsPickingDate] = useState(false);
   const dateInputRef = useRef(null);
 
-  const [statusFilter, setStatusFilter] = useState('Delivered');
+  const [statusFilter, setStatusFilter] = useState('Pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
@@ -68,17 +68,24 @@ const PrescriptionsPage = () => {
     };
 
     window.addEventListener('prescription-created', handleRxCreated);
+    window.addEventListener('prescription-updated', handleRxCreated);
     window.addEventListener('focus', fetchPrescriptions);
     return () => {
       window.removeEventListener('prescription-created', handleRxCreated);
+      window.removeEventListener('prescription-updated', handleRxCreated);
       window.removeEventListener('focus', fetchPrescriptions);
     };
   }, [fetchPrescriptions]);
 
-  const handleUpdateRxStatus = (rxId, newStatus) => {
-    setPrescriptionsList((prev) =>
-      prev.map((rx) => (rx.id === rxId ? { ...rx, status: newStatus } : rx))
-    );
+  const handleUpdateRxStatus = async (rxId, newStatus) => {
+    try {
+      await appointmentApi.updatePrescriptionStatus(rxId, newStatus);
+      setPrescriptionsList((prev) =>
+        prev.map((rx) => (rx.id === rxId ? { ...rx, status: newStatus } : rx))
+      );
+    } catch (err) {
+      console.error('Failed to update prescription status on server:', err);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -100,7 +107,7 @@ const PrescriptionsPage = () => {
     setDateFilter('All Dates');
     setCustomDate('');
     setIsPickingDate(false);
-    setStatusFilter('Delivered');
+    setStatusFilter('Pending');
     setSearchQuery('');
     setCurrentPage(1);
   };
@@ -578,8 +585,8 @@ const PrescriptionsPage = () => {
                 outline: 'none',
               }}
             >
-              <option value="Delivered">Delivered</option>
               <option value="Pending">Pending</option>
+              <option value="Delivered">Delivered</option>
             </select>
 
             {/* Search Input */}
@@ -784,11 +791,18 @@ const PrescriptionsPage = () => {
                               onClick: () => openViewPrescription(row),
                             },
                             {
-                              label: 'Resend via WhatsApp',
+                              label: 'Send via WhatsApp',
                               icon: '📲',
-                              onClick: () => {
-                                handleUpdateRxStatus(row.id, 'Delivered');
-                                alert(`Prescription ${row.id} resent via WhatsApp to ${row.name}!`);
+                              onClick: async () => {
+                                const text = encodeURIComponent(
+                                  `Prescription for ${row.name} (${row.id}): Diagnosis: ${row.diagnosis || row.complaint}. Please follow the prescribed homeopathic treatment.`
+                                );
+                                const phoneDigits = (row.contact || row.mobile || '').replace(/\D/g, '');
+                                if (phoneDigits) {
+                                  window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
+                                }
+                                await handleUpdateRxStatus(row.id, 'Delivered');
+                                alert(`Prescription ${row.id} sent via WhatsApp to ${row.name}! Status updated to Delivered.`);
                               },
                             },
                             {

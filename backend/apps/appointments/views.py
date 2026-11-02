@@ -573,7 +573,7 @@ class PrescriptionListView(APIView):
             diagnosis=payload.get('diagnosis') or 'Clinical Consultation',
             medicines=payload.get('medicines') or [],
             additional_instructions=payload.get('additionalInstructions') or payload.get('additional_instructions') or '',
-            status=payload.get('status') or 'Delivered',
+            status=payload.get('status') or 'Pending',
         )
 
         # Automatically update corresponding appointment's prescription status to Complete
@@ -610,6 +610,74 @@ class PrescriptionListView(APIView):
             'created_at': rx.created_at.isoformat() if rx.created_at else None,
             'message': f"Prescription {rx.prescription_id} saved successfully for {rx.patient_name}!"
         }, status=status.HTTP_201_CREATED)
+
+    def patch(self, request):
+        rx_id = request.data.get('id') or request.data.get('prescription_id') or request.data.get('rxId')
+        if not rx_id:
+            return Response({'error': 'id field required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            if str(rx_id).isdigit():
+                rx = Prescription.objects.get(pk=int(rx_id))
+            else:
+                rx = Prescription.objects.get(prescription_id=rx_id)
+        except Prescription.DoesNotExist:
+            return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        if new_status:
+            rx.status = new_status
+            rx.save(update_fields=['status'])
+            return Response({
+                'id': rx.prescription_id,
+                'status': rx.status,
+                'message': f'Prescription {rx.prescription_id} status updated to {rx.status}'
+            })
+        return Response({'error': 'status field required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PrescriptionDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk_or_id):
+        try:
+            if str(pk_or_id).isdigit():
+                rx = Prescription.objects.get(pk=int(pk_or_id))
+            else:
+                rx = Prescription.objects.get(prescription_id=pk_or_id)
+            pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else 'PAT-1001')
+            return Response({
+                'id': rx.prescription_id,
+                'rxId': rx.prescription_id,
+                'database_id': rx.id,
+                'name': rx.patient_name,
+                'patientName': rx.patient_name,
+                'patientId': pid,
+                'status': rx.status,
+                'date': rx.date,
+                'diagnosis': rx.diagnosis,
+            })
+        except Prescription.DoesNotExist:
+            return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, pk_or_id):
+        try:
+            if str(pk_or_id).isdigit():
+                rx = Prescription.objects.get(pk=int(pk_or_id))
+            else:
+                rx = Prescription.objects.get(prescription_id=pk_or_id)
+        except Prescription.DoesNotExist:
+            return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        if new_status:
+            rx.status = new_status
+            rx.save(update_fields=['status'])
+            return Response({
+                'id': rx.prescription_id,
+                'status': rx.status,
+                'message': f'Prescription {rx.prescription_id} status updated to {rx.status}'
+            })
+        return Response({'error': 'status field required'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 CLINIC_SETTINGS_FILE = os.path.join(settings.BASE_DIR, 'clinic_settings.json')
