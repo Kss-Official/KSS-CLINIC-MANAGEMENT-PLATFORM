@@ -576,6 +576,19 @@ class PrescriptionListView(APIView):
             status=payload.get('status') or 'Delivered',
         )
 
+        # Automatically update corresponding appointment's prescription status to Complete
+        if matched_apt:
+            matched_apt.prescription_status = 'Complete'
+            matched_apt.save(update_fields=['prescription_status'])
+        
+        # Also ensure all appointments for this patient are marked Complete
+        patient_apts = Appointment.objects.filter(
+            models.Q(patient_name__iexact=patient_name) |
+            (models.Q(patient_phone__iexact=patient_phone) if patient_phone else models.Q(patient_name__iexact=patient_name)) |
+            (models.Q(patient_record=patient) if patient else models.Q(patient_name__iexact=patient_name))
+        )
+        patient_apts.update(prescription_status='Complete')
+
         return Response({
             'id': rx.prescription_id,
             'rxId': rx.prescription_id,

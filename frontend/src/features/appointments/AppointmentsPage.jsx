@@ -57,6 +57,7 @@ const AppointmentsPage = () => {
     reason: item.reason_for_visit || item.reason || 'General Consultation',
     consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
     status: item.status || 'Pending',
+    prescriptionStatus: item.prescription_status || item.prescriptionStatus || 'Pending',
     ageGender: item.age_gender || item.ageGender || 'Adult',
     notes: item.notes || item.reason_for_visit || '',
     doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
@@ -87,11 +88,17 @@ const AppointmentsPage = () => {
       fetchAppointments();
     };
 
+    const handlePrescriptionCreated = () => {
+      fetchAppointments();
+    };
+
     window.addEventListener('appointment-booked', handleAppointmentBooked);
+    window.addEventListener('prescription-created', handlePrescriptionCreated);
     window.addEventListener('focus', fetchAppointments);
 
     return () => {
       window.removeEventListener('appointment-booked', handleAppointmentBooked);
+      window.removeEventListener('prescription-created', handlePrescriptionCreated);
       window.removeEventListener('focus', fetchAppointments);
     };
   }, [fetchAppointments]);
@@ -120,6 +127,17 @@ const AppointmentsPage = () => {
         return { bg: '#fee2e2', color: '#dc2626' };
       default:
         return { bg: '#f1f5f9', color: '#475569' };
+    }
+  };
+
+  const getPrescriptionBadge = (rxStatus) => {
+    switch (rxStatus) {
+      case 'Complete':
+      case 'Completed':
+        return { bg: '#e8f7ee', color: '#1e7e34' };
+      case 'Pending':
+      default:
+        return { bg: '#fef7e6', color: '#b45309' };
     }
   };
 
@@ -695,6 +713,7 @@ const AppointmentsPage = () => {
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>CONTACT</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>DATE & TIME</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>REASON FOR VISIT</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>PRESCRIPTION</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>STATUS</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textAlign: 'center' }}>ACTION</th>
               </tr>
@@ -702,7 +721,7 @@ const AppointmentsPage = () => {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
                       <div
                         style={{
@@ -720,7 +739,7 @@ const AppointmentsPage = () => {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: '#dc2626', fontSize: '13.5px' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '36px', color: '#dc2626', fontSize: '13.5px' }}>
                     <div>{error}</div>
                     <button
                       type="button"
@@ -743,13 +762,14 @@ const AppointmentsPage = () => {
                 </tr>
               ) : filteredAppointments.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '13.5px' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '13.5px' }}>
                     No appointments found matching your filters.
                   </td>
                 </tr>
               ) : (
                 paginatedAppointments.map((row, idx) => {
                   const badge = getStatusBadge(row.status);
+                  const rxBadge = getPrescriptionBadge(row.prescriptionStatus);
                   return (
                     <tr
                       key={idx}
@@ -775,6 +795,21 @@ const AppointmentsPage = () => {
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155' }}>
                         {row.reason}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            padding: '4px 12px',
+                            borderRadius: '9999px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            backgroundColor: rxBadge.bg,
+                            color: rxBadge.color,
+                          }}
+                        >
+                          {row.prescriptionStatus || 'Pending'}
+                        </span>
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         <span

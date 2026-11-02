@@ -69,6 +69,15 @@ class Appointment(TimeStampedModel):
     reason_for_visit = models.TextField(blank=True, default='')
     consultation_type = models.CharField(max_length=50, default='In-clinic Visit')
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending')
+    PRESCRIPTION_STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Complete', 'Complete'),
+    ]
+    prescription_status = models.CharField(
+        max_length=20,
+        choices=PRESCRIPTION_STATUS_CHOICES,
+        default='Pending'
+    )
 
     def save(self, *args, **kwargs):
         if not self.appointment_id:
