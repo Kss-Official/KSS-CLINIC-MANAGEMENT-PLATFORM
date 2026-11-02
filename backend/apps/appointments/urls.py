@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     AppointmentListCreateView,
+    AppointmentSlotsView,
     AppointmentDetailView,
     NotificationListView,
     NotificationMarkReadView,
@@ -13,6 +14,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path('appointments/slots/', AppointmentSlotsView.as_view(), name='appointment-slots'),
     path('appointments/', AppointmentListCreateView.as_view(), name='appointment-list-create'),
     path('appointments/<str:pk_or_id>/', AppointmentDetailView.as_view(), name='appointment-detail'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),

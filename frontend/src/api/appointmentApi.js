@@ -23,6 +23,12 @@ export const appointmentApi = {
     return response.data;
   },
 
+  getBookedSlots: async (date) => {
+    const params = date ? { date } : {};
+    const response = await axiosClient.get('/appointments/slots/', { params });
+    return response.data;
+  },
+
   // Patients
   getMyProfile: async (params = {}) => {
     const response = await axiosClient.get('/patients/me/', { params });

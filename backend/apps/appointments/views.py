@@ -8,6 +8,88 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from .models import Appointment, Notification, Prescription, Patient
 from .serializers import AppointmentSerializer, NotificationSerializer, ClinicSettingsSerializer
+from datetime import datetime
+
+
+def normalize_date_str(date_str):
+    if not date_str:
+        return ''
+    date_str = str(date_str).strip()
+    formats = [
+        '%d %B %Y',      # 16 October 2026
+        '%d %b %Y',      # 16 Oct 2026
+        '%Y-%m-%d',     # 2026-10-16
+        '%d-%m-%Y',     # 16-10-2026
+        '%d/%m/%Y',     # 16/10/2026
+        '%b %d, %Y',    # Oct 16, 2026
+        '%B %d, %Y',    # October 16, 2026
+        '%d %B, %Y',    # 16 October, 2026
+        '%d %b, %Y',    # 16 Oct, 2026
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt).strftime('%Y-%m-%d')
+        except (ValueError, TypeError):
+            continue
+    return date_str.lower().strip()
+
+
+def normalize_time_str(time_str):
+    if not time_str:
+        return ''
+    t = str(time_str).strip().upper()
+    for fmt in ['%I:%M %p', '%H:%M', '%I:%M%p', '%I:%M %P']:
+        try:
+            return datetime.strptime(t, fmt).strftime('%I:%M %p')
+        except (ValueError, TypeError):
+            continue
+    return t
+
+
+class AppointmentSlotsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        date_param = request.query_params.get('date') or request.query_params.get('appointment_date')
+        active_appointments = Appointment.objects.exclude(status__iexact='Cancelled')
+        all_booked = {}
+
+        for apt in active_appointments:
+            d_norm = normalize_date_str(apt.appointment_date)
+            t_norm = normalize_time_str(apt.time_slot)
+            if not d_norm or not t_norm:
+                continue
+
+            if d_norm not in all_booked:
+                all_booked[d_norm] = set()
+            all_booked[d_norm].add(t_norm)
+
+            raw_d = (apt.appointment_date or '').strip()
+            if raw_d:
+                if raw_d not in all_booked:
+                    all_booked[raw_d] = set()
+                all_booked[raw_d].add(t_norm)
+
+        all_booked_serialized = {k: sorted(list(v)) for k, v in all_booked.items()}
+
+        booked_slots = []
+        target_norm = ''
+        if date_param:
+            target_norm = normalize_date_str(date_param)
+            slots_set = set()
+            if target_norm in all_booked_serialized:
+                slots_set.update(all_booked_serialized[target_norm])
+            raw_target = date_param.strip()
+            if raw_target in all_booked_serialized:
+                slots_set.update(all_booked_serialized[raw_target])
+            booked_slots = sorted(list(slots_set))
+
+        return Response({
+            'date': date_param,
+            'normalized_date': target_norm,
+            'booked_slots': booked_slots,
+            'all_booked_slots': all_booked_serialized,
+        })
 
 
 class AppointmentListCreateView(APIView):
@@ -51,6 +133,23 @@ class AppointmentListCreateView(APIView):
     def post(self, request):
         serializer = AppointmentSerializer(data=request.data)
         if serializer.is_valid():
+            req_date = serializer.validated_data.get('appointment_date')
+            req_slot = serializer.validated_data.get('time_slot')
+
+            # Prevent double booking: ensure slot on requested date is available
+            if req_date and req_slot:
+                norm_date = normalize_date_str(req_date)
+                norm_slot = normalize_time_str(req_slot)
+
+                active_apts = Appointment.objects.exclude(status__iexact='Cancelled')
+                for existing in active_apts:
+                    if (normalize_date_str(existing.appointment_date) == norm_date and
+                        normalize_time_str(existing.time_slot) == norm_slot):
+                        return Response({
+                            'error': f"The appointment slot '{req_slot}' on {req_date} has already been booked. Please select an available slot.",
+                            'detail': f"Slot {req_slot} on {req_date} is already taken."
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
             user = request.user if request.user.is_authenticated else None
             appointment = serializer.save(user=user)
 

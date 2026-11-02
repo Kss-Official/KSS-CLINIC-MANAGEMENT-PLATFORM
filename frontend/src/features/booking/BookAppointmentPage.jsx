@@ -55,22 +55,98 @@ const BookAppointmentPage = () => {
 
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  // Time Slots list
-  const timeSlots = [
-    { time: '09:00 AM', available: true },
-    { time: '09:30 AM', available: true },
-    { time: '10:30 AM', available: true },
-    { time: '10:30 AM', available: true },
-    { time: '11:00 AM', available: true },
-    { time: '11:30 AM', available: true },
-    { time: '12:00 PM', available: true },
-    { time: '12:30 PM', available: false }, // unavailable in design
-    { time: '01:00 PM', available: true },
-    { time: '04:00 PM', available: true },
-    { time: '04:30 PM', available: true },
-    { time: '05:00 PM', available: true },
-    { time: '05:30 PM', available: true },
+  // Base Time Slots list matching reference design
+  const baseTimeSlots = [
+    { time: '09:00 AM', defaultAvailable: true },
+    { time: '09:30 AM', defaultAvailable: true },
+    { time: '10:30 AM', defaultAvailable: true },
+    { time: '10:30 AM', defaultAvailable: true },
+    { time: '11:00 AM', defaultAvailable: true },
+    { time: '11:30 AM', defaultAvailable: true },
+    { time: '12:00 PM', defaultAvailable: true },
+    { time: '12:30 PM', defaultAvailable: false }, // unavailable in design
+    { time: '01:00 PM', defaultAvailable: true },
+    { time: '04:00 PM', defaultAvailable: true },
+    { time: '04:30 PM', defaultAvailable: true },
+    { time: '05:00 PM', defaultAvailable: true },
+    { time: '05:30 PM', defaultAvailable: true },
   ];
+
+  const [bookedSlotsMap, setBookedSlotsMap] = useState({});
+
+  const normalizeSlotTime = (t) => {
+    if (!t) return '';
+    return t.trim().toUpperCase().replace(/^0/, '');
+  };
+
+  const fetchBookedSlots = async () => {
+    try {
+      const data = await appointmentApi.getBookedSlots();
+      if (data?.all_booked_slots) {
+        setBookedSlotsMap(data.all_booked_slots);
+      }
+    } catch (err) {
+      console.warn('Could not fetch booked slots:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookedSlots();
+    const handleBookedEvent = () => {
+      fetchBookedSlots();
+    };
+    window.addEventListener('appointment-booked', handleBookedEvent);
+    return () => window.removeEventListener('appointment-booked', handleBookedEvent);
+  }, []);
+
+  const getSelectedDateKeys = () => {
+    const day = formData.selectedDay;
+    const month = formData.selectedMonth;
+    const year = formData.selectedYear;
+    const mStr = String(month + 1).padStart(2, '0');
+    const dStr = String(day).padStart(2, '0');
+    const normKey = `${year}-${mStr}-${dStr}`;
+    const rawKey = `${day} ${months[month]} ${year}`;
+    const shortRawKey = `${day} ${months[month]?.slice(0, 3)} ${year}`;
+    return [normKey, rawKey, shortRawKey];
+  };
+
+  const getBookedSlotsForSelectedDate = () => {
+    const keys = getSelectedDateKeys();
+    const set = new Set();
+    keys.forEach((k) => {
+      if (bookedSlotsMap[k]) {
+        bookedSlotsMap[k].forEach((slot) => set.add(normalizeSlotTime(slot)));
+      }
+    });
+    return set;
+  };
+
+  const bookedSet = getBookedSlotsForSelectedDate();
+
+  const timeSlots = baseTimeSlots.map((slot) => {
+    const norm = normalizeSlotTime(slot.time);
+    const isBooked = bookedSet.has(norm);
+    const isAvailable = slot.defaultAvailable && !isBooked;
+    return {
+      ...slot,
+      available: isAvailable,
+      isBooked,
+    };
+  });
+
+  // Automatically select the next available time slot if current selection is booked or unavailable
+  useEffect(() => {
+    const currentSlotObj = timeSlots.find(
+      (s) => normalizeSlotTime(s.time) === normalizeSlotTime(formData.selectedTimeSlot)
+    );
+    if (!currentSlotObj || !currentSlotObj.available) {
+      const nextAvailable = timeSlots.find((s) => s.available);
+      if (nextAvailable && nextAvailable.time !== formData.selectedTimeSlot) {
+        setFormData((prev) => ({ ...prev, selectedTimeSlot: nextAvailable.time }));
+      }
+    }
+  }, [formData.selectedDay, formData.selectedMonth, formData.selectedYear, bookedSlotsMap]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -198,6 +274,16 @@ const BookAppointmentPage = () => {
         window.scrollTo({ top: 260, behavior: 'smooth' });
       }
     } else if (currentStep === 2) {
+      // Ensure the selected slot is currently available
+      const currentSlotObj = timeSlots.find(
+        (s) => normalizeSlotTime(s.time) === normalizeSlotTime(formData.selectedTimeSlot)
+      );
+      if (!currentSlotObj || !currentSlotObj.available) {
+        alert('This time slot is no longer available. Please select the next available slot.');
+        fetchBookedSlots();
+        return;
+      }
+
       setBookingLoading(true);
       const formattedDate = `${formData.selectedDay} ${months[formData.selectedMonth]} ${formData.selectedYear}`;
       try {
@@ -213,6 +299,15 @@ const BookAppointmentPage = () => {
         });
         const realId = res?.appointment?.appointment_id || res?.appointment_id || `APT-${Date.now().toString().slice(-6)}`;
         setFormData((prev) => ({ ...prev, appointmentId: realId }));
+
+        // Immediately update bookedSlotsMap so slot is disabled
+        const [normK, rawK] = getSelectedDateKeys();
+        setBookedSlotsMap((prev) => ({
+          ...prev,
+          [normK]: [...(prev[normK] || []), formData.selectedTimeSlot],
+          [rawK]: [...(prev[rawK] || []), formData.selectedTimeSlot],
+        }));
+
         if (typeof window !== 'undefined') {
           if (formData.mobileNumber) localStorage.setItem('kss_patient_phone', formData.mobileNumber);
           if (formData.email) localStorage.setItem('kss_patient_email', formData.email);
@@ -224,6 +319,7 @@ const BookAppointmentPage = () => {
         window.scrollTo({ top: 260, behavior: 'smooth' });
       } catch (err) {
         console.error('Booking failed:', err);
+        fetchBookedSlots();
         alert(err.response?.data?.error || err.response?.data?.detail || 'Failed to book appointment. Please try again.');
       } finally {
         setBookingLoading(false);
@@ -1246,7 +1342,12 @@ const BookAppointmentPage = () => {
                               key={index}
                               type="button"
                               disabled={isUnavailable}
-                              onClick={() => setFormData((p) => ({ ...p, selectedTimeSlot: slot.time }))}
+                              onClick={() => {
+                                if (!isUnavailable) {
+                                  setFormData((p) => ({ ...p, selectedTimeSlot: slot.time }));
+                                }
+                              }}
+                              title={slot.isBooked ? 'Slot already booked' : isUnavailable ? 'Slot unavailable' : 'Click to select slot'}
                               style={{
                                 padding: '10px 6px',
                                 borderRadius: '8px',
