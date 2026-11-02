@@ -463,11 +463,11 @@ const AdminHeader = () => {
         <div ref={profileRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
           {/* Profile Section (Avatar & Doctor Info) - Click opens the dropdown menu */}
           <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setDropdownOpen((prev) => !prev);
+            onClick={() => {
+              setDropdownOpen(false);
+              navigate('/settings');
             }}
-            title="Account Menu"
+            title="Profile (Click to go to Settings)"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -528,17 +528,31 @@ const AdminHeader = () => {
             </div>
           </div>
 
-          {/* Visual Dropdown Arrow - Does NOT open the dropdown when clicked */}
-          <div
+          {/* Dropdown Arrow Button - Toggles the Profile Menu */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDropdownOpen((prev) => !prev);
+            }}
+            aria-label="Toggle profile menu"
+            title="Profile Menu"
             style={{
-              padding: '6px 6px',
+              padding: '8px 8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              pointerEvents: 'none',
+              border: 'none',
+              backgroundColor: dropdownOpen ? '#f1f5f9' : 'transparent',
+              borderRadius: '8px',
+              cursor: 'pointer',
               userSelect: 'none',
+              transition: 'background-color 0.15s ease',
             }}
-            aria-hidden="true"
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+            onMouseLeave={(e) => {
+              if (!dropdownOpen) e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
             <svg
               width="14"
@@ -556,7 +570,7 @@ const AdminHeader = () => {
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
-          </div>
+          </button>
 
           {/* Profile Dropdown Menu - containing both Settings and Logout options */}
           {dropdownOpen && (
@@ -615,48 +629,6 @@ const AdminHeader = () => {
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
                 <span>Settings</span>
-              </div>
-
-              {/* Option 2: Back to Home */}
-              <div
-                onClick={() => {
-                  setDropdownOpen(false);
-                  navigate('/');
-                }}
-                style={{
-                  padding: '10px 18px',
-                  fontSize: '13.5px',
-                  fontWeight: '500',
-                  color: '#334155',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'background-color 0.15s ease, color 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f8fafc';
-                  e.currentTarget.style.color = '#1e4620';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#334155';
-                }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-                <span>Back to Home</span>
               </div>
 
               {/* Divider */}

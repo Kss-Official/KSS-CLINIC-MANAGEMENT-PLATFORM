@@ -86,3 +86,4 @@ export const downloadPrescriptionPdf = async (element, filename = 'Prescription.
     throw new Error(err.message || 'An error occurred while generating the prescription PDF.');
   }
 };
+
