@@ -694,7 +694,7 @@ DEFAULT_CLINIC_SETTINGS = {
     'contactNumber': '+91 98765 43210',
     'alternateNumber': '+91 99887 66554',
     'email': 'clinic.tripathi@gmail.com',
-    'address': '12, Green Park, MG Road, Bangalore, Karnataka - 560001'
+    'address': '12, Green Park, Bangalore'
 }
 
 def load_clinic_settings():
