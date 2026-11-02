@@ -3,8 +3,20 @@ import PrescriptionPreviewCard from './PrescriptionPreviewCard';
 import appointmentApi from '../../api/appointmentApi';
 import AdminCalendarPopover from './AdminCalendarPopover';
 
+const getTodayIso = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const formatDateForDisplay = (isoStr) => {
-  if (!isoStr) return '28 Oct 2026';
+  if (!isoStr) {
+    const today = new Date();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
+  }
   const parts = isoStr.split('-');
   if (parts.length === 3) {
     const year = parts[0];
@@ -44,7 +56,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
   const [selectedPatient, setSelectedPatient] = useState(initialPatient || null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
 
-  const [appointmentDate, setAppointmentDate] = useState('2026-10-28');
+  const [appointmentDate, setAppointmentDate] = useState(getTodayIso);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [consultationType, setConsultationType] = useState('Follow-up');
   const [mainComplaint, setMainComplaint] = useState('');
@@ -74,6 +86,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
       if (!initialPatient) {
         setSelectedPatient(null);
         setSelectedAppointment(null);
+        setAppointmentDate(getTodayIso());
       }
     } else if (initialPatient) {
       const isAppointment = Boolean(
@@ -233,6 +246,16 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
 
     if (!selectedPatient || !selectedPatient.name) {
       alert('Please select a patient before saving the prescription.');
+      return;
+    }
+
+    // Ensure selected date is today or a future date
+    const checkDate = new Date(appointmentDate);
+    checkDate.setHours(0, 0, 0, 0);
+    const todayZero = new Date();
+    todayZero.setHours(0, 0, 0, 0);
+    if (checkDate < todayZero) {
+      alert('Cannot select a past date. Please choose today or a future date.');
       return;
     }
 
@@ -727,6 +750,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                     isOpen={isCalendarOpen}
                     onClose={() => setIsCalendarOpen(false)}
                     selectedDate={appointmentDate}
+                    disablePastDates={true}
                     onSelectDate={(displayStr, isoStr) => {
                       if (isoStr) setAppointmentDate(isoStr);
                       setIsCalendarOpen(false);

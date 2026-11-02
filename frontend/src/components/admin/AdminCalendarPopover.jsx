@@ -11,8 +11,8 @@ const SHORT_MONTHS = [
 ];
 
 const parseDateValue = (val) => {
-  if (!val) return new Date(2026, 9, 28); // Default 28 Oct 2026
-  if (val instanceof Date) return isNaN(val.getTime()) ? new Date(2026, 9, 28) : val;
+  if (!val) return new Date();
+  if (val instanceof Date) return isNaN(val.getTime()) ? new Date() : val;
 
   const str = String(val).replace('Custom: ', '').trim();
 
@@ -40,7 +40,7 @@ const parseDateValue = (val) => {
 
   // 3. Fallback standard Date
   const parsed = new Date(str);
-  return isNaN(parsed.getTime()) ? new Date(2026, 9, 28) : parsed;
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
 };
 
 const formatToDisplay = (dateObj) => {
@@ -63,6 +63,8 @@ const AdminCalendarPopover = ({
   selectedDate,
   onSelectDate,
   position = 'bottom-left', // 'bottom-left' | 'bottom-right'
+  disablePastDates = false,
+  minDate = null,
 }) => {
   const popoverRef = useRef(null);
 
@@ -71,14 +73,46 @@ const AdminCalendarPopover = ({
   const [viewYear, setViewYear] = useState(initialDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(initialDate.getMonth());
 
+  // Zero out time for date comparison
+  const todayZero = new Date();
+  todayZero.setHours(0, 0, 0, 0);
+  const effectiveMinDate = minDate ? new Date(minDate) : (disablePastDates ? todayZero : null);
+  if (effectiveMinDate) effectiveMinDate.setHours(0, 0, 0, 0);
+
   // Sync view when selectedDate changes or modal opens
   useEffect(() => {
     if (isOpen) {
-      const current = parseDateValue(selectedDate);
+      let current = parseDateValue(selectedDate);
+      if (effectiveMinDate && current < effectiveMinDate) {
+        current = effectiveMinDate;
+      }
       setViewYear(current.getFullYear());
       setViewMonth(current.getMonth());
     }
-  }, [isOpen, selectedDate]);
+  }, [isOpen, selectedDate, disablePastDates]);
+
+  // Check if previous month navigation is blocked because it is before minimum date
+  const isPrevMonthDisabled = () => {
+    if (!effectiveMinDate) return false;
+    let prevM = viewMonth - 1;
+    let prevY = viewYear;
+    if (prevM < 0) {
+      prevM = 11;
+      prevY -= 1;
+    }
+    const minYear = effectiveMinDate.getFullYear();
+    const minMonth = effectiveMinDate.getMonth();
+    if (prevY < minYear) return true;
+    if (prevY === minYear && prevM < minMonth) return true;
+    return false;
+  };
+
+  const isDateDisabled = (cellDateObj) => {
+    if (!effectiveMinDate) return false;
+    const target = new Date(cellDateObj);
+    target.setHours(0, 0, 0, 0);
+    return target < effectiveMinDate;
+  };
 
   // Handle click outside to close
   useEffect(() => {
@@ -112,6 +146,7 @@ const AdminCalendarPopover = ({
   // Month navigation
   const handlePrevMonth = (e) => {
     e.stopPropagation();
+    if (isPrevMonthDisabled()) return;
     if (viewMonth === 0) {
       setViewMonth(11);
       setViewYear((prev) => prev - 1);
@@ -168,6 +203,7 @@ const AdminCalendarPopover = ({
   }
 
   const handlePickDate = (cellDate) => {
+    if (isDateDisabled(cellDate)) return;
     const displayStr = formatToDisplay(cellDate);
     const isoStr = formatToIso(cellDate);
     if (onSelectDate) {
@@ -178,7 +214,7 @@ const AdminCalendarPopover = ({
 
   const handleTodayClick = (e) => {
     e.stopPropagation();
-    const today = new Date(2026, 9, 28); // 28 Oct 2026
+    const today = new Date();
     handlePickDate(today);
   };
 
@@ -249,20 +285,26 @@ const AdminCalendarPopover = ({
           <button
             type="button"
             aria-label="Previous month"
-            onClick={handlePrevMonth}
+            onClick={isPrevMonthDisabled() ? undefined : handlePrevMonth}
+            disabled={isPrevMonthDisabled()}
             style={{
               background: 'none',
               border: 'none',
-              color: '#475569',
-              cursor: 'pointer',
+              color: isPrevMonthDisabled() ? '#cbd5e1' : '#475569',
+              cursor: isPrevMonthDisabled() ? 'not-allowed' : 'pointer',
+              opacity: isPrevMonthDisabled() ? 0.35 : 1,
               padding: '4px',
               borderRadius: '4px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            onMouseEnter={(e) => {
+              if (!isPrevMonthDisabled()) e.currentTarget.style.backgroundColor = '#f1f5f9';
+            }}
+            onMouseLeave={(e) => {
+              if (!isPrevMonthDisabled()) e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
@@ -369,10 +411,12 @@ const AdminCalendarPopover = ({
       >
         {cells.map((cell, idx) => {
           const isSelected = isSameDay(cell.dateObj, activeDate);
+          const isDisabled = !cell.isCurrentMonth || isDateDisabled(cell.dateObj);
           return (
             <div
               key={idx}
-              onClick={() => handlePickDate(cell.dateObj)}
+              onClick={() => !isDisabled && handlePickDate(cell.dateObj)}
+              title={isDisabled ? (cell.isCurrentMonth ? 'Past date cannot be selected' : '') : 'Click to select date'}
               style={{
                 width: '32px',
                 height: '30px',
@@ -382,27 +426,30 @@ const AdminCalendarPopover = ({
                 justifyContent: 'center',
                 fontSize: '12px',
                 fontWeight: isSelected ? '700' : '400',
-                cursor: 'pointer',
+                cursor: isDisabled ? 'not-allowed' : 'pointer',
                 borderRadius: '6px',
                 backgroundColor: isSelected
                   ? '#e2e8f0'
                   : 'transparent',
                 color: isSelected
                   ? '#0f172a'
+                  : isDisabled
+                  ? '#cbd5e1'
                   : cell.isCurrentMonth
                   ? '#1e293b'
                   : '#94a3b8',
                 border: isSelected ? '2px solid #0f172a' : '1px solid transparent',
+                opacity: isDisabled && cell.isCurrentMonth ? 0.4 : 1,
                 transition: 'all 0.12s ease',
                 boxSizing: 'border-box',
               }}
               onMouseEnter={(e) => {
-                if (!isSelected) {
+                if (!isSelected && !isDisabled) {
                   e.currentTarget.style.backgroundColor = '#f1f5f9';
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isSelected) {
+                if (!isSelected && !isDisabled) {
                   e.currentTarget.style.backgroundColor = 'transparent';
                 }
               }}
