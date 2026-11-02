@@ -58,30 +58,30 @@ const LoginPage = () => {
         position: 'relative',
       }}
     >
-      {/* Back to Home Option on the Left Side */}
+      {/* Back to Home Button on the Left Side in Top */}
       <button
         type="button"
         onClick={() => navigate('/')}
         aria-label="Back to Home"
         className="back-to-home-btn"
         style={{
-          position: 'absolute',
-          top: '28px',
-          left: '32px',
+          position: 'fixed',
+          top: '24px',
+          left: '28px',
           display: 'inline-flex',
           alignItems: 'center',
           gap: '8px',
-          padding: '10px 18px',
+          padding: '10px 20px',
           borderRadius: '9999px',
           backgroundColor: '#ffffff',
-          color: '#1b4332',
-          fontSize: '13.5px',
+          color: '#114633',
+          fontSize: '14px',
           fontWeight: '600',
-          border: '1px solid #e2e8f0',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
           boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
           cursor: 'pointer',
           transition: 'all 0.2s ease',
-          zIndex: 10,
+          zIndex: 100,
           textDecoration: 'none',
         }}
         onMouseEnter={(e) => {
