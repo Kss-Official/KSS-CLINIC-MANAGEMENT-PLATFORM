@@ -460,14 +460,19 @@ const AdminHeader = () => {
         </div>
 
         {/* Doctor Profile Pill */}
-        <div ref={profileRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {/* Profile Section (Avatar & Doctor Info) - Click opens dropdown */}
+        <div
+          ref={profileRef}
+          style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '2px' }}
+          onMouseEnter={() => setDropdownOpen(true)}
+          onMouseLeave={() => setDropdownOpen(false)}
+        >
+          {/* Profile Section (Avatar & Doctor Info) - Click redirects directly to Settings */}
           <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setDropdownOpen((prev) => !prev);
+            onClick={() => {
+              setDropdownOpen(false);
+              navigate('/settings');
             }}
-            title="Doctor Profile"
+            title="Doctor Profile - Go to Settings"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -476,13 +481,11 @@ const AdminHeader = () => {
               padding: '6px 10px',
               borderRadius: '10px',
               cursor: 'pointer',
-              backgroundColor: dropdownOpen ? '#f8fafc' : 'transparent',
+              backgroundColor: 'transparent',
               transition: 'background-color 0.15s ease',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
-            onMouseLeave={(e) => {
-              if (!dropdownOpen) e.currentTarget.style.backgroundColor = 'transparent';
-            }}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
             {/* Circular Initials Avatar DT */}
             <div
@@ -526,8 +529,27 @@ const AdminHeader = () => {
                 Doctor
               </div>
             </div>
+          </div>
 
-            {/* Dropdown Chevron Arrow */}
+          {/* Dropdown Chevron Arrow Button */}
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setDropdownOpen((prev) => !prev);
+            }}
+            title="Toggle Logout Menu"
+            style={{
+              padding: '8px 4px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          >
             <svg
               width="14"
               height="14"
@@ -540,14 +562,13 @@ const AdminHeader = () => {
               style={{
                 transform: dropdownOpen ? 'rotate(180deg)' : 'none',
                 transition: 'transform 0.15s ease',
-                marginLeft: '2px',
               }}
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </div>
 
-          {/* Profile Dropdown Menu - Positioned directly below Profile */}
+          {/* Profile Dropdown Menu - Positioned directly below Profile with ONLY Logout */}
           {dropdownOpen && (
             <div
               style={{
@@ -558,68 +579,24 @@ const AdminHeader = () => {
                 boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0,0,0,0.04)',
                 borderRadius: '12px',
                 border: '1px solid #f1f5f9',
-                padding: '6px 0',
-                minWidth: '180px',
+                padding: '6px',
+                minWidth: '160px',
                 zIndex: 120,
                 overflow: 'hidden',
               }}
             >
-              {/* Option 1: Settings */}
-              <div
-                onClick={() => {
-                  setDropdownOpen(false);
-                  navigate('/settings');
-                }}
-                style={{
-                  padding: '10px 18px',
-                  fontSize: '13.5px',
-                  fontWeight: '500',
-                  color: '#334155',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'background-color 0.15s ease, color 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f8fafc';
-                  e.currentTarget.style.color = '#1e4620';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#334155';
-                }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-                <span>Settings</span>
-              </div>
-
-              {/* Divider */}
-              <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '4px 0' }} />
-
-              {/* Option 2: Logout (Restored directly below Profile) */}
+              {/* Only Option: Logout */}
               <div
                 onClick={() => {
                   setDropdownOpen(false);
                   handleLogout();
                 }}
                 style={{
-                  padding: '10px 18px',
+                  padding: '10px 16px',
                   fontSize: '13.5px',
                   fontWeight: '600',
                   color: '#dc2626',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
