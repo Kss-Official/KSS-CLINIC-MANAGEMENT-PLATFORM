@@ -790,7 +790,7 @@ const DashboardPage = () => {
             >
               <option value="All">All Status</option>
               <option value="Confirmed">Confirmed</option>
-              <option value="Pending">Pending</option>
+              <option value="Complete">Complete</option>
             </select>
 
             {/* New Appointment Button */}
