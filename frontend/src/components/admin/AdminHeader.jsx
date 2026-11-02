@@ -7,10 +7,12 @@ import appointmentApi from '../../api/appointmentApi';
 const AdminHeader = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef(null);
+  const profileRef = useRef(null);
 
   const fetchNotifications = async () => {
     try {
@@ -40,6 +42,9 @@ const AdminHeader = () => {
     const handleOutsideClick = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) {
         setNotificationsOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -454,72 +459,185 @@ const AdminHeader = () => {
           )}
         </div>
 
-        {/* Doctor Profile Pill - Directly redirects to Settings without any dropdown */}
-        <div
-          onClick={() => navigate('/settings')}
-          title="Doctor Profile - Go to Settings"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            userSelect: 'none',
-            padding: '6px 12px',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            backgroundColor: 'transparent',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#f8fafc';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          {/* Circular Initials Avatar DT */}
+        {/* Doctor Profile Pill */}
+        <div ref={profileRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {/* Profile Section (Avatar & Doctor Info) - Click opens dropdown */}
           <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setDropdownOpen((prev) => !prev);
+            }}
+            title="Doctor Profile"
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: '#dcfce7',
-              color: '#166534',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: '700',
-              fontSize: '14px',
-              letterSpacing: '0.5px',
-              flexShrink: 0,
+              gap: '12px',
+              userSelect: 'none',
+              padding: '6px 10px',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              backgroundColor: dropdownOpen ? '#f8fafc' : 'transparent',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+            onMouseLeave={(e) => {
+              if (!dropdownOpen) e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            DT
+            {/* Circular Initials Avatar DT */}
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: '#dcfce7',
+                color: '#166534',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '700',
+                fontSize: '14px',
+                letterSpacing: '0.5px',
+                flexShrink: 0,
+              }}
+            >
+              DT
+            </div>
+
+            {/* Doctor Info */}
+            <div style={{ textAlign: 'left', lineHeight: 1.25 }}>
+              <div
+                style={{
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  color: '#1e293b',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Dr. K. Tripathi Ampeh (Pat.)
+              </div>
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: '#94a3b8',
+                  marginTop: '2px',
+                }}
+              >
+                Doctor
+              </div>
+            </div>
+
+            {/* Dropdown Chevron Arrow */}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#94a3b8"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                transform: dropdownOpen ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.15s ease',
+                marginLeft: '2px',
+              }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
           </div>
 
-          {/* Doctor Info */}
-          <div style={{ textAlign: 'left', lineHeight: 1.25 }}>
+          {/* Profile Dropdown Menu - Positioned directly below Profile */}
+          {dropdownOpen && (
             <div
               style={{
-                fontSize: '13.5px',
-                fontWeight: '600',
-                color: '#1e293b',
-                whiteSpace: 'nowrap',
+                position: 'absolute',
+                top: '56px',
+                right: 0,
+                backgroundColor: '#ffffff',
+                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0,0,0,0.04)',
+                borderRadius: '12px',
+                border: '1px solid #f1f5f9',
+                padding: '6px 0',
+                minWidth: '180px',
+                zIndex: 120,
+                overflow: 'hidden',
               }}
             >
-              Dr. K. Tripathi Ampeh (Pat.)
+              {/* Option 1: Settings */}
+              <div
+                onClick={() => {
+                  setDropdownOpen(false);
+                  navigate('/settings');
+                }}
+                style={{
+                  padding: '10px 18px',
+                  fontSize: '13.5px',
+                  fontWeight: '500',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  transition: 'background-color 0.15s ease, color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f8fafc';
+                  e.currentTarget.style.color = '#1e4620';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#334155';
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                <span>Settings</span>
+              </div>
+
+              {/* Divider */}
+              <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '4px 0' }} />
+
+              {/* Option 2: Logout (Restored directly below Profile) */}
+              <div
+                onClick={() => {
+                  setDropdownOpen(false);
+                  handleLogout();
+                }}
+                style={{
+                  padding: '10px 18px',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  color: '#dc2626',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                <span>Logout</span>
+              </div>
             </div>
-            <div
-              style={{
-                fontSize: '12px',
-                color: '#94a3b8',
-                marginTop: '2px',
-              }}
-            >
-              Doctor
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </header>
