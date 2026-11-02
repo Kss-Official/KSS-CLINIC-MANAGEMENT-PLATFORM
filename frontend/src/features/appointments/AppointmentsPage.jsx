@@ -30,7 +30,7 @@ const parseDateString = (str) => {
 };
 
 const AppointmentsPage = () => {
-  const { openNewAppointment, openViewAppointment } = useAdmin();
+  const { openNewAppointment, openViewAppointment, openNewPrescription } = useAdmin();
 
   const [dateFilter, setDateFilter] = useState('All Dates');
   const [customDate, setCustomDate] = useState('');
@@ -860,6 +860,11 @@ const AppointmentsPage = () => {
                                 label: 'View Details',
                                 icon: '👁️',
                                 onClick: () => openViewAppointment(row),
+                              },
+                              {
+                                label: 'Create Prescription',
+                                icon: '🌿',
+                                onClick: () => openNewPrescription(row),
                               },
                               {
                                 label: 'Mark as Complete',

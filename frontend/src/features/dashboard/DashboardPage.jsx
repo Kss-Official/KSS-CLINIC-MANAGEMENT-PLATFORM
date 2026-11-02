@@ -940,7 +940,7 @@ const DashboardPage = () => {
                               {
                                 label: 'Create Prescription',
                                 icon: '🌿',
-                                onClick: () => openNewPrescription(),
+                                onClick: () => openNewPrescription(row),
                               },
                             ]}
                           />

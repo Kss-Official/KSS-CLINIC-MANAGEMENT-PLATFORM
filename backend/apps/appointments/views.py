@@ -540,11 +540,6 @@ class PrescriptionListView(APIView):
         patient_id_ref = (payload.get('patient_id_ref') or payload.get('patientId') or patient_info.get('id') or '').strip()
         age_gender = (payload.get('age_gender') or payload.get('ageGender') or patient_info.get('ageGender') or f"{patient_info.get('age', '')} / {patient_info.get('gender', '')}").strip(' /')
 
-        matched_apt = Appointment.objects.filter(
-            models.Q(patient_name__iexact=patient_name) |
-            (models.Q(patient_phone__iexact=patient_phone) if patient_phone else models.Q(patient_name__iexact=patient_name))
-        ).order_by('-created_at').first()
-
         # Find or create corresponding permanent Patient in Neon
         patient = None
         if patient_id_ref:
@@ -579,6 +574,64 @@ class PrescriptionListView(APIView):
 
         time_str = payload.get('time') or datetime.now().strftime('%I:%M %p')
 
+        # Helper to generate date string variations for precise matching
+        def _get_date_variations(d_str):
+            variations = set()
+            if not d_str:
+                return variations
+            s = str(d_str).strip()
+            variations.add(s)
+            if '-' in s and len(s.split('-')) == 3:
+                try:
+                    parts = s.split('-')
+                    y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+                    dt = datetime(y, m, d)
+                    variations.add(dt.strftime('%d %b %Y'))
+                    variations.add(f"{d} {dt.strftime('%b')} {y}")
+                    variations.add(dt.strftime('%d %B %Y'))
+                    variations.add(f"{d} {dt.strftime('%B')} {y}")
+                    variations.add(f"{y}-{m:02d}-{d:02d}")
+                except Exception:
+                    pass
+            else:
+                for fmt in ('%d %b %Y', '%d %B %Y', '%Y-%m-%d'):
+                    try:
+                        dt = datetime.strptime(s, fmt)
+                        variations.add(dt.strftime('%d %b %Y'))
+                        variations.add(f"{dt.day} {dt.strftime('%b')} {dt.year}")
+                        variations.add(dt.strftime('%d %B %Y'))
+                        variations.add(f"{dt.day} {dt.strftime('%B')} {dt.year}")
+                        variations.add(f"{dt.year}-{dt.month:02d}-{dt.day:02d}")
+                        break
+                    except Exception:
+                        continue
+            return variations
+
+        # 1. First, check if exact appointment ID was provided in payload
+        apt_id = payload.get('appointment_id') or payload.get('appointmentId')
+        matched_apt = None
+        if apt_id:
+            matched_apt = Appointment.objects.filter(
+                models.Q(appointment_id=str(apt_id).strip()) |
+                (models.Q(id=int(apt_id)) if str(apt_id).isdigit() else models.Q(appointment_id=str(apt_id).strip()))
+            ).first()
+
+        # 2. If not found by ID, match specifically by Patient AND Appointment Date
+        if not matched_apt:
+            patient_q = models.Q(patient_name__iexact=patient_name)
+            if patient:
+                patient_q |= models.Q(patient_record=patient)
+            if patient_phone:
+                patient_q |= (models.Q(patient_phone__iexact=patient_phone) & models.Q(patient_name__icontains=patient_name.split()[0]))
+
+            date_vars = _get_date_variations(raw_date) | _get_date_variations(formatted_date)
+            date_q = models.Q()
+            for dv in date_vars:
+                date_q |= models.Q(appointment_date__iexact=dv)
+
+            # Match only the exact appointment for this patient on this specific date
+            matched_apt = Appointment.objects.filter(patient_q).filter(date_q).exclude(status='Cancelled').order_by('-created_at').first()
+
         rx = Prescription.objects.create(
             patient_record=patient,
             appointment=matched_apt,
@@ -596,19 +649,11 @@ class PrescriptionListView(APIView):
             status=payload.get('status') or 'Pending',
         )
 
-        # Automatically update corresponding appointment's status and prescription status from Confirmed to Complete
+        # Update ONLY the exact matched appointment's status and prescription status to Complete
         if matched_apt and matched_apt.status != 'Cancelled':
             matched_apt.prescription_status = 'Complete'
             matched_apt.status = 'Complete'
             matched_apt.save(update_fields=['prescription_status', 'status'])
-        
-        # Also ensure all active/confirmed appointments for this patient are marked Complete
-        patient_apts = Appointment.objects.filter(
-            models.Q(patient_name__iexact=patient_name) |
-            (models.Q(patient_phone__iexact=patient_phone) if patient_phone else models.Q(patient_name__iexact=patient_name)) |
-            (models.Q(patient_record=patient) if patient else models.Q(patient_name__iexact=patient_name))
-        )
-        patient_apts.exclude(status='Cancelled').update(prescription_status='Complete', status='Complete')
 
         return Response({
             'id': rx.prescription_id,

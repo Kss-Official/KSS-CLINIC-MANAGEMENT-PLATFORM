@@ -16,6 +16,25 @@ const formatDateForDisplay = (isoStr) => {
   return isoStr;
 };
 
+const parseDisplayDateToIso = (dateStr) => {
+  if (!dateStr) return '';
+  const trimmed = String(dateStr).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const monthIdx = months.findIndex((m) => parts[1].toLowerCase().startsWith(m));
+    const year = parseInt(parts[2], 10);
+    if (!isNaN(day) && monthIdx !== -1 && !isNaN(year)) {
+      const mm = String(monthIdx + 1).padStart(2, '0');
+      const dd = String(day).padStart(2, '0');
+      return `${year}-${mm}-${dd}`;
+    }
+  }
+  return '';
+};
+
 const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
   const [step, setStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,6 +42,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [selectedPatient, setSelectedPatient] = useState(initialPatient || null);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
 
   const [appointmentDate, setAppointmentDate] = useState('2026-10-28');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -53,11 +73,69 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
       setSearchQuery('');
       if (!initialPatient) {
         setSelectedPatient(null);
+        setSelectedAppointment(null);
       }
     } else if (initialPatient) {
-      setSelectedPatient(initialPatient);
+      const isAppointment = Boolean(
+        initialPatient.appointment_id ||
+        (initialPatient.id && String(initialPatient.id).startsWith('APT-')) ||
+        initialPatient.appointmentId ||
+        initialPatient.timeSlot
+      );
+      if (isAppointment) {
+        setSelectedAppointment(initialPatient);
+        setSelectedPatient({
+          id: initialPatient.patient_id_ref || initialPatient.patientId || initialPatient.id,
+          name: initialPatient.patient_name || initialPatient.name || initialPatient.patientName,
+          phone: initialPatient.patient_phone || initialPatient.contact || initialPatient.phone || initialPatient.mobile,
+          ageGender: initialPatient.age_gender || initialPatient.ageGender || '30 / Adult',
+          age: initialPatient.age || '30 Years',
+          gender: initialPatient.gender || 'Adult',
+          initials: (initialPatient.patient_name || initialPatient.name || initialPatient.patientName || 'PT')
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+        });
+        if (initialPatient.date || initialPatient.appointment_date) {
+          const iso = parseDisplayDateToIso(initialPatient.date || initialPatient.appointment_date);
+          if (iso) setAppointmentDate(iso);
+        }
+        if (initialPatient.reason || initialPatient.reason_for_visit) {
+          setMainComplaint(initialPatient.reason || initialPatient.reason_for_visit);
+        }
+        if (initialPatient.consultationType || initialPatient.consultation_type) {
+          setConsultationType(initialPatient.consultationType || initialPatient.consultation_type);
+        }
+      } else {
+        setSelectedPatient(initialPatient);
+        setSelectedAppointment(null);
+      }
     }
   }, [isOpen, initialPatient]);
+
+  const patientAppointments = (
+    availablePatients.find((p) => p.id === selectedPatient?.id || (p.name && p.name.toLowerCase() === selectedPatient?.name?.toLowerCase()))?.appointments ||
+    selectedPatient?.appointments ||
+    []
+  );
+
+  useEffect(() => {
+    if (!selectedPatient) {
+      setSelectedAppointment(null);
+      return;
+    }
+    if (patientAppointments && patientAppointments.length > 0) {
+      const match = patientAppointments.find((a) => {
+        const aIso = parseDisplayDateToIso(a.date);
+        return aIso && aIso === appointmentDate;
+      });
+      if (match) {
+        setSelectedAppointment(match);
+      }
+    }
+  }, [selectedPatient, appointmentDate, patientAppointments]);
 
   // Fetch real patients from Neon PostgreSQL database on modal open
   useEffect(() => {
@@ -165,6 +243,8 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         patient_name: selectedPatient.name,
         patient_phone: selectedPatient.phone,
         patient_id_ref: selectedPatient.id,
+        appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+        appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
@@ -206,6 +286,8 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         patient_name: selectedPatient.name,
         patient_phone: selectedPatient.phone,
         patient_id_ref: selectedPatient.id,
+        appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+        appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
@@ -570,6 +652,49 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
             <p style={{ fontSize: '12.5px', color: '#64748b', margin: '0 0 12px 0' }}>
               Enter the consultation information.
             </p>
+
+            {patientAppointments && patientAppointments.length > 0 && (
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                  Select Linked Appointment
+                </label>
+                <select
+                  value={selectedAppointment?.id || ''}
+                  onChange={(e) => {
+                    const aptId = e.target.value;
+                    const apt = patientAppointments.find((a) => a.id === aptId);
+                    if (apt) {
+                      setSelectedAppointment(apt);
+                      const iso = parseDisplayDateToIso(apt.date);
+                      if (iso) setAppointmentDate(iso);
+                      if (apt.consultationType) setConsultationType(apt.consultationType);
+                      if (apt.reason) setMainComplaint(apt.reason);
+                    } else {
+                      setSelectedAppointment(null);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    height: '42px',
+                    padding: '0 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="">-- Match appointment automatically by date --</option>
+                  {patientAppointments.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.id} — {a.date} ({a.time || '10:00 AM'}) - {a.reason || 'Consultation'} [{a.status}]
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
               <div>
