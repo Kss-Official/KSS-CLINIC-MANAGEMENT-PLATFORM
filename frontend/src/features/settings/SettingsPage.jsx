@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import appointmentApi from '../../api/appointmentApi';
 import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
 
@@ -81,6 +83,16 @@ const validateMobileNumber = (digits, isRequired = true) => {
 };
 
 const SettingsPage = () => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate('/login');
+    }
+  };
     // 1. Clinic Information State (Initializes from saved localStorage or default)
   const [clinicInfo, setClinicInfo] = useState(() => {
     try {
@@ -443,28 +455,83 @@ const SettingsPage = () => {
           boxSizing: 'border-box',
         }}
       >
-        <div style={{ zIndex: 2 }}>
-          <h1
+        <div style={{ zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <div>
+            <h1
+              style={{
+                fontSize: '28px',
+                fontWeight: '800',
+                color: '#0a1c2a',
+                margin: '0 0 6px 0',
+                letterSpacing: '-0.3px',
+                lineHeight: 1.2,
+              }}
+            >
+              Settings
+            </h1>
+            <p
+              style={{
+                fontSize: '15px',
+                color: '#627585',
+                margin: 0,
+              }}
+            >
+              Manage your clinic details, appointments, notification, account and security in one place.
+            </p>
+          </div>
+
+          {/* Immediate Logout Option on Settings Page */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="Logout of Doctor Portal"
             style={{
-              fontSize: '28px',
-              fontWeight: '800',
-              color: '#0a1c2a',
-              margin: '0 0 6px 0',
-              letterSpacing: '-0.3px',
-              lineHeight: 1.2,
+              zIndex: 3,
+              marginRight: '220px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              backgroundColor: '#ffffff',
+              color: '#dc2626',
+              border: '1.5px solid #fecaca',
+              borderRadius: '12px',
+              fontSize: '13.5px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(220, 38, 38, 0.08)',
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#dc2626';
+              e.currentTarget.style.color = '#ffffff';
+              e.currentTarget.style.borderColor = '#dc2626';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.color = '#dc2626';
+              e.currentTarget.style.borderColor = '#fecaca';
+              e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
-            Settings
-          </h1>
-          <p
-            style={{
-              fontSize: '15px',
-              color: '#627585',
-              margin: 0,
-            }}
-          >
-            Manage your clinic details, appointments, notification, account and security in one place.
-          </p>
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Logout</span>
+          </button>
         </div>
 
         {/* Herbal Mortar Illustration */}
@@ -755,6 +822,97 @@ const SettingsPage = () => {
             );
           })}
         </div>
+      </div>
+
+      {/* Card 4: Doctor Account & Session */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '18px',
+          padding: '24px 28px',
+          border: '1px solid #f1f5f9',
+          marginBottom: '22px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '16px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              backgroundColor: '#dcfce7',
+              color: '#166534',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: '700',
+              fontSize: '15px',
+              flexShrink: 0,
+            }}
+          >
+            DT
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
+                {clinicInfo.doctorName || 'Dr. Kumar Tripathi Ampeh (Pat.)'}
+              </h2>
+              <span
+                style={{
+                  backgroundColor: '#e2fbe8',
+                  color: '#1e7e34',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                }}
+              >
+                Active Doctor Session
+              </span>
+            </div>
+            <p style={{ fontSize: '12.5px', color: '#64748b', margin: '3px 0 0 0' }}>
+              {clinicInfo.email || 'clinic.tripathi@gmail.com'} • Doctor & Administrator
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 22px',
+            borderRadius: '10px',
+            border: '1.5px solid #dc2626',
+            backgroundColor: '#ffffff',
+            color: '#dc2626',
+            fontSize: '13.5px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#dc2626';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#ffffff';
+            e.currentTarget.style.color = '#dc2626';
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span>Logout</span>
+        </button>
       </div>
 
       {/* ================= MODAL 1: Edit Clinic Information ================= */}
