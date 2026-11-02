@@ -22,20 +22,12 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
   const [availablePatients, setAvailablePatients] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState({
-    id: 'PAT-1001',
-    name: 'Rahul Sharma',
-    phone: '+91 98765 43210',
-    age: '28 Years',
-    gender: 'Male',
-    ageGender: '28 Years / Male',
-    initials: 'RS',
-  });
+  const [selectedPatient, setSelectedPatient] = useState(initialPatient || null);
 
   const [appointmentDate, setAppointmentDate] = useState('2026-10-28');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [consultationType, setConsultationType] = useState('Follow-up');
-  const [mainComplaint, setMainComplaint] = useState('Skin Allergy');
+  const [mainComplaint, setMainComplaint] = useState('');
 
   const [symptoms, setSymptoms] = useState('');
   const [diagnosis, setDiagnosis] = useState('Skin allergy due to seasonal change.');
@@ -43,19 +35,11 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
   const [medicines, setMedicines] = useState([
     {
       id: 1,
-      name: 'Rhus Tox',
+      name: '',
       potency: '30C',
-      dosage: '5 drops',
+      dosage: '',
       duration: '15 Days',
       instructions: 'Twice daily',
-    },
-    {
-      id: 2,
-      name: 'Apis Mellifica',
-      potency: '200C',
-      dosage: '5 drops',
-      duration: '10 Days',
-      instructions: 'Once daily',
     },
   ]);
 
@@ -66,8 +50,15 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
   useEffect(() => {
     if (!isOpen) {
       setStep(1);
+      setSearchQuery('');
+      if (!initialPatient) {
+        setSelectedPatient(null);
+      }
+    } else if (initialPatient) {
+      setSelectedPatient(initialPatient);
     }
-  }, [isOpen]);
+  }, [isOpen, initialPatient]);
+
   // Fetch real patients from Neon PostgreSQL database on modal open
   useEffect(() => {
     if (!isOpen) return;
@@ -76,22 +67,6 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         const data = await appointmentApi.getPatients();
         if (Array.isArray(data) && data.length > 0) {
           setAvailablePatients(data);
-          // If no selected patient or PAT-1001 default, select first verified patient from database
-          setSelectedPatient((prev) => {
-            if (!prev || prev.id === 'PAT-1001') {
-              const p = data[0];
-              return {
-                id: p.id,
-                name: p.name,
-                phone: p.mobile,
-                age: p.ageGender?.split('/')[0]?.trim() || '28 Years',
-                gender: p.ageGender?.split('/')[1]?.trim() || 'Adult',
-                ageGender: p.ageGender || '28 Years / Adult',
-                initials: p.initials || 'PT',
-              };
-            }
-            return prev;
-          });
         }
       } catch (err) {
         console.error('Failed to load database patients for prescription:', err);
@@ -166,6 +141,10 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!selectedPatient || !selectedPatient.name) {
+      alert('Please search and select a patient first.');
+      return;
+    }
     // Advance to Step 2: Prescription Preview Screen
     setStep(2);
   };
@@ -453,16 +432,25 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                     zIndex: 20,
                   }}
                 >
-                  {availablePatients
-                    .filter((p) => {
-                      const q = searchQuery.toLowerCase();
+                  {(() => {
+                    const q = searchQuery.toLowerCase().trim();
+                    const filtered = availablePatients.filter((p) => {
                       return (
-                        p.name.toLowerCase().includes(q) ||
+                        (p.name && p.name.toLowerCase().includes(q)) ||
                         (p.mobile && p.mobile.includes(q)) ||
                         (p.id && p.id.toLowerCase().includes(q))
                       );
-                    })
-                    .map((p) => (
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b' }}>
+                          No patient found matching "{searchQuery}"
+                        </div>
+                      );
+                    }
+
+                    return filtered.map((p) => (
                       <div
                         key={p.id}
                         onClick={() => {
@@ -492,7 +480,8 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                         <span style={{ fontWeight: '600', color: '#0f172a' }}>{p.name} ({p.id})</span>
                         <span style={{ color: '#64748b', fontSize: '12px' }}>{p.mobile}</span>
                       </div>
-                    ))}
+                    ));
+                  })()}
                 </div>
               )}
             </div>
@@ -570,7 +559,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
               Enter the consultation information.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
                   Appointment Date
@@ -635,33 +624,6 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                 </select>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-                  Main Complaint
-                </label>
-                <select
-                  value={mainComplaint}
-                  onChange={(e) => setMainComplaint(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '13px',
-                    backgroundColor: '#ffffff',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="Skin Allergy">Skin Allergy</option>
-                  <option value="Chronic Migraine">Chronic Migraine</option>
-                  <option value="Digestive Issue">Digestive Issue</option>
-                  <option value="Thyroid Consultation">Thyroid Consultation</option>
-                  <option value="General Consultation">General Consultation</option>
-                </select>
-              </div>
             </div>
           </div>
 
