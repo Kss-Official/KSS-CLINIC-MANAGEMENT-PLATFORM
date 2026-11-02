@@ -56,7 +56,7 @@ const AppointmentsPage = () => {
     time: item.time_slot || item.time || '',
     reason: item.reason_for_visit || item.reason || 'General Consultation',
     consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
-    status: item.status || 'Pending',
+    status: item.status || 'Confirmed',
     prescriptionStatus: item.prescription_status || item.prescriptionStatus || 'Pending',
     ageGender: item.age_gender || item.ageGender || 'Adult',
     notes: item.notes || item.reason_for_visit || '',
@@ -119,10 +119,11 @@ const AppointmentsPage = () => {
     switch (status) {
       case 'Confirmed':
         return { bg: '#e8f7ee', color: '#1e7e34' };
-      case 'Pending':
-        return { bg: '#fef7e6', color: '#b45309' };
+      case 'Complete':
       case 'Completed':
         return { bg: '#eaf2ff', color: '#2563eb' };
+      case 'Pending':
+        return { bg: '#fef7e6', color: '#b45309' };
       case 'Cancelled':
         return { bg: '#fee2e2', color: '#dc2626' };
       default:
@@ -207,7 +208,7 @@ const AppointmentsPage = () => {
   // Dynamic pagination calculation based on data and page size
   // Dynamic metrics calculation from live Neon data
   const totalAppointmentsCount = appointmentsList.length;
-  const completedCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'completed').length;
+  const completedCount = appointmentsList.filter((a) => ['complete', 'completed'].includes((a.status || '').toLowerCase())).length;
   const pendingCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'pending').length;
   const cancelledCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'cancelled').length;
 
@@ -624,8 +625,8 @@ const AppointmentsPage = () => {
             >
               <option value="All">All Status</option>
               <option value="Confirmed">Confirmed</option>
+              <option value="Complete">Complete</option>
               <option value="Pending">Pending</option>
-              <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </select>
 
@@ -861,9 +862,9 @@ const AppointmentsPage = () => {
                                 onClick: () => openViewAppointment(row),
                               },
                               {
-                                label: 'Mark as Completed',
+                                label: 'Mark as Complete',
                                 icon: '✓',
-                                onClick: () => handleUpdateStatus(row.id, 'Completed'),
+                                onClick: () => handleUpdateStatus(row.id, 'Complete'),
                               },
                               {
                                 label: 'Mark as Confirmed',

@@ -41,8 +41,9 @@ class Patient(TimeStampedModel):
 class Appointment(TimeStampedModel):
     STATUS_CHOICES = [
         ('Confirmed', 'Confirmed'),
-        ('Pending', 'Pending'),
+        ('Complete', 'Complete'),
         ('Completed', 'Completed'),
+        ('Pending', 'Pending'),
         ('Cancelled', 'Cancelled'),
     ]
 
@@ -68,7 +69,7 @@ class Appointment(TimeStampedModel):
     time_slot = models.CharField(max_length=50)
     reason_for_visit = models.TextField(blank=True, default='')
     consultation_type = models.CharField(max_length=50, default='In-clinic Visit')
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Confirmed')
     PRESCRIPTION_STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Complete', 'Complete'),
@@ -144,7 +145,7 @@ class Prescription(TimeStampedModel):
     diagnosis = models.TextField(blank=True, default='')
     medicines = models.JSONField(default=list, blank=True)
     additional_instructions = models.TextField(blank=True, default='')
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Confirmed')
 
     class Meta:
         ordering = ['-created_at']

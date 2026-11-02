@@ -83,7 +83,7 @@ const DashboardPage = () => {
     time: item.time_slot || item.time || '',
     reason: item.reason_for_visit || item.reason || 'General Consultation',
     consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
-    status: item.status || 'Pending',
+    status: item.status || 'Confirmed',
     ageGender: item.age_gender || item.ageGender || 'Adult',
     notes: item.notes || item.reason_for_visit || '',
     doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
@@ -127,6 +127,8 @@ const DashboardPage = () => {
     };
 
     window.addEventListener('appointment-booked', handleAppointmentBooked);
+    window.addEventListener('appointment-updated', handleAppointmentBooked);
+    window.addEventListener('prescription-created', handleAppointmentBooked);
     window.addEventListener('focus', handleFocus);
 
     const interval = setInterval(() => {
@@ -135,6 +137,8 @@ const DashboardPage = () => {
 
     return () => {
       window.removeEventListener('appointment-booked', handleAppointmentBooked);
+      window.removeEventListener('appointment-updated', handleAppointmentBooked);
+      window.removeEventListener('prescription-created', handleAppointmentBooked);
       window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };
@@ -163,7 +167,7 @@ const DashboardPage = () => {
           diagnosis: item.diagnosis || '',
           medicines: item.medicines || [],
           additionalInstructions: item.additionalInstructions || '',
-          status: item.status || 'Pending',
+          status: item.status || 'Confirmed',
         }));
         setPrescriptionsData((prev) => {
           if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
@@ -204,7 +208,7 @@ const DashboardPage = () => {
           diagnosis: item.diagnosis || '',
           medicines: item.medicines || [],
           additionalInstructions: item.additionalInstructions || '',
-          status: item.status || 'Pending',
+          status: item.status || 'Confirmed',
         };
         setPrescriptionsData((prev) => [
           formatted,
@@ -246,6 +250,8 @@ const DashboardPage = () => {
           bg: '#fef7e6',
           color: '#b45309',
         };
+      case 'Complete':
+      case 'Completed':
       case 'Sent':
         return {
           bg: '#eaf2ff',

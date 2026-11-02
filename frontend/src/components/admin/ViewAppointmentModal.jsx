@@ -61,6 +61,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
         return { bg: '#e8f7ee', color: '#1e7e34', border: '#bbf7d0' };
       case 'Pending':
         return { bg: '#fef7e6', color: '#b45309', border: '#fde68a' };
+      case 'Complete':
       case 'Completed':
         return { bg: '#eaf2ff', color: '#2563eb', border: '#bfdbfe' };
       case 'Cancelled':

@@ -151,7 +151,12 @@ class AppointmentListCreateView(APIView):
                         }, status=status.HTTP_400_BAD_REQUEST)
 
             user = request.user if request.user.is_authenticated else None
-            appointment = serializer.save(user=user)
+            save_kwargs = {'user': user}
+            if not serializer.validated_data.get('status'):
+                save_kwargs['status'] = 'Confirmed'
+            if not serializer.validated_data.get('prescription_status'):
+                save_kwargs['prescription_status'] = 'Pending'
+            appointment = serializer.save(**save_kwargs)
 
             # Link or create corresponding permanent Patient record in Neon
             p_name = appointment.patient_name.strip()
@@ -576,18 +581,19 @@ class PrescriptionListView(APIView):
             status=payload.get('status') or 'Pending',
         )
 
-        # Automatically update corresponding appointment's prescription status to Complete
-        if matched_apt:
+        # Automatically update corresponding appointment's status and prescription status from Confirmed to Complete
+        if matched_apt and matched_apt.status != 'Cancelled':
             matched_apt.prescription_status = 'Complete'
-            matched_apt.save(update_fields=['prescription_status'])
+            matched_apt.status = 'Complete'
+            matched_apt.save(update_fields=['prescription_status', 'status'])
         
-        # Also ensure all appointments for this patient are marked Complete
+        # Also ensure all active/confirmed appointments for this patient are marked Complete
         patient_apts = Appointment.objects.filter(
             models.Q(patient_name__iexact=patient_name) |
             (models.Q(patient_phone__iexact=patient_phone) if patient_phone else models.Q(patient_name__iexact=patient_name)) |
             (models.Q(patient_record=patient) if patient else models.Q(patient_name__iexact=patient_name))
         )
-        patient_apts.update(prescription_status='Complete')
+        patient_apts.exclude(status='Cancelled').update(prescription_status='Complete', status='Complete')
 
         return Response({
             'id': rx.prescription_id,

@@ -947,7 +947,7 @@ const ProfilePage = () => {
                 .filter((item) => {
                   if (appointmentFilter === 'All') return true;
                   if (appointmentFilter === 'Upcoming') return item.status === 'Confirmed' || item.status === 'Pending';
-                  if (appointmentFilter === 'Completed') return item.status === 'Completed';
+                  if (appointmentFilter === 'Completed') return item.status === 'Completed' || item.status === 'Complete';
                   return true;
                 })
                 .map((item) => (
