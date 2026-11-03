@@ -199,14 +199,27 @@ const AppointmentsPage = () => {
       item.contact.includes(searchQuery) ||
       (item.reason && item.reason.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesStatus =
-      statusFilter === 'All' || item.status.toLowerCase() === statusFilter.toLowerCase();
+    // 1. Appointment Status filter - applies EXCLUSIVELY to appointment status (row.status)
+    const matchesStatus = (() => {
+      if (!statusFilter || statusFilter === 'All') return true;
+      const aptStatus = String(item.status || 'Confirmed').trim().toLowerCase();
+      const targetStatus = String(statusFilter).trim().toLowerCase();
+      if (targetStatus === 'complete') {
+        return aptStatus === 'complete' || aptStatus === 'completed';
+      }
+      return aptStatus === targetStatus;
+    })();
 
-    const matchesPrescription =
-      prescriptionFilter === 'All' ||
-      (prescriptionFilter.toLowerCase() === 'complete'
-        ? ['complete', 'completed'].includes((item.prescriptionStatus || '').toLowerCase())
-        : (item.prescriptionStatus || 'Pending').toLowerCase() === prescriptionFilter.toLowerCase());
+    // 2. Prescription Status filter - applies EXCLUSIVELY to prescription status (row.prescriptionStatus)
+    const matchesPrescription = (() => {
+      if (!prescriptionFilter || prescriptionFilter === 'All') return true;
+      const rxStatus = String(item.prescriptionStatus || 'Pending').trim().toLowerCase();
+      const targetRx = String(prescriptionFilter).trim().toLowerCase();
+      if (targetRx === 'complete') {
+        return rxStatus === 'complete' || rxStatus === 'completed';
+      }
+      return rxStatus === targetRx;
+    })();
 
     const matchesDate = matchesDateFilter(item.date);
 
