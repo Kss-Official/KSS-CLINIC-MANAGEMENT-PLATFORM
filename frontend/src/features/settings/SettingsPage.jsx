@@ -93,7 +93,7 @@ const SettingsPage = () => {
       contactNumber: '+91 98765 43210',
       alternateNumber: '+91 99887 66554',
       email: 'clinic.tripathi@gmail.com',
-      address: '12, Green Park, MG Road, Bangalore, Karnataka - 560001',
+      address: '12, Green Park, Bangalore',
     };
   });
 
@@ -454,7 +454,7 @@ const SettingsPage = () => {
               lineHeight: 1.2,
             }}
           >
-            Settings
+            Clinic Information
           </h1>
           <p
             style={{
@@ -463,7 +463,7 @@ const SettingsPage = () => {
               margin: 0,
             }}
           >
-            Manage your clinic details, appointments, notification, account and security in one place.
+            Update your clinic details and contact information.
           </p>
         </div>
 
@@ -495,25 +495,40 @@ const SettingsPage = () => {
       </div>
 
       {/* Card 1: Clinic Information */}
-      <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', padding: '26px 28px', border: '1px solid #f1f5f9', marginBottom: '22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#e8f5ec', color: '#265e38', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="4" y="2" width="16" height="20" rx="2" />
-                <line x1="9" y1="22" x2="9" y2="22.01" />
-                <line x1="15" y1="22" x2="15" y2="22.01" />
-                <line x1="9" y1="6" x2="9" y2="6.01" />
-                <line x1="15" y1="6" x2="15" y2="6.01" />
-                <line x1="9" y1="10" x2="9" y2="10.01" />
-                <line x1="15" y1="10" x2="15" y2="10.01" />
-                <line x1="9" y1="14" x2="9" y2="14.01" />
-                <line x1="15" y1="14" x2="15" y2="14.01" />
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '18px',
+          padding: '24px 28px',
+          border: '1px solid #f1f5f9',
+          marginBottom: '22px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                backgroundColor: '#dafaea',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18" />
+                <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
+                <path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4" />
+                <line x1="10" y1="9" x2="14" y2="9" />
+                <line x1="12" y1="7" x2="12" y2="11" />
               </svg>
             </div>
             <div>
-              <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 2px 0' }}>Clinic Information</h2>
-              <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>Update your clinic details and contact information.</p>
+              <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 3px 0' }}>Clinic Information</h2>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Update your clinic details and contact information.</p>
             </div>
           </div>
           <button
@@ -524,12 +539,12 @@ const SettingsPage = () => {
               alignItems: 'center',
               gap: '6px',
               padding: '6px 14px',
-              borderRadius: '6px',
+              borderRadius: '8px',
               border: '1px solid #e2e8f0',
-              backgroundColor: '#fff',
+              backgroundColor: '#ffffff',
               fontSize: '13px',
-              fontWeight: '500',
-              color: '#334155',
+              fontWeight: '600',
+              color: '#0f172a',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
@@ -542,56 +557,132 @@ const SettingsPage = () => {
               e.currentTarget.style.borderColor = '#e2e8f0';
             }}
           >
-            ✏️ Edit
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+            </svg>
+            Edit
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '18px' }}>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>CLINIC NAME</div>
-            <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginTop: '4px' }}>{clinicInfo.clinicName}</div>
+        {/* Unified 4-Column Grid: Row 1 & Row 2 perfectly aligned */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1.15fr 1.55fr 1.25fr 1.25fr',
+            rowGap: '22px',
+          }}
+        >
+          {/* Row 1, Col 1: Clinic Name */}
+          <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+              CLINIC NAME
+            </div>
+            <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
+              {clinicInfo.clinicName}
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>DOCTOR NAME</div>
-            <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginTop: '4px' }}>{clinicInfo.doctorName}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>CONTACT NUMBER</div>
-            <div style={{ fontSize: '14px', color: '#0f172a', marginTop: '4px' }}>{clinicInfo.contactNumber}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>ALTERNATE NUMBER</div>
-            <div style={{ fontSize: '14px', color: '#0f172a', marginTop: '4px' }}>{clinicInfo.alternateNumber}</div>
-          </div>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>EMAIL ADDRESS</div>
-            <div style={{ fontSize: '14px', color: '#0f172a', marginTop: '4px' }}>{clinicInfo.email}</div>
+          {/* Row 1, Col 2: Doctor Name */}
+          <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+              DOCTOR NAME
+            </div>
+            <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
+              {clinicInfo.doctorName}
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>ADDRESS</div>
-            <div style={{ fontSize: '14px', color: '#0f172a', marginTop: '4px' }}>{clinicInfo.address}</div>
+
+          {/* Row 1, Col 3: Contact Number */}
+          <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+              CONTACT NUMBER
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+              <span>{clinicInfo.contactNumber}</span>
+            </div>
+          </div>
+
+          {/* Row 1, Col 4: Alternate Number */}
+          <div style={{ paddingLeft: '24px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+              ALTERNATE NUMBER
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+              <span>{clinicInfo.alternateNumber}</span>
+            </div>
+          </div>
+
+          {/* Row 2, Col 1: Email Address (Directly under Clinic Name) */}
+          <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+              EMAIL ADDRESS
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+              <span>{clinicInfo.email}</span>
+            </div>
+          </div>
+
+          {/* Row 2, Col 2: Address (Directly under Doctor Name!) */}
+          <div style={{ gridColumn: '2 / span 3', paddingLeft: '24px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+              ADDRESS
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <span>{clinicInfo.address}</span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Card 2: Appointment Settings */}
-      <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', padding: '26px 28px', border: '1px solid #f1f5f9', marginBottom: '22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#e8f5ec', color: '#265e38', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '18px',
+          padding: '24px 28px',
+          border: '1px solid #f1f5f9',
+          marginBottom: '22px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                backgroundColor: '#dafaea',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
                 <line x1="8" y1="2" x2="8" y2="6" />
                 <line x1="3" y1="10" x2="21" y2="10" />
+                <path d="m9 16 2 2 4-4" />
               </svg>
             </div>
             <div>
-              <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 2px 0' }}>Appointment Settings</h2>
-              <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>Configure your working hours, consultation days and appointment preferences.</p>
+              <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 3px 0' }}>Appointment Settings</h2>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Configure your working hours, consultation slots and appointment preferences.</p>
             </div>
           </div>
           <button
@@ -602,12 +693,12 @@ const SettingsPage = () => {
               alignItems: 'center',
               gap: '6px',
               padding: '6px 14px',
-              borderRadius: '6px',
+              borderRadius: '8px',
               border: '1px solid #e2e8f0',
-              backgroundColor: '#fff',
+              backgroundColor: '#ffffff',
               fontSize: '13px',
-              fontWeight: '500',
-              color: '#334155',
+              fontWeight: '600',
+              color: '#0f172a',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
@@ -620,14 +711,20 @@ const SettingsPage = () => {
               e.currentTarget.style.borderColor = '#e2e8f0';
             }}
           >
-            ✏️ Edit
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+            </svg>
+            Edit
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '20px' }}>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', marginBottom: '8px' }}>WORKING DAYS</div>
-            <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1.25fr 1fr', alignItems: 'center' }}>
+          {/* Column 1: Working Days */}
+          <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '10px' }}>
+              WORKING DAYS
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => {
                 const active = workingDays.includes(d);
                 return (
@@ -636,14 +733,15 @@ const SettingsPage = () => {
                     type="button"
                     onClick={() => toggleDay(d)}
                     style={{
-                      padding: '6px 10px',
+                      padding: '5px 12px',
                       borderRadius: '8px',
                       border: 'none',
-                      backgroundColor: active ? '#e8f5ec' : '#f1f5f9',
-                      color: active ? '#1e7e34' : '#64748b',
-                      fontSize: '12.5px',
+                      backgroundColor: active ? '#dafaea' : '#f1f5f9',
+                      color: active ? '#15803d' : '#64748b',
+                      fontSize: '12px',
                       fontWeight: '600',
                       cursor: 'pointer',
+                      transition: 'all 0.15s ease',
                     }}
                   >
                     {d}
@@ -653,14 +751,34 @@ const SettingsPage = () => {
             </div>
           </div>
 
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', marginBottom: '8px' }}>CONSULTATION HOURS</div>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>🕒 {consultationHours}</div>
+          {/* Column 2: Consultation Hours */}
+          <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '10px' }}>
+              CONSULTATION HOURS
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span>{consultationHours}</span>
+            </div>
           </div>
 
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', marginBottom: '8px' }}>SLOT DURATION</div>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>⏱️ {slotDuration}</div>
+          {/* Column 3: Slot Duration */}
+          <div style={{ paddingLeft: '24px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '10px' }}>
+              SLOT DURATION
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M5 22h14" />
+                <path d="M5 2h14" />
+                <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+                <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+              </svg>
+              <span>{slotDuration}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -688,12 +806,12 @@ const SettingsPage = () => {
               alignItems: 'center',
               gap: '6px',
               padding: '6px 14px',
-              borderRadius: '6px',
+              borderRadius: '8px',
               border: '1px solid #e2e8f0',
-              backgroundColor: '#fff',
+              backgroundColor: '#ffffff',
               fontSize: '13px',
-              fontWeight: '500',
-              color: '#334155',
+              fontWeight: '600',
+              color: '#0f172a',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
@@ -706,7 +824,10 @@ const SettingsPage = () => {
               e.currentTarget.style.borderColor = '#e2e8f0';
             }}
           >
-            ✏️ Edit
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+            </svg>
+            Edit
           </button>
         </div>
 

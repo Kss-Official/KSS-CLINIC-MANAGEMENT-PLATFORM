@@ -460,21 +460,21 @@ const AdminHeader = () => {
         </div>
 
         {/* Doctor Profile Pill */}
-        <div ref={profileRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {/* Profile Section (Avatar & Doctor Info) - Click opens the dropdown menu */}
+        <div
+          ref={profileRef}
+          style={{ position: 'relative' }}
+        >
+          {/* Profile Trigger (Avatar + Doctor Info + Arrow) */}
           <div
-            onClick={(e) => {
-              e.stopPropagation();
-              setDropdownOpen((prev) => !prev);
-            }}
-            title="Account Menu"
+            onClick={() => setDropdownOpen((prev) => !prev)}
+            title="Doctor Profile Menu"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
               userSelect: 'none',
-              padding: '6px 10px',
-              borderRadius: '10px',
+              padding: '6px 12px',
+              borderRadius: '12px',
               cursor: 'pointer',
               backgroundColor: dropdownOpen ? '#f8fafc' : 'transparent',
               transition: 'background-color 0.15s ease',
@@ -484,7 +484,7 @@ const AdminHeader = () => {
               if (!dropdownOpen) e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            {/* Circular Initials Avatar DT (Profile Icon - clickable trigger) */}
+            {/* Circular Initials Avatar DT */}
             <div
               style={{
                 width: '40px',
@@ -504,7 +504,7 @@ const AdminHeader = () => {
               DT
             </div>
 
-            {/* Doctor Info (Profile Name & Role - clickable trigger) */}
+            {/* Doctor Info */}
             <div style={{ textAlign: 'left', lineHeight: 1.25 }}>
               <div
                 style={{
@@ -526,51 +526,48 @@ const AdminHeader = () => {
                 Doctor
               </div>
             </div>
-          </div>
 
-          {/* Visual Dropdown Arrow - Does NOT open the dropdown when clicked */}
-          <div
-            style={{
-              padding: '6px 6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-              userSelect: 'none',
-            }}
-            aria-hidden="true"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#94a3b8"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            {/* Dropdown Chevron Arrow */}
+            <div
               style={{
-                transform: dropdownOpen ? 'rotate(180deg)' : 'none',
-                transition: 'transform 0.15s ease',
+                marginLeft: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#94a3b8"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  transform: dropdownOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.15s ease',
+                }}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
           </div>
 
-          {/* Profile Dropdown Menu - containing both Settings and Logout options */}
+          {/* Profile Dropdown Menu with Settings & Logout */}
           {dropdownOpen && (
             <div
               style={{
                 position: 'absolute',
-                top: '56px',
+                top: 'calc(100% + 6px)',
                 right: 0,
                 backgroundColor: '#ffffff',
-                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0,0,0,0.04)',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
                 borderRadius: '12px',
                 border: '1px solid #f1f5f9',
-                padding: '6px 0',
-                minWidth: '180px',
+                padding: '6px',
+                minWidth: '165px',
                 zIndex: 120,
                 overflow: 'hidden',
               }}
@@ -582,85 +579,35 @@ const AdminHeader = () => {
                   navigate('/settings');
                 }}
                 style={{
-                  padding: '10px 18px',
+                  padding: '10px 14px',
                   fontSize: '13.5px',
-                  fontWeight: '500',
-                  color: '#334155',
+                  fontWeight: '600',
+                  color: '#1e293b',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
-                  transition: 'background-color 0.15s ease, color 0.15s ease',
+                  transition: 'background-color 0.15s ease',
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f8fafc';
-                  e.currentTarget.style.color = '#1e4620';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#334155';
-                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
                 <svg
                   width="16"
                   height="16"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="currentColor"
+                  stroke="#334155"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
                   <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
                 <span>Settings</span>
               </div>
-
-              {/* Option 2: Back to Home */}
-              <div
-                onClick={() => {
-                  setDropdownOpen(false);
-                  navigate('/');
-                }}
-                style={{
-                  padding: '10px 18px',
-                  fontSize: '13.5px',
-                  fontWeight: '500',
-                  color: '#334155',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'background-color 0.15s ease, color 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f8fafc';
-                  e.currentTarget.style.color = '#1e4620';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#334155';
-                }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-                <span>Back to Home</span>
-              </div>
-
-              {/* Divider */}
-              <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '4px 0' }} />
 
               {/* Option 2: Logout */}
               <div
@@ -669,10 +616,11 @@ const AdminHeader = () => {
                   handleLogout();
                 }}
                 style={{
-                  padding: '10px 18px',
+                  padding: '10px 14px',
                   fontSize: '13.5px',
-                  fontWeight: '500',
+                  fontWeight: '600',
                   color: '#dc2626',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -682,7 +630,16 @@ const AdminHeader = () => {
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#dc2626"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />

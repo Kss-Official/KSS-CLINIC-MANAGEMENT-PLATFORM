@@ -4,6 +4,9 @@ import Navbar from '../../components/layout/Navbar';
 import useAuth from '../../hooks/useAuth';
 import appointmentApi from '../../api/appointmentApi';
 import PatientAuthModal from '../../components/auth/PatientAuthModal';
+import ViewPrescriptionModal from '../../components/admin/ViewPrescriptionModal';
+import PrescriptionPreviewCard from '../../components/admin/PrescriptionPreviewCard';
+import { downloadPrescriptionPdf } from '../../utils/prescriptionPdf';
 import profileHerbs from '../../assets/profile-banner-herbs.png?v=v3_clean_mortar_herbs';
 
 const ProfilePage = () => {
@@ -33,6 +36,12 @@ const ProfilePage = () => {
   });
   const [editErrors, setEditErrors] = useState({});
   const editDialogRef = useRef(null);
+
+  // Prescription Preview & Download State
+  const [viewPrescriptionModalOpen, setViewPrescriptionModalOpen] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const [downloadingRxId, setDownloadingRxId] = useState(null);
+  const [downloadingRx, setDownloadingRx] = useState(null);
 
   // Appointment Details Modal State
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -131,9 +140,11 @@ const ProfilePage = () => {
   ]);
 
   // Fetch real patient profile, appointments, and prescriptions from Neon PostgreSQL
-  const fetchPatientData = useCallback(async () => {
+  const fetchPatientData = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       const savedPhone = localStorage.getItem('kss_patient_phone') || user?.phone_number || '';
       const savedEmail = localStorage.getItem('kss_patient_email') || user?.email || '';
       const savedName = localStorage.getItem('kss_patient_name') || '';
@@ -182,50 +193,94 @@ const ProfilePage = () => {
               reason: a.reason,
             };
           });
-          setAppointments(formattedApts);
+          setAppointments((prev) => {
+            if (JSON.stringify(prev) === JSON.stringify(formattedApts)) return prev;
+            return formattedApts;
+          });
         }
 
         // Format real prescriptions
-        if (Array.isArray(res.prescriptions) && res.prescriptions.length > 0) {
-          const formattedRxs = res.prescriptions.map((r, idx) => {
-            return {
-              id: r.id || r.rxId || idx + 1,
-              title: `Prescription - ${r.diagnosis || r.complaint || 'Clinical Consultation'}`,
-              date: r.date || 'Today',
-              fileName: `Prescription_${r.id || idx + 1}.pdf`,
-              diagnosis: r.diagnosis,
-              complaint: r.complaint,
-              symptoms: r.symptoms,
-              medicines: r.medicines || [],
-              additionalInstructions: r.additionalInstructions,
-              status: r.status || 'Delivered',
-            };
-          });
-          setPrescriptions(formattedRxs);
+        if (Array.isArray(res.prescriptions)) {
+          if (res.prescriptions.length > 0) {
+            const formattedRxs = res.prescriptions.map((r, idx) => {
+              const rxId = r.id || r.rxId || `RX-2026-${1000 + idx}`;
+              const patientName = r.patientName || r.name || res.name || profile.fullName || 'Patient';
+              const safePatientName = patientName.replace(/\s+/g, '_');
+              const patientId = r.patientId || res.id || profile.patientId || 'PAT-1001';
+              const ageGender = r.ageGender || res.ageGender || profile.gender || '30 / Adult';
+              const contact = r.contact || r.mobile || res.mobile || profile.mobileNumber || '+91 98765 43210';
+              const diagnosis = r.diagnosis || r.complaint || 'Clinical Consultation';
+              const medicines = Array.isArray(r.medicines) ? r.medicines : [];
+              const additionalInstructions = r.additionalInstructions || r.additional_instructions || r.notes || '';
+
+              return {
+                id: rxId,
+                rxId: rxId,
+                prescriptionId: rxId,
+                title: `Prescription - ${diagnosis}`,
+                date: r.date || 'Today',
+                time: r.time || '10:00 AM',
+                created_at: r.created_at,
+                createdAt: r.created_at,
+                fileName: `Prescription_${safePatientName}_${rxId}.pdf`,
+                diagnosis,
+                complaint: r.complaint || diagnosis,
+                symptoms: r.symptoms || '',
+                medicines,
+                additionalInstructions,
+                notes: additionalInstructions,
+                status: r.status || 'Pending',
+                patientName,
+                name: patientName,
+                patientId,
+                ageGender,
+                contact,
+                mobile: contact,
+                phone: contact,
+                patient: {
+                  name: patientName,
+                  id: patientId,
+                  ageGender,
+                  phone: contact,
+                  contact,
+                },
+              };
+            });
+            setPrescriptions((prev) => {
+              if (JSON.stringify(prev) === JSON.stringify(formattedRxs)) return prev;
+              return formattedRxs;
+            });
+          } else {
+            setPrescriptions([]);
+          }
         }
       }
     } catch (err) {
       console.error('Failed to load patient profile from Neon:', err);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, [user]);
 
   useEffect(() => {
-    fetchPatientData();
+    fetchPatientData(false);
+
+    const handleEvent = () => fetchPatientData(true);
 
     // Real-time synchronization: refresh on event or focus
-    window.addEventListener('appointment-booked', fetchPatientData);
-    window.addEventListener('prescription-created', fetchPatientData);
-    window.addEventListener('focus', fetchPatientData);
+    window.addEventListener('appointment-booked', handleEvent);
+    window.addEventListener('prescription-created', handleEvent);
+    window.addEventListener('focus', handleEvent);
 
     // Reliable 10-second polling for automatic sync across Patient and Admin portals
-    const interval = setInterval(fetchPatientData, 10000);
+    const interval = setInterval(() => fetchPatientData(true), 10000);
 
     return () => {
-      window.removeEventListener('appointment-booked', fetchPatientData);
-      window.removeEventListener('prescription-created', fetchPatientData);
-      window.removeEventListener('focus', fetchPatientData);
+      window.removeEventListener('appointment-booked', handleEvent);
+      window.removeEventListener('prescription-created', handleEvent);
+      window.removeEventListener('focus', handleEvent);
       clearInterval(interval);
     };
   }, [fetchPatientData]);
@@ -432,8 +487,38 @@ const ProfilePage = () => {
     setSelectedAppointment(null);
   };
 
-  const handleDownloadPrescription = (fileName) => {
-    alert(`Downloading ${fileName}... In a full setup, this downloads your digital homeopathic prescription.`);
+  const handleDownloadPrescription = async (rx) => {
+    if (!rx) return;
+    const rxId = rx.prescriptionId || rx.id || rx.rxId;
+    setDownloadingRxId(rxId);
+    setDownloadingRx(rx);
+
+    try {
+      // Allow DOM to update and render the offscreen printable card
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      const cardElement = document.getElementById('printable-prescription-card-patient');
+      if (!cardElement) {
+        throw new Error('Could not locate printable prescription element.');
+      }
+
+      const patientName = rx.patientName || rx.name || profile.fullName || 'Patient';
+      const safePatientName = patientName.replace(/\s+/g, '_');
+      const filename = `Prescription_${safePatientName}_${rxId}.pdf`;
+
+      await downloadPrescriptionPdf(cardElement, filename);
+    } catch (err) {
+      console.error('Failed to download prescription PDF:', err);
+      alert('Failed to download prescription PDF: ' + (err?.message || 'Please try again.'));
+    } finally {
+      setDownloadingRxId(null);
+      setDownloadingRx(null);
+    }
+  };
+
+  const handleViewPrescription = (rx) => {
+    setSelectedPrescription(rx);
+    setViewPrescriptionModalOpen(true);
   };
 
   const handleViewPdf = (fileName) => {
@@ -907,7 +992,7 @@ const ProfilePage = () => {
                 .filter((item) => {
                   if (appointmentFilter === 'All') return true;
                   if (appointmentFilter === 'Upcoming') return item.status === 'Confirmed' || item.status === 'Pending';
-                  if (appointmentFilter === 'Completed') return item.status === 'Completed';
+                  if (appointmentFilter === 'Completed') return item.status === 'Completed' || item.status === 'Complete';
                   return true;
                 })
                 .map((item) => (
@@ -1061,26 +1146,52 @@ const ProfilePage = () => {
                 }}
               >
                 <option value="All">All Prescriptions</option>
-                <option value="Recent">Recent</option>
+                <option value="Recent">Recent Prescriptions</option>
               </select>
             </div>
 
             {/* Prescriptions List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {prescriptions.length === 0 ? (
-                <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
-                    No prescriptions issued yet. Once your doctor creates a prescription, it will appear here permanently.
-                  </p>
-                </div>
-              ) : prescriptions
-                .filter((item) => {
+              {(() => {
+                if (prescriptions.length === 0) {
+                  return (
+                    <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                        No prescriptions issued yet. Once your doctor creates a prescription, it will appear here permanently.
+                      </p>
+                    </div>
+                  );
+                }
+
+                const filteredPrescriptions = prescriptions.filter((item, index) => {
                   if (prescriptionFilter === 'All') return true;
+                  if (prescriptionFilter === 'Recent') {
+                    // Only show recently created prescriptions, not the full history
+                    if (index === 0) return true;
+                    if (item.created_at && prescriptions[0]?.created_at) {
+                      const diffMs = Math.abs(new Date(prescriptions[0].created_at) - new Date(item.created_at));
+                      return diffMs < 12 * 60 * 60 * 1000;
+                    }
+                    return false;
+                  }
                   return true;
-                })
-                .map((item) => (
+                });
+
+                if (filteredPrescriptions.length === 0) {
+                  return (
+                    <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                        No recent prescriptions found.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return filteredPrescriptions.map((item) => (
                 <div
                   key={item.id}
+                  onClick={() => handleViewPrescription(item)}
+                  title="Click to view full prescription"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1088,7 +1199,11 @@ const ProfilePage = () => {
                     padding: '12px 14px',
                     borderRadius: '12px',
                     border: '1px solid #f3f4f6',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div
@@ -1124,7 +1239,12 @@ const ProfilePage = () => {
                   {/* Download Button */}
                   <button
                     type="button"
-                    onClick={() => handleDownloadPrescription(item.fileName)}
+                    disabled={downloadingRxId === (item.id || item.rxId)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownloadPrescription(item);
+                    }}
+                    title="Download prescription PDF"
                     style={{
                       backgroundColor: '#dcfce7',
                       color: '#166534',
@@ -1133,7 +1253,7 @@ const ProfilePage = () => {
                       padding: '7px 14px',
                       fontSize: '12px',
                       fontWeight: '700',
-                      cursor: 'pointer',
+                      cursor: downloadingRxId === (item.id || item.rxId) ? 'not-allowed' : 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '6px',
@@ -1143,15 +1263,34 @@ const ProfilePage = () => {
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#bbf7d0')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dcfce7')}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    Download
+                    {downloadingRxId === (item.id || item.rxId) ? (
+                      <>
+                        <div
+                          style={{
+                            width: '12px',
+                            height: '12px',
+                            border: '2px solid rgba(22, 101, 52, 0.3)',
+                            borderTopColor: '#166534',
+                            borderRadius: '50%',
+                            animation: 'spin 0.8s linear infinite',
+                          }}
+                        />
+                        <span>Downloading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        <span>Download</span>
+                      </>
+                    )}
                   </button>
                 </div>
-              ))}
+              ));
+            })()}
             </div>
           </div>
         </div>
@@ -1911,6 +2050,47 @@ const ProfilePage = () => {
         onClose={() => setShowAuthModal(false)}
         onSuccess={() => fetchPatientData()}
       />
+
+      {/* Prescription View Modal for Patient Portal */}
+      <ViewPrescriptionModal
+        isOpen={viewPrescriptionModalOpen}
+        onClose={() => {
+          setViewPrescriptionModalOpen(false);
+          setSelectedPrescription(null);
+        }}
+        prescription={selectedPrescription}
+      />
+
+      {/* Offscreen printable prescription container */}
+      <div
+        style={{
+          position: 'fixed',
+          left: '-9999px',
+          top: 0,
+          width: '760px',
+          zIndex: -1,
+          pointerEvents: 'none',
+          opacity: 0,
+        }}
+      >
+        {downloadingRx && (
+          <PrescriptionPreviewCard
+            cardId="printable-prescription-card-patient"
+            prescriptionId={downloadingRx.prescriptionId || downloadingRx.id || downloadingRx.rxId}
+            patient={{
+              name: downloadingRx.patientName || downloadingRx.name || profile.fullName,
+              id: downloadingRx.patientId || profile.patientId || 'PAT-1001',
+              ageGender: downloadingRx.ageGender || profile.gender || '30 / Adult',
+              phone: downloadingRx.contact || downloadingRx.mobile || profile.mobileNumber,
+            }}
+            date={downloadingRx.date}
+            consultationType={downloadingRx.complaint || downloadingRx.consultationType || 'Follow-up'}
+            diagnosis={downloadingRx.diagnosis}
+            medicines={downloadingRx.medicines}
+            additionalInstructions={downloadingRx.additionalInstructions || downloadingRx.notes || ''}
+          />
+        )}
+      </div>
 
       {/* Footer */}
       <footer

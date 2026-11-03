@@ -6,29 +6,7 @@ import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
 import ActionDropdown from '../../components/admin/ActionDropdown';
 import AdminPagination from '../../components/admin/AdminPagination';
 import AdminCalendarPopover from '../../components/admin/AdminCalendarPopover';
-
-const formatDateForDataset = (isoStr) => {
-  if (!isoStr) return '';
-  const [year, month, day] = isoStr.split('-');
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const monthName = months[parseInt(month, 10) - 1];
-  return `${parseInt(day, 10)} ${monthName} ${year}`;
-};
-
-const parseDateString = (str) => {
-  if (!str) return null;
-  const parts = str.trim().split(' ');
-  if (parts.length === 3) {
-    const day = parseInt(parts[0], 10);
-    const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-    const month = months.indexOf(parts[1].toLowerCase());
-    const year = parseInt(parts[2], 10);
-    if (month !== -1 && !isNaN(day) && !isNaN(year)) {
-      return new Date(year, month, day);
-    }
-  }
-  return new Date(str);
-};
+import { formatDateForDataset, parseDateString, matchesDateFilter as checkDateFilter } from '../../utils/dateFilterUtils';
 
 const parseDateTimeString = (dateStr, timeStr) => {
   if (!dateStr) return 0;
@@ -83,90 +61,157 @@ const DashboardPage = () => {
     time: item.time_slot || item.time || '',
     reason: item.reason_for_visit || item.reason || 'General Consultation',
     consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
-    status: item.status || 'Pending',
+    status: item.status || 'Confirmed',
     ageGender: item.age_gender || item.ageGender || 'Adult',
     notes: item.notes || item.reason_for_visit || '',
     doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
   });
 
-  const fetchAppointments = useCallback(async () => {
+  const fetchAppointments = useCallback(async (silent = false) => {
     try {
-      setIsAppointmentsLoading(true);
+      if (!silent) {
+        setIsAppointmentsLoading(true);
+      }
       const data = await appointmentApi.getAppointments();
       if (Array.isArray(data)) {
-        setAppointmentsData(data.map(mapApiAppointment));
+        const mapped = data.map(mapApiAppointment);
+        setAppointmentsData((prev) => {
+          if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
+            return prev;
+          }
+          return mapped;
+        });
       } else {
         setAppointmentsData([]);
       }
     } catch (err) {
       console.error('Failed to load dashboard appointments:', err);
     } finally {
-      setIsAppointmentsLoading(false);
+      if (!silent) {
+        setIsAppointmentsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchAppointments();
+    fetchAppointments(false);
 
     const handleAppointmentBooked = () => {
-      fetchAppointments();
+      fetchAppointments(true);
+    };
+
+    const handleFocus = () => {
+      fetchAppointments(true);
     };
 
     window.addEventListener('appointment-booked', handleAppointmentBooked);
-    window.addEventListener('focus', fetchAppointments);
+    window.addEventListener('appointment-updated', handleAppointmentBooked);
+    window.addEventListener('prescription-created', handleAppointmentBooked);
+    window.addEventListener('focus', handleFocus);
+
+    const interval = setInterval(() => {
+      fetchAppointments(true);
+    }, 5000);
 
     return () => {
       window.removeEventListener('appointment-booked', handleAppointmentBooked);
-      window.removeEventListener('focus', fetchAppointments);
+      window.removeEventListener('appointment-updated', handleAppointmentBooked);
+      window.removeEventListener('prescription-created', handleAppointmentBooked);
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
     };
   }, [fetchAppointments]);
   const [prescriptionsData, setPrescriptionsData] = useState([]);
   const [isPrescriptionsLoading, setIsPrescriptionsLoading] = useState(true);
 
-  const fetchPrescriptions = useCallback(async () => {
+  const fetchPrescriptions = useCallback(async (silent = false) => {
     try {
-      setIsPrescriptionsLoading(true);
+      if (!silent) {
+        setIsPrescriptionsLoading(true);
+      }
       const data = await appointmentApi.getPrescriptions();
       if (Array.isArray(data)) {
-        setPrescriptionsData(
-          data.map((item) => ({
-            name: item.name || item.patientName || 'Patient',
-            rxId: item.rxId || item.id,
-            id: item.rxId || item.id,
-            date: item.date,
-            time: item.time || '10:00 AM',
-            ageGender: item.ageGender || '',
-            complaint: item.complaint || 'Consultation',
-            symptoms: item.symptoms || '',
-            diagnosis: item.diagnosis || '',
-            medicines: item.medicines || [],
-            additionalInstructions: item.additionalInstructions || '',
-            status: item.status || 'Delivered',
-          }))
-        );
+        const mapped = data.map((item) => ({
+          name: item.name || item.patientName || 'Patient',
+          rxId: item.rxId || item.id,
+          id: item.rxId || item.id,
+          database_id: item.database_id,
+          created_at: item.created_at,
+          date: item.date,
+          time: item.time || '10:00 AM',
+          ageGender: item.ageGender || '',
+          complaint: item.complaint || 'Consultation',
+          symptoms: item.symptoms || '',
+          diagnosis: item.diagnosis || '',
+          medicines: item.medicines || [],
+          additionalInstructions: item.additionalInstructions || '',
+          status: item.status || 'Confirmed',
+        }));
+        setPrescriptionsData((prev) => {
+          if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
+            return prev;
+          }
+          return mapped;
+        });
       } else {
         setPrescriptionsData([]);
       }
     } catch (err) {
       console.error('Failed to load dashboard prescriptions from Neon:', err);
     } finally {
-      setIsPrescriptionsLoading(false);
+      if (!silent) {
+        setIsPrescriptionsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchPrescriptions();
+    fetchPrescriptions(false);
 
-    const handlePrescriptionCreated = () => {
-      fetchPrescriptions();
+    const handlePrescriptionCreated = (e) => {
+      fetchPrescriptions(true);
+      if (e?.detail) {
+        const item = e.detail;
+        const formatted = {
+          name: item.name || item.patientName || 'Patient',
+          rxId: item.rxId || item.id,
+          id: item.rxId || item.id,
+          database_id: item.database_id,
+          created_at: item.created_at,
+          date: item.date,
+          time: item.time || '10:00 AM',
+          ageGender: item.ageGender || '',
+          complaint: item.complaint || 'Consultation',
+          symptoms: item.symptoms || '',
+          diagnosis: item.diagnosis || '',
+          medicines: item.medicines || [],
+          additionalInstructions: item.additionalInstructions || '',
+          status: item.status || 'Confirmed',
+        };
+        setPrescriptionsData((prev) => [
+          formatted,
+          ...prev.filter((p) => (p.rxId || p.id) !== formatted.rxId),
+        ]);
+      }
+    };
+
+    const handleFocus = () => {
+      fetchPrescriptions(true);
     };
 
     window.addEventListener('prescription-created', handlePrescriptionCreated);
-    window.addEventListener('focus', fetchPrescriptions);
+    window.addEventListener('prescription-updated', handlePrescriptionCreated);
+    window.addEventListener('focus', handleFocus);
+
+    const interval = setInterval(() => {
+      fetchPrescriptions(true);
+    }, 5000);
 
     return () => {
       window.removeEventListener('prescription-created', handlePrescriptionCreated);
-      window.removeEventListener('focus', fetchPrescriptions);
+      window.removeEventListener('prescription-updated', handlePrescriptionCreated);
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
     };
   }, [fetchPrescriptions]);
 
@@ -183,6 +228,8 @@ const DashboardPage = () => {
           bg: '#fef7e6',
           color: '#b45309',
         };
+      case 'Complete':
+      case 'Completed':
       case 'Sent':
         return {
           bg: '#eaf2ff',
@@ -220,23 +267,7 @@ const DashboardPage = () => {
     setCurrentPage(1);
   };
 
-  const matchesDateFilter = (itemDate) => {
-    if (appointmentDateFilter === 'All Dates' || !appointmentDateFilter) return true;
-    if (appointmentDateFilter === 'Today') return itemDate === '28 Oct 2026';
-    if (appointmentDateFilter === 'Tomorrow') return itemDate === '29 Oct 2026';
-    if (appointmentDateFilter === 'This Week') {
-      const d = parseDateString(itemDate);
-      if (!d) return false;
-      const startOfWeek = new Date(2026, 9, 25);
-      const endOfWeek = new Date(2026, 9, 31, 23, 59, 59);
-      return d >= startOfWeek && d <= endOfWeek;
-    }
-    if (appointmentDateFilter.startsWith('Custom:')) {
-      const targetDate = appointmentDateFilter.replace('Custom: ', '').trim();
-      return itemDate === targetDate;
-    }
-    return itemDate === appointmentDateFilter;
-  };
+  const matchesDateFilter = (itemDate) => checkDateFilter(itemDate, appointmentDateFilter);
 
   // Dynamic appointment metric counts from Neon PostgreSQL
   const totalDashboardAppointments = appointmentsData.length;
@@ -269,25 +300,9 @@ const DashboardPage = () => {
     setPrescriptionCurrentPage(1);
   };
 
-  const matchesPrescriptionDateFilter = (itemDate) => {
-    if (prescriptionDateFilter === 'All Dates' || !prescriptionDateFilter) return true;
-    if (prescriptionDateFilter === 'Today') return itemDate === '28 Oct 2026';
-    if (prescriptionDateFilter === 'Tomorrow') return itemDate === '29 Oct 2026';
-    if (prescriptionDateFilter === 'This Week') {
-      const d = parseDateString(itemDate);
-      if (!d) return false;
-      const startOfWeek = new Date(2026, 9, 25);
-      const endOfWeek = new Date(2026, 9, 31, 23, 59, 59);
-      return d >= startOfWeek && d <= endOfWeek;
-    }
-    if (prescriptionDateFilter.startsWith('Custom:')) {
-      const targetDate = prescriptionDateFilter.replace('Custom: ', '').trim();
-      return itemDate === targetDate;
-    }
-    return itemDate === prescriptionDateFilter;
-  };
+  const matchesPrescriptionDateFilter = (itemDate) => checkDateFilter(itemDate, prescriptionDateFilter);
 
-  // Sort most recently created prescriptions first (descending by date and time)
+  // Sort most recently created prescriptions first (newest created at the top)
   const allFilteredPrescriptions = prescriptionsData
     .filter((item) => {
       const matchesDate = matchesPrescriptionDateFilter(item.date);
@@ -297,10 +312,18 @@ const DashboardPage = () => {
       return matchesDate && matchesStatus;
     })
     .sort((a, b) => {
+      if (b.database_id && a.database_id && b.database_id !== a.database_id) {
+        return b.database_id - a.database_id;
+      }
+      if (b.created_at && a.created_at && b.created_at !== a.created_at) {
+        return new Date(b.created_at) - new Date(a.created_at);
+      }
+      if (b.rxId && a.rxId && b.rxId !== a.rxId) {
+        return b.rxId.localeCompare(a.rxId, undefined, { numeric: true });
+      }
       const timeA = parseDateTimeString(a.date, a.time);
       const timeB = parseDateTimeString(b.date, b.time);
-      if (timeB !== timeA) return timeB - timeA;
-      return (b.rxId || '').localeCompare(a.rxId || '');
+      return timeB - timeA;
     });
 
   // Dynamic pagination for Recent Prescriptions
@@ -661,7 +684,7 @@ const DashboardPage = () => {
               <AdminCalendarPopover
                 isOpen={isPickingDate}
                 onClose={() => setIsPickingDate(false)}
-                selectedDate={appointmentDateFilter.startsWith('Custom:') ? appointmentDateFilter.replace('Custom: ', '') : (customDate || '28 Oct 2026')}
+                selectedDate={appointmentDateFilter.startsWith('Custom:') ? appointmentDateFilter.replace('Custom: ', '') : (customDate || formatDateForDataset(new Date().toISOString().split('T')[0]))}
                 onSelectDate={(displayStr, isoStr) => {
                   if (displayStr) {
                     setCustomDate(isoStr);
@@ -696,7 +719,7 @@ const DashboardPage = () => {
             >
               <option value="All">All Status</option>
               <option value="Confirmed">Confirmed</option>
-              <option value="Pending">Pending</option>
+              <option value="Complete">Complete</option>
             </select>
 
             {/* New Appointment Button */}
@@ -846,7 +869,7 @@ const DashboardPage = () => {
                               {
                                 label: 'Create Prescription',
                                 icon: '🌿',
-                                onClick: () => openNewPrescription(),
+                                onClick: () => openNewPrescription(row),
                               },
                             ]}
                           />
@@ -958,7 +981,7 @@ const DashboardPage = () => {
               <AdminCalendarPopover
                 isOpen={isPickingPrescriptionDate}
                 onClose={() => setIsPickingPrescriptionDate(false)}
-                selectedDate={prescriptionDateFilter.startsWith('Custom:') ? prescriptionDateFilter.replace('Custom: ', '') : (prescriptionCustomDate || '28 Oct 2026')}
+                selectedDate={prescriptionDateFilter.startsWith('Custom:') ? prescriptionDateFilter.replace('Custom: ', '') : (prescriptionCustomDate || formatDateForDataset(new Date().toISOString().split('T')[0]))}
                 onSelectDate={(displayStr, isoStr) => {
                   if (displayStr) {
                     setPrescriptionCustomDate(isoStr);
@@ -1138,8 +1161,18 @@ const DashboardPage = () => {
                             {
                               label: 'Resend via WhatsApp',
                               icon: '📲',
-                              onClick: () =>
-                                alert(`Prescription ${row.rxId} resent via WhatsApp to ${row.name}!`),
+                              onClick: async () => {
+                                const text = encodeURIComponent(
+                                  `Prescription for ${row.name} (${row.rxId}): Diagnosis: ${row.complaint || 'Prescription Details'}. Please follow the prescribed homeopathic treatment.`
+                                );
+                                const phoneDigits = (row.contact || row.mobile || '').replace(/\D/g, '');
+                                if (phoneDigits) {
+                                  window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
+                                }
+                                await appointmentApi.updatePrescriptionStatus(row.rxId, 'Delivered');
+                                fetchPrescriptions(true);
+                                alert(`Prescription ${row.rxId} resent via WhatsApp to ${row.name}! Status updated to Delivered.`);
+                              },
                             },
                           ]}
                         />

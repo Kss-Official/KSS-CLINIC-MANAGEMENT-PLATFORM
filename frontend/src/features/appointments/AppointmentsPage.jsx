@@ -5,32 +5,10 @@ import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
 import ActionDropdown from '../../components/admin/ActionDropdown';
 import AdminPagination from '../../components/admin/AdminPagination';
 import AdminCalendarPopover from '../../components/admin/AdminCalendarPopover';
-
-const formatDateForDataset = (isoStr) => {
-  if (!isoStr) return '';
-  const [year, month, day] = isoStr.split('-');
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const monthName = months[parseInt(month, 10) - 1];
-  return `${parseInt(day, 10)} ${monthName} ${year}`;
-};
-
-const parseDateString = (str) => {
-  if (!str) return null;
-  const parts = str.trim().split(' ');
-  if (parts.length === 3) {
-    const day = parseInt(parts[0], 10);
-    const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-    const month = months.indexOf(parts[1].toLowerCase());
-    const year = parseInt(parts[2], 10);
-    if (month !== -1 && !isNaN(day) && !isNaN(year)) {
-      return new Date(year, month, day);
-    }
-  }
-  return new Date(str);
-};
+import { formatDateForDataset, parseDateString, matchesDateFilter as checkDateFilter } from '../../utils/dateFilterUtils';
 
 const AppointmentsPage = () => {
-  const { openNewAppointment, openViewAppointment } = useAdmin();
+  const { openNewAppointment, openViewAppointment, openNewPrescription } = useAdmin();
 
   const [dateFilter, setDateFilter] = useState('All Dates');
   const [customDate, setCustomDate] = useState('');
@@ -38,6 +16,7 @@ const AppointmentsPage = () => {
   const dateInputRef = useRef(null);
 
   const [statusFilter, setStatusFilter] = useState('All');
+  const [prescriptionFilter, setPrescriptionFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,21 +25,31 @@ const AppointmentsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const mapApiAppointment = (item) => ({
-    id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
-    rawId: item.id,
-    name: item.patient_name || item.name || 'Anonymous Patient',
-    contact: item.patient_phone || item.contact || 'N/A',
-    email: item.patient_email || item.email || '',
-    date: item.appointment_date || item.date || '',
-    time: item.time_slot || item.time || '',
-    reason: item.reason_for_visit || item.reason || 'General Consultation',
-    consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
-    status: item.status || 'Pending',
-    ageGender: item.age_gender || item.ageGender || 'Adult',
-    notes: item.notes || item.reason_for_visit || '',
-    doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
-  });
+  const mapApiAppointment = (item) => {
+    const rxStatus = item.prescription_status || item.prescriptionStatus || 'Pending';
+    const isRxComplete = ['complete', 'completed'].includes(String(rxStatus).trim().toLowerCase());
+    let aptStatus = item.status || 'Confirmed';
+    if (isRxComplete && String(aptStatus).toLowerCase() !== 'cancelled') {
+      aptStatus = 'Complete';
+    }
+
+    return {
+      id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
+      rawId: item.id,
+      name: item.patient_name || item.name || 'Anonymous Patient',
+      contact: item.patient_phone || item.contact || 'N/A',
+      email: item.patient_email || item.email || '',
+      date: item.appointment_date || item.date || '',
+      time: item.time_slot || item.time || '',
+      reason: item.reason_for_visit || item.reason || 'General Consultation',
+      consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
+      status: aptStatus,
+      prescriptionStatus: rxStatus,
+      ageGender: item.age_gender || item.ageGender || 'Adult',
+      notes: item.notes || item.reason_for_visit || '',
+      doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+    };
+  };
 
   const fetchAppointments = useCallback(async () => {
     try {
@@ -87,11 +76,17 @@ const AppointmentsPage = () => {
       fetchAppointments();
     };
 
+    const handlePrescriptionCreated = () => {
+      fetchAppointments();
+    };
+
     window.addEventListener('appointment-booked', handleAppointmentBooked);
+    window.addEventListener('prescription-created', handlePrescriptionCreated);
     window.addEventListener('focus', fetchAppointments);
 
     return () => {
       window.removeEventListener('appointment-booked', handleAppointmentBooked);
+      window.removeEventListener('prescription-created', handlePrescriptionCreated);
       window.removeEventListener('focus', fetchAppointments);
     };
   }, [fetchAppointments]);
@@ -112,14 +107,26 @@ const AppointmentsPage = () => {
     switch (status) {
       case 'Confirmed':
         return { bg: '#e8f7ee', color: '#1e7e34' };
-      case 'Pending':
-        return { bg: '#fef7e6', color: '#b45309' };
+      case 'Complete':
       case 'Completed':
         return { bg: '#eaf2ff', color: '#2563eb' };
+      case 'Pending':
+        return { bg: '#fef7e6', color: '#b45309' };
       case 'Cancelled':
         return { bg: '#fee2e2', color: '#dc2626' };
       default:
         return { bg: '#f1f5f9', color: '#475569' };
+    }
+  };
+
+  const getPrescriptionBadge = (rxStatus) => {
+    switch (rxStatus) {
+      case 'Complete':
+      case 'Completed':
+        return { bg: '#e8f7ee', color: '#1e7e34' };
+      case 'Pending':
+      default:
+        return { bg: '#fef7e6', color: '#b45309' };
     }
   };
 
@@ -128,6 +135,7 @@ const AppointmentsPage = () => {
     setCustomDate('');
     setIsPickingDate(false);
     setStatusFilter('All');
+    setPrescriptionFilter('All');
     setSearchQuery('');
     setCurrentPage(1);
   };
@@ -151,23 +159,7 @@ const AppointmentsPage = () => {
     setCurrentPage(1);
   };
 
-  const matchesDateFilter = (itemDate) => {
-    if (dateFilter === 'All Dates') return true;
-    if (dateFilter === 'Today') return itemDate === '28 Oct 2026';
-    if (dateFilter === 'Tomorrow') return itemDate === '29 Oct 2026';
-    if (dateFilter === 'This Week') {
-      const d = parseDateString(itemDate);
-      if (!d) return false;
-      const startOfWeek = new Date(2026, 9, 25);
-      const endOfWeek = new Date(2026, 9, 31, 23, 59, 59);
-      return d >= startOfWeek && d <= endOfWeek;
-    }
-    if (dateFilter.startsWith('Custom:')) {
-      const targetDate = dateFilter.replace('Custom: ', '').trim();
-      return itemDate === targetDate;
-    }
-    return itemDate === dateFilter;
-  };
+  const matchesDateFilter = (itemDate) => checkDateFilter(itemDate, dateFilter);
 
   // Filtered rows matching all filter criteria
   const filteredAppointments = appointmentsList.filter((item) => {
@@ -178,19 +170,38 @@ const AppointmentsPage = () => {
       item.contact.includes(searchQuery) ||
       (item.reason && item.reason.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesStatus =
-      statusFilter === 'All' || item.status.toLowerCase() === statusFilter.toLowerCase();
+    // 1. Appointment Status filter - applies EXCLUSIVELY to appointment status (row.status)
+    const matchesStatus = (() => {
+      if (!statusFilter || statusFilter === 'All') return true;
+      const aptStatus = String(item.status || 'Confirmed').trim().toLowerCase();
+      const targetStatus = String(statusFilter).trim().toLowerCase();
+      if (targetStatus === 'complete') {
+        return aptStatus === 'complete' || aptStatus === 'completed';
+      }
+      return aptStatus === targetStatus;
+    })();
+
+    // 2. Prescription Status filter - applies EXCLUSIVELY to prescription status (row.prescriptionStatus)
+    const matchesPrescription = (() => {
+      if (!prescriptionFilter || prescriptionFilter === 'All') return true;
+      const rxStatus = String(item.prescriptionStatus || 'Pending').trim().toLowerCase();
+      const targetRx = String(prescriptionFilter).trim().toLowerCase();
+      if (targetRx === 'complete') {
+        return rxStatus === 'complete' || rxStatus === 'completed';
+      }
+      return rxStatus === targetRx;
+    })();
 
     const matchesDate = matchesDateFilter(item.date);
 
-    return matchesSearch && matchesStatus && matchesDate;
+    return matchesSearch && matchesStatus && matchesPrescription && matchesDate;
   });
 
   // Dynamic pagination calculation based on data and page size
   // Dynamic metrics calculation from live Neon data
   const totalAppointmentsCount = appointmentsList.length;
-  const completedCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'completed').length;
-  const pendingCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'pending').length;
+  const completedCount = appointmentsList.filter((a) => ['complete', 'completed'].includes((a.status || '').toLowerCase())).length;
+  const pendingCount = appointmentsList.filter((a) => ['pending', 'confirmed'].includes((a.status || '').toLowerCase())).length;
   const cancelledCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'cancelled').length;
 
   const limit = parseInt(pageSize, 10) || 10;
@@ -571,7 +582,7 @@ const AppointmentsPage = () => {
               <AdminCalendarPopover
                 isOpen={isPickingDate}
                 onClose={() => setIsPickingDate(false)}
-                selectedDate={dateFilter.startsWith('Custom:') ? dateFilter.replace('Custom: ', '') : (customDate || '28 Oct 2026')}
+                selectedDate={dateFilter.startsWith('Custom:') ? dateFilter.replace('Custom: ', '') : (customDate || formatDateForDataset(new Date().toISOString().split('T')[0]))}
                 onSelectDate={(displayStr, isoStr) => {
                   if (displayStr) {
                     setCustomDate(isoStr);
@@ -606,9 +617,31 @@ const AppointmentsPage = () => {
             >
               <option value="All">All Status</option>
               <option value="Confirmed">Confirmed</option>
-              <option value="Pending">Pending</option>
-              <option value="Completed">Completed</option>
+              <option value="Complete">Complete</option>
               <option value="Cancelled">Cancelled</option>
+            </select>
+
+            {/* All Prescriptions Filter */}
+            <select
+              value={prescriptionFilter}
+              onChange={(e) => {
+                setPrescriptionFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                fontSize: '13px',
+                color: '#334155',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="All">All Prescriptions</option>
+              <option value="Pending">Pending</option>
+              <option value="Complete">Complete</option>
             </select>
 
             {/* Search Input */}
@@ -695,6 +728,7 @@ const AppointmentsPage = () => {
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>CONTACT</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>DATE & TIME</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>REASON FOR VISIT</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>PRESCRIPTION</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>STATUS</th>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textAlign: 'center' }}>ACTION</th>
               </tr>
@@ -702,7 +736,7 @@ const AppointmentsPage = () => {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
                       <div
                         style={{
@@ -720,7 +754,7 @@ const AppointmentsPage = () => {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: '#dc2626', fontSize: '13.5px' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '36px', color: '#dc2626', fontSize: '13.5px' }}>
                     <div>{error}</div>
                     <button
                       type="button"
@@ -743,13 +777,14 @@ const AppointmentsPage = () => {
                 </tr>
               ) : filteredAppointments.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '13.5px' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '13.5px' }}>
                     No appointments found matching your filters.
                   </td>
                 </tr>
               ) : (
                 paginatedAppointments.map((row, idx) => {
                   const badge = getStatusBadge(row.status);
+                  const rxBadge = getPrescriptionBadge(row.prescriptionStatus);
                   return (
                     <tr
                       key={idx}
@@ -775,6 +810,21 @@ const AppointmentsPage = () => {
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155' }}>
                         {row.reason}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            padding: '4px 12px',
+                            borderRadius: '9999px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            backgroundColor: rxBadge.bg,
+                            color: rxBadge.color,
+                          }}
+                        >
+                          {row.prescriptionStatus || 'Pending'}
+                        </span>
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         <span
@@ -826,9 +876,14 @@ const AppointmentsPage = () => {
                                 onClick: () => openViewAppointment(row),
                               },
                               {
-                                label: 'Mark as Completed',
+                                label: 'Create Prescription',
+                                icon: '🌿',
+                                onClick: () => openNewPrescription(row),
+                              },
+                              {
+                                label: 'Mark as Complete',
                                 icon: '✓',
-                                onClick: () => handleUpdateStatus(row.id, 'Completed'),
+                                onClick: () => handleUpdateStatus(row.id, 'Complete'),
                               },
                               {
                                 label: 'Mark as Confirmed',

@@ -23,6 +23,12 @@ export const appointmentApi = {
     return response.data;
   },
 
+  getBookedSlots: async (date) => {
+    const params = date ? { date } : {};
+    const response = await axiosClient.get('/appointments/slots/', { params });
+    return response.data;
+  },
+
   // Patients
   getMyProfile: async (params = {}) => {
     const response = await axiosClient.get('/patients/me/', { params });
@@ -58,6 +64,19 @@ export const appointmentApi = {
   createPrescription: async (prescriptionData) => {
     const response = await axiosClient.post('/prescriptions/', prescriptionData);
     if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('prescription-created', { detail: response.data })
+      );
+    }
+    return response.data;
+  },
+
+  updatePrescriptionStatus: async (rxId, status) => {
+    const response = await axiosClient.patch(`/prescriptions/${rxId}/`, { status });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('prescription-updated', { detail: response.data })
+      );
       window.dispatchEvent(
         new CustomEvent('prescription-created', { detail: response.data })
       );

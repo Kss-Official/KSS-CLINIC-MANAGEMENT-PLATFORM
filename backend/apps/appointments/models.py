@@ -41,8 +41,9 @@ class Patient(TimeStampedModel):
 class Appointment(TimeStampedModel):
     STATUS_CHOICES = [
         ('Confirmed', 'Confirmed'),
-        ('Pending', 'Pending'),
+        ('Complete', 'Complete'),
         ('Completed', 'Completed'),
+        ('Pending', 'Pending'),
         ('Cancelled', 'Cancelled'),
     ]
 
@@ -68,11 +69,24 @@ class Appointment(TimeStampedModel):
     time_slot = models.CharField(max_length=50)
     reason_for_visit = models.TextField(blank=True, default='')
     consultation_type = models.CharField(max_length=50, default='In-clinic Visit')
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Confirmed')
+    PRESCRIPTION_STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Complete', 'Complete'),
+    ]
+    prescription_status = models.CharField(
+        max_length=20,
+        choices=PRESCRIPTION_STATUS_CHOICES,
+        default='Pending'
+    )
 
     def save(self, *args, **kwargs):
         if not self.appointment_id:
             self.appointment_id = f"APT-{uuid.uuid4().hex[:6].upper()}"
+        # Ensure that whenever prescription is Complete, appointment status is also Complete
+        if self.prescription_status and str(self.prescription_status).strip().lower() in ['complete', 'completed']:
+            if str(self.status).strip().lower() != 'cancelled':
+                self.status = 'Complete'
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -135,7 +149,7 @@ class Prescription(TimeStampedModel):
     diagnosis = models.TextField(blank=True, default='')
     medicines = models.JSONField(default=list, blank=True)
     additional_instructions = models.TextField(blank=True, default='')
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Delivered')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Confirmed')
 
     class Meta:
         ordering = ['-created_at']

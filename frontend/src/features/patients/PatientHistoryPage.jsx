@@ -2,11 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import appointmentApi from '../../api/appointmentApi';
 import { useAdmin } from '../../components/admin/AdminLayout';
 import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
-import ActionDropdown from '../../components/admin/ActionDropdown';
 import AdminPagination from '../../components/admin/AdminPagination';
 
 const PatientHistoryPage = () => {
-  const { openPatientHistory, openNewAppointment, openNewPrescription } = useAdmin();
+  const { openPatientHistory } = useAdmin();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [genderFilter, setGenderFilter] = useState('All');
@@ -494,30 +493,6 @@ const PatientHistoryPage = () => {
               <option value="30 - 50">30 - 50</option>
               <option value="50+">50+</option>
             </select>
-
-            {/* All Status Dropdown */}
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: '8px 12px',
-                borderRadius: '8px',
-                border: '1px solid #e2e8f0',
-                backgroundColor: '#ffffff',
-                fontSize: '13px',
-                color: '#334155',
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            >
-              <option value="All">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="Follow-up">Follow-up</option>
-            </select>
           </div>
 
           {/* Reset Filters Button */}
@@ -645,61 +620,23 @@ const PatientHistoryPage = () => {
                       </span>
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                        {/* View History Button triggers ViewPatientHistoryModal! */}
-                        <button
-                          type="button"
-                          onClick={() => openPatientHistory(p)}
-                          style={{
-                            padding: '5px 14px',
-                            borderRadius: '6px',
-                            border: '1px solid #e2e8f0',
-                            backgroundColor: '#ffffff',
-                            color: '#334155',
-                            fontSize: '12.5px',
-                            fontWeight: '500',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          View History
-                        </button>
-                        <ActionDropdown
-                          items={[
-                            {
-                              label: 'View History',
-                              icon: '👤',
-                              onClick: () => openPatientHistory(p),
-                            },
-                            {
-                              label: 'Book Appointment',
-                              icon: '📅',
-                              onClick: () => openNewAppointment(),
-                            },
-                            {
-                              label: 'Create Prescription',
-                              icon: '🌿',
-                              onClick: () => openNewPrescription(),
-                            },
-                            {
-                              label: 'Set as Active',
-                              icon: '✓',
-                              onClick: () => handleUpdatePatientStatus(p.id, 'Active'),
-                            },
-                            {
-                              label: 'Set as Follow-up',
-                              icon: '⏱️',
-                              onClick: () => handleUpdatePatientStatus(p.id, 'Follow-up'),
-                            },
-                            {
-                              label: 'Set as Inactive',
-                              icon: '✕',
-                              danger: true,
-                              onClick: () => handleUpdatePatientStatus(p.id, 'Inactive'),
-                            },
-                          ]}
-                        />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openPatientHistory(p)}
+                        style={{
+                          padding: '5px 14px',
+                          borderRadius: '6px',
+                          border: '1px solid #e2e8f0',
+                          backgroundColor: '#ffffff',
+                          color: '#334155',
+                          fontSize: '12.5px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        View History
+                      </button>
                     </td>
                   </tr>
                 );

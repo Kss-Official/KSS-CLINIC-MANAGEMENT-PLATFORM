@@ -22,9 +22,9 @@ const BookAppointmentPage = () => {
     gender: '',
     city: '',
     reasonForVisit: '',
-    selectedDay: 16,
-    selectedMonth: 9, // 0-indexed: 9 = October
-    selectedYear: 2026,
+    selectedDay: new Date().getDate(),
+    selectedMonth: new Date().getMonth(),
+    selectedYear: new Date().getFullYear(),
     selectedTimeSlot: '09:30 AM',
     appointmentId: 'APT-20261016-001',
   });
@@ -44,9 +44,9 @@ const BookAppointmentPage = () => {
     }
   }, [user, isAuthenticated]);
 
-  // Calendar view month & year state
-  const [calendarMonth, setCalendarMonth] = useState(9); // October
-  const [calendarYear, setCalendarYear] = useState(2026);
+  // Calendar view month & year state - automatically opens with today's month & year
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -55,22 +55,98 @@ const BookAppointmentPage = () => {
 
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  // Time Slots list
-  const timeSlots = [
-    { time: '09:00 AM', available: true },
-    { time: '09:30 AM', available: true },
-    { time: '10:30 AM', available: true },
-    { time: '10:30 AM', available: true },
-    { time: '11:00 AM', available: true },
-    { time: '11:30 AM', available: true },
-    { time: '12:00 PM', available: true },
-    { time: '12:30 PM', available: false }, // unavailable in design
-    { time: '01:00 PM', available: true },
-    { time: '04:00 PM', available: true },
-    { time: '04:30 PM', available: true },
-    { time: '05:00 PM', available: true },
-    { time: '05:30 PM', available: true },
+  // Base Time Slots list matching reference design
+  const baseTimeSlots = [
+    { time: '09:00 AM', defaultAvailable: true },
+    { time: '09:30 AM', defaultAvailable: true },
+    { time: '10:30 AM', defaultAvailable: true },
+    { time: '10:30 AM', defaultAvailable: true },
+    { time: '11:00 AM', defaultAvailable: true },
+    { time: '11:30 AM', defaultAvailable: true },
+    { time: '12:00 PM', defaultAvailable: true },
+    { time: '12:30 PM', defaultAvailable: false }, // unavailable in design
+    { time: '01:00 PM', defaultAvailable: true },
+    { time: '04:00 PM', defaultAvailable: true },
+    { time: '04:30 PM', defaultAvailable: true },
+    { time: '05:00 PM', defaultAvailable: true },
+    { time: '05:30 PM', defaultAvailable: true },
   ];
+
+  const [bookedSlotsMap, setBookedSlotsMap] = useState({});
+
+  const normalizeSlotTime = (t) => {
+    if (!t) return '';
+    return t.trim().toUpperCase().replace(/^0/, '');
+  };
+
+  const fetchBookedSlots = async () => {
+    try {
+      const data = await appointmentApi.getBookedSlots();
+      if (data?.all_booked_slots) {
+        setBookedSlotsMap(data.all_booked_slots);
+      }
+    } catch (err) {
+      console.warn('Could not fetch booked slots:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookedSlots();
+    const handleBookedEvent = () => {
+      fetchBookedSlots();
+    };
+    window.addEventListener('appointment-booked', handleBookedEvent);
+    return () => window.removeEventListener('appointment-booked', handleBookedEvent);
+  }, []);
+
+  const getSelectedDateKeys = () => {
+    const day = formData.selectedDay;
+    const month = formData.selectedMonth;
+    const year = formData.selectedYear;
+    const mStr = String(month + 1).padStart(2, '0');
+    const dStr = String(day).padStart(2, '0');
+    const normKey = `${year}-${mStr}-${dStr}`;
+    const rawKey = `${day} ${months[month]} ${year}`;
+    const shortRawKey = `${day} ${months[month]?.slice(0, 3)} ${year}`;
+    return [normKey, rawKey, shortRawKey];
+  };
+
+  const getBookedSlotsForSelectedDate = () => {
+    const keys = getSelectedDateKeys();
+    const set = new Set();
+    keys.forEach((k) => {
+      if (bookedSlotsMap[k]) {
+        bookedSlotsMap[k].forEach((slot) => set.add(normalizeSlotTime(slot)));
+      }
+    });
+    return set;
+  };
+
+  const bookedSet = getBookedSlotsForSelectedDate();
+
+  const timeSlots = baseTimeSlots.map((slot) => {
+    const norm = normalizeSlotTime(slot.time);
+    const isBooked = bookedSet.has(norm);
+    const isAvailable = slot.defaultAvailable && !isBooked;
+    return {
+      ...slot,
+      available: isAvailable,
+      isBooked,
+    };
+  });
+
+  // Automatically select the next available time slot if current selection is booked or unavailable
+  useEffect(() => {
+    const currentSlotObj = timeSlots.find(
+      (s) => normalizeSlotTime(s.time) === normalizeSlotTime(formData.selectedTimeSlot)
+    );
+    if (!currentSlotObj || !currentSlotObj.available) {
+      const nextAvailable = timeSlots.find((s) => s.available);
+      if (nextAvailable && nextAvailable.time !== formData.selectedTimeSlot) {
+        setFormData((prev) => ({ ...prev, selectedTimeSlot: nextAvailable.time }));
+      }
+    }
+  }, [formData.selectedDay, formData.selectedMonth, formData.selectedYear, bookedSlotsMap]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -198,6 +274,26 @@ const BookAppointmentPage = () => {
         window.scrollTo({ top: 260, behavior: 'smooth' });
       }
     } else if (currentStep === 2) {
+      // Ensure the selected date is not in the past
+      const selectedDateZero = new Date(formData.selectedYear, formData.selectedMonth, formData.selectedDay);
+      selectedDateZero.setHours(0, 0, 0, 0);
+      const todayZero = new Date();
+      todayZero.setHours(0, 0, 0, 0);
+      if (selectedDateZero < todayZero) {
+        alert('You cannot select or book an appointment for a past date. Please select today or a future date.');
+        return;
+      }
+
+      // Ensure the selected slot is currently available
+      const currentSlotObj = timeSlots.find(
+        (s) => normalizeSlotTime(s.time) === normalizeSlotTime(formData.selectedTimeSlot)
+      );
+      if (!currentSlotObj || !currentSlotObj.available) {
+        alert('This time slot is no longer available. Please select the next available slot.');
+        fetchBookedSlots();
+        return;
+      }
+
       setBookingLoading(true);
       const formattedDate = `${formData.selectedDay} ${months[formData.selectedMonth]} ${formData.selectedYear}`;
       try {
@@ -213,6 +309,15 @@ const BookAppointmentPage = () => {
         });
         const realId = res?.appointment?.appointment_id || res?.appointment_id || `APT-${Date.now().toString().slice(-6)}`;
         setFormData((prev) => ({ ...prev, appointmentId: realId }));
+
+        // Immediately update bookedSlotsMap so slot is disabled
+        const [normK, rawK] = getSelectedDateKeys();
+        setBookedSlotsMap((prev) => ({
+          ...prev,
+          [normK]: [...(prev[normK] || []), formData.selectedTimeSlot],
+          [rawK]: [...(prev[rawK] || []), formData.selectedTimeSlot],
+        }));
+
         if (typeof window !== 'undefined') {
           if (formData.mobileNumber) localStorage.setItem('kss_patient_phone', formData.mobileNumber);
           if (formData.email) localStorage.setItem('kss_patient_email', formData.email);
@@ -224,6 +329,7 @@ const BookAppointmentPage = () => {
         window.scrollTo({ top: 260, behavior: 'smooth' });
       } catch (err) {
         console.error('Booking failed:', err);
+        fetchBookedSlots();
         alert(err.response?.data?.error || err.response?.data?.detail || 'Failed to book appointment. Please try again.');
       } finally {
         setBookingLoading(false);
@@ -231,8 +337,34 @@ const BookAppointmentPage = () => {
     }
   };
 
+  // Helper to check if a date is before today
+  const isDateInPast = (year, month, day) => {
+    const target = new Date(year, month, day);
+    target.setHours(0, 0, 0, 0);
+    const todayZero = new Date();
+    todayZero.setHours(0, 0, 0, 0);
+    return target < todayZero;
+  };
+
+  // Helper to check if navigating to previous month is blocked because it is in the past
+  const isPrevMonthDisabled = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    let prevM = calendarMonth - 1;
+    let prevY = calendarYear;
+    if (prevM < 0) {
+      prevM = 11;
+      prevY -= 1;
+    }
+    if (prevY < currentYear) return true;
+    if (prevY === currentYear && prevM < currentMonth) return true;
+    return false;
+  };
+
   // Calendar Helpers
   const handlePrevMonth = () => {
+    if (isPrevMonthDisabled()) return;
     if (calendarMonth === 0) {
       setCalendarMonth(11);
       setCalendarYear((y) => y - 1);
@@ -250,8 +382,8 @@ const BookAppointmentPage = () => {
     }
   };
 
-  const handleSelectDate = (day, isCurrentMonth) => {
-    if (!isCurrentMonth) return;
+  const handleSelectDate = (day, isCurrentMonth, isPast) => {
+    if (!isCurrentMonth || isPast) return;
     setFormData((prev) => ({
       ...prev,
       selectedDay: day,
@@ -260,7 +392,7 @@ const BookAppointmentPage = () => {
     }));
   };
 
-  // Generate calendar days for month view
+  // Generate calendar days for month view - past dates and filler days disabled
   const generateCalendarDays = () => {
     const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
     const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
@@ -268,22 +400,25 @@ const BookAppointmentPage = () => {
 
     const days = [];
 
-    // Previous month filler days
+    // Previous month filler days (always disabled)
     for (let i = firstDay - 1; i >= 0; i--) {
       days.push({
         day: daysInPrevMonth - i,
         isCurrentMonth: false,
+        isPast: true,
         hasDot: false,
       });
     }
 
     // Current month days
     for (let i = 1; i <= daysInMonth; i++) {
-      // Days with availability dot like in design: 18-23, 26-30
-      const hasDot = [18, 19, 20, 21, 22, 23, 26, 27, 28, 29, 30].includes(i);
+      const isPast = isDateInPast(calendarYear, calendarMonth, i);
+      // Days with availability dot: only available for today and future days
+      const hasDot = !isPast;
       days.push({
         day: i,
         isCurrentMonth: true,
+        isPast,
         hasDot,
       });
     }
@@ -294,6 +429,7 @@ const BookAppointmentPage = () => {
       days.push({
         day: i,
         isCurrentMonth: false,
+        isPast: false,
         hasDot: false,
       });
     }
@@ -1056,13 +1192,15 @@ const BookAppointmentPage = () => {
                       <button
                         type="button"
                         onClick={handlePrevMonth}
+                        disabled={isPrevMonthDisabled()}
                         style={{
                           background: 'none',
                           border: 'none',
-                          cursor: 'pointer',
+                          cursor: isPrevMonthDisabled() ? 'not-allowed' : 'pointer',
                           fontSize: '18px',
-                          color: '#6b7280',
+                          color: isPrevMonthDisabled() ? '#cbd5e1' : '#6b7280',
                           padding: '4px 8px',
+                          opacity: isPrevMonthDisabled() ? 0.35 : 1,
                         }}
                         aria-label="Previous Month"
                       >
@@ -1117,21 +1255,25 @@ const BookAppointmentPage = () => {
                       {generateCalendarDays().map((item, idx) => {
                         const isSelected =
                           item.isCurrentMonth &&
+                          !item.isPast &&
                           item.day === formData.selectedDay &&
                           calendarMonth === formData.selectedMonth &&
                           calendarYear === formData.selectedYear;
 
+                        const isDisabled = !item.isCurrentMonth || item.isPast;
+
                         return (
                           <div
                             key={idx}
-                            onClick={() => handleSelectDate(item.day, item.isCurrentMonth)}
+                            onClick={() => handleSelectDate(item.day, item.isCurrentMonth, item.isPast)}
+                            title={isDisabled ? 'Past date not selectable' : 'Click to select date'}
                             style={{
                               display: 'flex',
                               flexDirection: 'column',
                               alignItems: 'center',
                               justifyContent: 'center',
                               height: '38px',
-                              cursor: item.isCurrentMonth ? 'pointer' : 'default',
+                              cursor: isDisabled ? 'not-allowed' : 'pointer',
                               userSelect: 'none',
                             }}
                           >
@@ -1148,9 +1290,10 @@ const BookAppointmentPage = () => {
                                 backgroundColor: isSelected ? '#1b4332' : 'transparent',
                                 color: isSelected
                                   ? '#ffffff'
-                                  : item.isCurrentMonth
-                                  ? '#111827'
-                                  : '#cbd5e1',
+                                  : isDisabled
+                                  ? '#cbd5e1'
+                                  : '#111827',
+                                opacity: isDisabled ? 0.45 : 1,
                                 transition: 'all 0.15s',
                               }}
                             >
@@ -1246,7 +1389,12 @@ const BookAppointmentPage = () => {
                               key={index}
                               type="button"
                               disabled={isUnavailable}
-                              onClick={() => setFormData((p) => ({ ...p, selectedTimeSlot: slot.time }))}
+                              onClick={() => {
+                                if (!isUnavailable) {
+                                  setFormData((p) => ({ ...p, selectedTimeSlot: slot.time }));
+                                }
+                              }}
+                              title={slot.isBooked ? 'Slot already booked' : isUnavailable ? 'Slot unavailable' : 'Click to select slot'}
                               style={{
                                 padding: '10px 6px',
                                 borderRadius: '8px',

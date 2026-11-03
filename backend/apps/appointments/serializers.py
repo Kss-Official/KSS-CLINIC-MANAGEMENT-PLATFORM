@@ -16,6 +16,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'reason_for_visit',
             'consultation_type',
             'status',
+            'prescription_status',
             'created_at',
             'updated_at',
         ]
@@ -112,6 +113,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             'medicines',
             'additional_instructions',
             'status',
+            'prescription_status',
             'created_at',
             'updated_at',
         ]

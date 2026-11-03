@@ -3,8 +3,20 @@ import PrescriptionPreviewCard from './PrescriptionPreviewCard';
 import appointmentApi from '../../api/appointmentApi';
 import AdminCalendarPopover from './AdminCalendarPopover';
 
+const getTodayIso = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const formatDateForDisplay = (isoStr) => {
-  if (!isoStr) return '28 Oct 2026';
+  if (!isoStr) {
+    const today = new Date();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
+  }
   const parts = isoStr.split('-');
   if (parts.length === 3) {
     const year = parts[0];
@@ -16,26 +28,38 @@ const formatDateForDisplay = (isoStr) => {
   return isoStr;
 };
 
+const parseDisplayDateToIso = (dateStr) => {
+  if (!dateStr) return '';
+  const trimmed = String(dateStr).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const monthIdx = months.findIndex((m) => parts[1].toLowerCase().startsWith(m));
+    const year = parseInt(parts[2], 10);
+    if (!isNaN(day) && monthIdx !== -1 && !isNaN(year)) {
+      const mm = String(monthIdx + 1).padStart(2, '0');
+      const dd = String(day).padStart(2, '0');
+      return `${year}-${mm}-${dd}`;
+    }
+  }
+  return '';
+};
+
 const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
   const [step, setStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [availablePatients, setAvailablePatients] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState({
-    id: 'PAT-1001',
-    name: 'Rahul Sharma',
-    phone: '+91 98765 43210',
-    age: '28 Years',
-    gender: 'Male',
-    ageGender: '28 Years / Male',
-    initials: 'RS',
-  });
+  const [selectedPatient, setSelectedPatient] = useState(initialPatient || null);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
 
-  const [appointmentDate, setAppointmentDate] = useState('2026-10-28');
+  const [appointmentDate, setAppointmentDate] = useState(getTodayIso);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [consultationType, setConsultationType] = useState('Follow-up');
-  const [mainComplaint, setMainComplaint] = useState('Skin Allergy');
+  const [mainComplaint, setMainComplaint] = useState('');
 
   const [symptoms, setSymptoms] = useState('');
   const [diagnosis, setDiagnosis] = useState('Skin allergy due to seasonal change.');
@@ -43,19 +67,11 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
   const [medicines, setMedicines] = useState([
     {
       id: 1,
-      name: 'Rhus Tox',
-      potency: '30C',
-      dosage: '5 drops',
-      duration: '15 Days',
-      instructions: 'Twice daily',
-    },
-    {
-      id: 2,
-      name: 'Apis Mellifica',
-      potency: '200C',
-      dosage: '5 drops',
-      duration: '10 Days',
-      instructions: 'Once daily',
+      name: '',
+      potency: '',
+      dosage: '',
+      duration: '',
+      instructions: '',
     },
   ]);
 
@@ -66,8 +82,74 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
   useEffect(() => {
     if (!isOpen) {
       setStep(1);
+      setSearchQuery('');
+      if (!initialPatient) {
+        setSelectedPatient(null);
+        setSelectedAppointment(null);
+        setAppointmentDate(getTodayIso());
+      }
+    } else if (initialPatient) {
+      const isAppointment = Boolean(
+        initialPatient.appointment_id ||
+        (initialPatient.id && String(initialPatient.id).startsWith('APT-')) ||
+        initialPatient.appointmentId ||
+        initialPatient.timeSlot
+      );
+      if (isAppointment) {
+        setSelectedAppointment(initialPatient);
+        setSelectedPatient({
+          id: initialPatient.patient_id_ref || initialPatient.patientId || initialPatient.id,
+          name: initialPatient.patient_name || initialPatient.name || initialPatient.patientName,
+          phone: initialPatient.patient_phone || initialPatient.contact || initialPatient.phone || initialPatient.mobile,
+          ageGender: initialPatient.age_gender || initialPatient.ageGender || '30 / Adult',
+          age: initialPatient.age || '30 Years',
+          gender: initialPatient.gender || 'Adult',
+          initials: (initialPatient.patient_name || initialPatient.name || initialPatient.patientName || 'PT')
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+        });
+        if (initialPatient.date || initialPatient.appointment_date) {
+          const iso = parseDisplayDateToIso(initialPatient.date || initialPatient.appointment_date);
+          if (iso) setAppointmentDate(iso);
+        }
+        if (initialPatient.reason || initialPatient.reason_for_visit) {
+          setMainComplaint(initialPatient.reason || initialPatient.reason_for_visit);
+        }
+        if (initialPatient.consultationType || initialPatient.consultation_type) {
+          setConsultationType(initialPatient.consultationType || initialPatient.consultation_type);
+        }
+      } else {
+        setSelectedPatient(initialPatient);
+        setSelectedAppointment(null);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialPatient]);
+
+  const patientAppointments = (
+    availablePatients.find((p) => p.id === selectedPatient?.id || (p.name && p.name.toLowerCase() === selectedPatient?.name?.toLowerCase()))?.appointments ||
+    selectedPatient?.appointments ||
+    []
+  );
+
+  useEffect(() => {
+    if (!selectedPatient) {
+      setSelectedAppointment(null);
+      return;
+    }
+    if (patientAppointments && patientAppointments.length > 0) {
+      const match = patientAppointments.find((a) => {
+        const aIso = parseDisplayDateToIso(a.date);
+        return aIso && aIso === appointmentDate;
+      });
+      if (match) {
+        setSelectedAppointment(match);
+      }
+    }
+  }, [selectedPatient, appointmentDate, patientAppointments]);
+
   // Fetch real patients from Neon PostgreSQL database on modal open
   useEffect(() => {
     if (!isOpen) return;
@@ -76,22 +158,6 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         const data = await appointmentApi.getPatients();
         if (Array.isArray(data) && data.length > 0) {
           setAvailablePatients(data);
-          // If no selected patient or PAT-1001 default, select first verified patient from database
-          setSelectedPatient((prev) => {
-            if (!prev || prev.id === 'PAT-1001') {
-              const p = data[0];
-              return {
-                id: p.id,
-                name: p.name,
-                phone: p.mobile,
-                age: p.ageGender?.split('/')[0]?.trim() || '28 Years',
-                gender: p.ageGender?.split('/')[1]?.trim() || 'Adult',
-                ageGender: p.ageGender || '28 Years / Adult',
-                initials: p.initials || 'PT',
-              };
-            }
-            return prev;
-          });
         }
       } catch (err) {
         console.error('Failed to load database patients for prescription:', err);
@@ -166,6 +232,10 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!selectedPatient || !selectedPatient.name) {
+      alert('Please search and select a patient first.');
+      return;
+    }
     // Advance to Step 2: Prescription Preview Screen
     setStep(2);
   };
@@ -179,6 +249,16 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
       return;
     }
 
+    // Ensure selected date is today or a future date
+    const checkDate = new Date(appointmentDate);
+    checkDate.setHours(0, 0, 0, 0);
+    const todayZero = new Date();
+    todayZero.setHours(0, 0, 0, 0);
+    if (checkDate < todayZero) {
+      alert('Cannot select a past date. Please choose today or a future date.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const payload = {
@@ -186,6 +266,8 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         patient_name: selectedPatient.name,
         patient_phone: selectedPatient.phone,
         patient_id_ref: selectedPatient.id,
+        appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+        appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
@@ -195,7 +277,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         diagnosis: diagnosis || 'Clinical Consultation',
         medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
         additionalInstructions,
-        status: 'Delivered',
+        status: 'Pending',
       };
 
       const savedRx = await appointmentApi.createPrescription(payload);
@@ -227,6 +309,8 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         patient_name: selectedPatient.name,
         patient_phone: selectedPatient.phone,
         patient_id_ref: selectedPatient.id,
+        appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+        appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
@@ -236,7 +320,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         diagnosis: diagnosis || 'Skin allergy due to seasonal change.',
         medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
         additionalInstructions,
-        status: deliveryMethod === 'WhatsApp' ? 'Delivered' : 'Sent',
+        status: deliveryMethod === 'WhatsApp' ? 'Delivered' : 'Pending',
       };
 
       const savedRx = await appointmentApi.createPrescription(payload);
@@ -376,12 +460,23 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                 additionalInstructions ||
                 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'
               }
-              onSendWhatsApp={() => {
-                alert(`Prescription successfully sent via WhatsApp to ${selectedPatient.name}!`);
-                handleFinalSave('WhatsApp');
+              onSendWhatsApp={async () => {
+                try {
+                  const phoneDigits = (selectedPatient?.phone || '').replace(/\D/g, '');
+                  const text = encodeURIComponent(
+                    `Prescription for ${selectedPatient?.name || 'Patient'}: Diagnosis: ${diagnosis || 'Homeopathic Consultation'}. Please follow the prescribed medicines.`
+                  );
+                  if (phoneDigits) {
+                    window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
+                  }
+                  await handleFinalSave('WhatsApp');
+                  alert(`Prescription successfully sent via WhatsApp to ${selectedPatient?.name}! Status updated to Delivered.`);
+                } catch (err) {
+                  console.error('WhatsApp delivery failed:', err);
+                  await handleFinalSave('PDF');
+                }
               }}
               onDownloadPdf={() => {
-                alert(`Downloading Prescription PDF for ${selectedPatient.name}...`);
                 handleFinalSave('PDF');
               }}
             />
@@ -454,16 +549,25 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                     zIndex: 20,
                   }}
                 >
-                  {availablePatients
-                    .filter((p) => {
-                      const q = searchQuery.toLowerCase();
+                  {(() => {
+                    const q = searchQuery.toLowerCase().trim();
+                    const filtered = availablePatients.filter((p) => {
                       return (
-                        p.name.toLowerCase().includes(q) ||
+                        (p.name && p.name.toLowerCase().includes(q)) ||
                         (p.mobile && p.mobile.includes(q)) ||
                         (p.id && p.id.toLowerCase().includes(q))
                       );
-                    })
-                    .map((p) => (
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b' }}>
+                          No patient found matching "{searchQuery}"
+                        </div>
+                      );
+                    }
+
+                    return filtered.map((p) => (
                       <div
                         key={p.id}
                         onClick={() => {
@@ -493,7 +597,8 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                         <span style={{ fontWeight: '600', color: '#0f172a' }}>{p.name} ({p.id})</span>
                         <span style={{ color: '#64748b', fontSize: '12px' }}>{p.mobile}</span>
                       </div>
-                    ))}
+                    ));
+                  })()}
                 </div>
               )}
             </div>
@@ -571,7 +676,50 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
               Enter the consultation information.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+            {patientAppointments && patientAppointments.length > 0 && (
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                  Select Linked Appointment
+                </label>
+                <select
+                  value={selectedAppointment?.id || ''}
+                  onChange={(e) => {
+                    const aptId = e.target.value;
+                    const apt = patientAppointments.find((a) => a.id === aptId);
+                    if (apt) {
+                      setSelectedAppointment(apt);
+                      const iso = parseDisplayDateToIso(apt.date);
+                      if (iso) setAppointmentDate(iso);
+                      if (apt.consultationType) setConsultationType(apt.consultationType);
+                      if (apt.reason) setMainComplaint(apt.reason);
+                    } else {
+                      setSelectedAppointment(null);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    height: '42px',
+                    padding: '0 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="">-- Match appointment automatically by date --</option>
+                  {patientAppointments.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.id} — {a.date} ({a.time || '10:00 AM'}) - {a.reason || 'Consultation'} [{a.status}]
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
                   Appointment Date
@@ -602,6 +750,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                     isOpen={isCalendarOpen}
                     onClose={() => setIsCalendarOpen(false)}
                     selectedDate={appointmentDate}
+                    disablePastDates={true}
                     onSelectDate={(displayStr, isoStr) => {
                       if (isoStr) setAppointmentDate(isoStr);
                       setIsCalendarOpen(false);
@@ -636,33 +785,6 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                 </select>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-                  Main Complaint
-                </label>
-                <select
-                  value={mainComplaint}
-                  onChange={(e) => setMainComplaint(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '13px',
-                    backgroundColor: '#ffffff',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="Skin Allergy">Skin Allergy</option>
-                  <option value="Chronic Migraine">Chronic Migraine</option>
-                  <option value="Digestive Issue">Digestive Issue</option>
-                  <option value="Thyroid Consultation">Thyroid Consultation</option>
-                  <option value="General Consultation">General Consultation</option>
-                </select>
-              </div>
             </div>
           </div>
 
@@ -747,11 +869,11 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '10px 12px', color: '#64748b', width: '36px' }}>No.</th>
-                    <th style={{ padding: '10px 12px', color: '#64748b' }}>Medicine Name <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px' }}>Medicine Name <span style={{ color: '#ef4444' }}>*</span></th>
                     <th style={{ padding: '10px 12px', color: '#64748b', width: '110px' }}>Potency <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ padding: '10px 12px', color: '#64748b', width: '110px' }}>Dosage <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ padding: '10px 12px', color: '#64748b', width: '75px' }}>Duration <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ padding: '10px 12px', color: '#64748b' }}>Instructions (Optional)</th>
+                    <th style={{ padding: '10px 12px', color: '#64748b', width: '125px' }}>Dosage <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th style={{ padding: '10px 12px', color: '#64748b', width: '105px' }}>Duration <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px' }}>Instructions (Optional)</th>
                     <th style={{ padding: '10px 12px', color: '#64748b', width: '45px', textAlign: 'center' }}>Action</th>
                   </tr>
                 </thead>
@@ -762,59 +884,91 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                         {idx + 1}
                       </td>
                       <td style={{ padding: '8px 10px' }}>
-                        <select
+                        <input
+                          type="text"
                           value={med.name}
                           onChange={(e) => handleMedicineChange(med.id, 'name', e.target.value)}
-                          style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12.5px' }}
-                        >
-                          <option value="">Select medicine</option>
-                          <option value="Arsenicum Album">Arsenicum Album</option>
-                          <option value="Nux Vomica">Nux Vomica</option>
-                          <option value="Pulsatilla">Pulsatilla</option>
-                          <option value="Sepia">Sepia</option>
-                          <option value="Belladonna">Belladonna</option>
-                          <option value="Bryonia">Bryonia</option>
-                          <option value="Natrum Muriaticum">Natrum Muriaticum</option>
-                          <option value="Lycopodium">Lycopodium</option>
-                          <option value="Sulphur">Sulphur</option>
-                          <option value="Calcarea Carbonica">Calcarea Carbonica</option>
-                          <option value="Thuja Occidentalis">Thuja Occidentalis</option>
-                        </select>
+                          placeholder="Medicine name"
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            padding: '0 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12.5px',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                        />
                       </td>
                       <td style={{ padding: '8px 10px' }}>
-                        <select
+                        <input
+                          type="text"
                           value={med.potency}
                           onChange={(e) => handleMedicineChange(med.id, 'potency', e.target.value)}
-                          style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12.5px' }}
-                        >
-                          <option value="">Select</option>
-                          <option value="30C">30C</option>
-                          <option value="200C">200C</option>
-                          <option value="1M">1M</option>
-                          <option value="6X">6X</option>
-                          <option value="Mother Tincture (Q)">Mother Tincture (Q)</option>
-                        </select>
+                          placeholder="e.g. 30C, 200C"
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            padding: '0 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12.5px',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                        />
                       </td>
                       <td style={{ padding: '8px 10px' }}>
-                        <select
+                        <input
+                          type="text"
                           value={med.dosage}
                           onChange={(e) => handleMedicineChange(med.id, 'dosage', e.target.value)}
-                          style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12.5px' }}
-                        >
-                          <option value="">Select</option>
-                          <option value="2 drops">2 drops</option>
-                          <option value="4 pills">4 pills</option>
-                          <option value="1 teaspoon">1 teaspoon</option>
-                          <option value="10 drops in water">10 drops in water</option>
-                        </select>
+                          placeholder="e.g. 4 pills, 2 drops"
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            padding: '0 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12.5px',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                        />
                       </td>
                       <td style={{ padding: '8px 10px' }}>
                         <input
                           type="text"
                           value={med.duration}
                           onChange={(e) => handleMedicineChange(med.id, 'duration', e.target.value)}
-                          placeholder="Days"
-                          style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                          placeholder="e.g. 15 Days"
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            padding: '0 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12.5px',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                         />
                       </td>
                       <td style={{ padding: '8px 10px' }}>
@@ -822,8 +976,21 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                           type="text"
                           value={med.instructions}
                           onChange={(e) => handleMedicineChange(med.id, 'instructions', e.target.value)}
-                          placeholder="e.g., 2 drops twice da..."
-                          style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                          placeholder="e.g. Twice daily"
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            padding: '0 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12.5px',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                         />
                       </td>
                       <td style={{ padding: '8px 10px', textAlign: 'center' }}>

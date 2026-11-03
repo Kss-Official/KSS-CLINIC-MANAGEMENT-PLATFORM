@@ -8,6 +8,88 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from .models import Appointment, Notification, Prescription, Patient
 from .serializers import AppointmentSerializer, NotificationSerializer, ClinicSettingsSerializer
+from datetime import datetime
+
+
+def normalize_date_str(date_str):
+    if not date_str:
+        return ''
+    date_str = str(date_str).strip()
+    formats = [
+        '%d %B %Y',      # 16 October 2026
+        '%d %b %Y',      # 16 Oct 2026
+        '%Y-%m-%d',     # 2026-10-16
+        '%d-%m-%Y',     # 16-10-2026
+        '%d/%m/%Y',     # 16/10/2026
+        '%b %d, %Y',    # Oct 16, 2026
+        '%B %d, %Y',    # October 16, 2026
+        '%d %B, %Y',    # 16 October, 2026
+        '%d %b, %Y',    # 16 Oct, 2026
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt).strftime('%Y-%m-%d')
+        except (ValueError, TypeError):
+            continue
+    return date_str.lower().strip()
+
+
+def normalize_time_str(time_str):
+    if not time_str:
+        return ''
+    t = str(time_str).strip().upper()
+    for fmt in ['%I:%M %p', '%H:%M', '%I:%M%p', '%I:%M %P']:
+        try:
+            return datetime.strptime(t, fmt).strftime('%I:%M %p')
+        except (ValueError, TypeError):
+            continue
+    return t
+
+
+class AppointmentSlotsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        date_param = request.query_params.get('date') or request.query_params.get('appointment_date')
+        active_appointments = Appointment.objects.exclude(status__iexact='Cancelled')
+        all_booked = {}
+
+        for apt in active_appointments:
+            d_norm = normalize_date_str(apt.appointment_date)
+            t_norm = normalize_time_str(apt.time_slot)
+            if not d_norm or not t_norm:
+                continue
+
+            if d_norm not in all_booked:
+                all_booked[d_norm] = set()
+            all_booked[d_norm].add(t_norm)
+
+            raw_d = (apt.appointment_date or '').strip()
+            if raw_d:
+                if raw_d not in all_booked:
+                    all_booked[raw_d] = set()
+                all_booked[raw_d].add(t_norm)
+
+        all_booked_serialized = {k: sorted(list(v)) for k, v in all_booked.items()}
+
+        booked_slots = []
+        target_norm = ''
+        if date_param:
+            target_norm = normalize_date_str(date_param)
+            slots_set = set()
+            if target_norm in all_booked_serialized:
+                slots_set.update(all_booked_serialized[target_norm])
+            raw_target = date_param.strip()
+            if raw_target in all_booked_serialized:
+                slots_set.update(all_booked_serialized[raw_target])
+            booked_slots = sorted(list(slots_set))
+
+        return Response({
+            'date': date_param,
+            'normalized_date': target_norm,
+            'booked_slots': booked_slots,
+            'all_booked_slots': all_booked_serialized,
+        })
 
 
 class AppointmentListCreateView(APIView):
@@ -51,8 +133,45 @@ class AppointmentListCreateView(APIView):
     def post(self, request):
         serializer = AppointmentSerializer(data=request.data)
         if serializer.is_valid():
+            req_date = serializer.validated_data.get('appointment_date')
+            req_slot = serializer.validated_data.get('time_slot')
+
+            # Ensure requested date is not in the past
+            if req_date:
+                try:
+                    from datetime import datetime, date
+                    norm_d = normalize_date_str(req_date)
+                    if norm_d and len(norm_d.split('-')) == 3:
+                        apt_date_obj = datetime.strptime(norm_d, '%Y-%m-%d').date()
+                        if apt_date_obj < date.today():
+                            return Response({
+                                'error': 'Cannot book an appointment for a past date. Please select today or a future date.',
+                                'detail': f"Requested date '{req_date}' is in the past."
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                except Exception:
+                    pass
+
+            # Prevent double booking: ensure slot on requested date is available
+            if req_date and req_slot:
+                norm_date = normalize_date_str(req_date)
+                norm_slot = normalize_time_str(req_slot)
+
+                active_apts = Appointment.objects.exclude(status__iexact='Cancelled')
+                for existing in active_apts:
+                    if (normalize_date_str(existing.appointment_date) == norm_date and
+                        normalize_time_str(existing.time_slot) == norm_slot):
+                        return Response({
+                            'error': f"The appointment slot '{req_slot}' on {req_date} has already been booked. Please select an available slot.",
+                            'detail': f"Slot {req_slot} on {req_date} is already taken."
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
             user = request.user if request.user.is_authenticated else None
-            appointment = serializer.save(user=user)
+            save_kwargs = {'user': user}
+            if not serializer.validated_data.get('status'):
+                save_kwargs['status'] = 'Confirmed'
+            if not serializer.validated_data.get('prescription_status'):
+                save_kwargs['prescription_status'] = 'Pending'
+            appointment = serializer.save(**save_kwargs)
 
             # Link or create corresponding permanent Patient record in Neon
             p_name = appointment.patient_name.strip()
@@ -135,11 +254,25 @@ class AppointmentDetailView(APIView):
             return Response({'error': 'Appointment not found'}, status=status.HTTP_404_NOT_FOUND)
 
         new_status = request.data.get('status')
+        new_prescription_status = request.data.get('prescription_status') or request.data.get('prescriptionStatus')
+
+        if not new_status and not new_prescription_status:
+            return Response({'error': 'status or prescription_status field required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        fields_to_update = ['updated_at']
         if new_status:
             apt.status = new_status
-            apt.save(update_fields=['status', 'updated_at'])
-            return Response(AppointmentSerializer(apt).data)
-        return Response({'error': 'status field required'}, status=status.HTTP_400_BAD_REQUEST)
+            fields_to_update.append('status')
+        if new_prescription_status:
+            apt.prescription_status = new_prescription_status
+            fields_to_update.append('prescription_status')
+            if str(new_prescription_status).strip().lower() in ['complete', 'completed'] and apt.status != 'Cancelled':
+                apt.status = 'Complete'
+                if 'status' not in fields_to_update:
+                    fields_to_update.append('status')
+
+        apt.save(update_fields=fields_to_update)
+        return Response(AppointmentSerializer(apt).data)
 
 
 class NotificationListView(APIView):
@@ -409,6 +542,7 @@ class PrescriptionListView(APIView):
                 'medicines': rx.medicines or [],
                 'additionalInstructions': rx.additional_instructions,
                 'status': rx.status,
+                'created_at': rx.created_at.isoformat() if rx.created_at else None,
             })
         return Response(data)
 
@@ -419,11 +553,6 @@ class PrescriptionListView(APIView):
         patient_phone = (payload.get('patient_phone') or patient_info.get('phone') or patient_info.get('mobile') or payload.get('mobile') or '').strip()
         patient_id_ref = (payload.get('patient_id_ref') or payload.get('patientId') or patient_info.get('id') or '').strip()
         age_gender = (payload.get('age_gender') or payload.get('ageGender') or patient_info.get('ageGender') or f"{patient_info.get('age', '')} / {patient_info.get('gender', '')}").strip(' /')
-
-        matched_apt = Appointment.objects.filter(
-            models.Q(patient_name__iexact=patient_name) |
-            (models.Q(patient_phone__iexact=patient_phone) if patient_phone else models.Q(patient_name__iexact=patient_name))
-        ).order_by('-created_at').first()
 
         # Find or create corresponding permanent Patient in Neon
         patient = None
@@ -459,6 +588,64 @@ class PrescriptionListView(APIView):
 
         time_str = payload.get('time') or datetime.now().strftime('%I:%M %p')
 
+        # Helper to generate date string variations for precise matching
+        def _get_date_variations(d_str):
+            variations = set()
+            if not d_str:
+                return variations
+            s = str(d_str).strip()
+            variations.add(s)
+            if '-' in s and len(s.split('-')) == 3:
+                try:
+                    parts = s.split('-')
+                    y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+                    dt = datetime(y, m, d)
+                    variations.add(dt.strftime('%d %b %Y'))
+                    variations.add(f"{d} {dt.strftime('%b')} {y}")
+                    variations.add(dt.strftime('%d %B %Y'))
+                    variations.add(f"{d} {dt.strftime('%B')} {y}")
+                    variations.add(f"{y}-{m:02d}-{d:02d}")
+                except Exception:
+                    pass
+            else:
+                for fmt in ('%d %b %Y', '%d %B %Y', '%Y-%m-%d'):
+                    try:
+                        dt = datetime.strptime(s, fmt)
+                        variations.add(dt.strftime('%d %b %Y'))
+                        variations.add(f"{dt.day} {dt.strftime('%b')} {dt.year}")
+                        variations.add(dt.strftime('%d %B %Y'))
+                        variations.add(f"{dt.day} {dt.strftime('%B')} {dt.year}")
+                        variations.add(f"{dt.year}-{dt.month:02d}-{dt.day:02d}")
+                        break
+                    except Exception:
+                        continue
+            return variations
+
+        # 1. First, check if exact appointment ID was provided in payload
+        apt_id = payload.get('appointment_id') or payload.get('appointmentId')
+        matched_apt = None
+        if apt_id:
+            matched_apt = Appointment.objects.filter(
+                models.Q(appointment_id=str(apt_id).strip()) |
+                (models.Q(id=int(apt_id)) if str(apt_id).isdigit() else models.Q(appointment_id=str(apt_id).strip()))
+            ).first()
+
+        # 2. If not found by ID, match specifically by Patient AND Appointment Date
+        if not matched_apt:
+            patient_q = models.Q(patient_name__iexact=patient_name)
+            if patient:
+                patient_q |= models.Q(patient_record=patient)
+            if patient_phone:
+                patient_q |= (models.Q(patient_phone__iexact=patient_phone) & models.Q(patient_name__icontains=patient_name.split()[0]))
+
+            date_vars = _get_date_variations(raw_date) | _get_date_variations(formatted_date)
+            date_q = models.Q()
+            for dv in date_vars:
+                date_q |= models.Q(appointment_date__iexact=dv)
+
+            # Match only the exact appointment for this patient on this specific date
+            matched_apt = Appointment.objects.filter(patient_q).filter(date_q).exclude(status='Cancelled').order_by('-created_at').first()
+
         rx = Prescription.objects.create(
             patient_record=patient,
             appointment=matched_apt,
@@ -473,8 +660,14 @@ class PrescriptionListView(APIView):
             diagnosis=payload.get('diagnosis') or 'Clinical Consultation',
             medicines=payload.get('medicines') or [],
             additional_instructions=payload.get('additionalInstructions') or payload.get('additional_instructions') or '',
-            status=payload.get('status') or 'Delivered',
+            status=payload.get('status') or 'Pending',
         )
+
+        # Update ONLY the exact matched appointment's status and prescription status to Complete
+        if matched_apt and matched_apt.status != 'Cancelled':
+            matched_apt.prescription_status = 'Complete'
+            matched_apt.status = 'Complete'
+            matched_apt.save(update_fields=['prescription_status', 'status'])
 
         return Response({
             'id': rx.prescription_id,
@@ -494,8 +687,77 @@ class PrescriptionListView(APIView):
             'medicines': rx.medicines or [],
             'additionalInstructions': rx.additional_instructions,
             'status': rx.status,
+            'created_at': rx.created_at.isoformat() if rx.created_at else None,
             'message': f"Prescription {rx.prescription_id} saved successfully for {rx.patient_name}!"
         }, status=status.HTTP_201_CREATED)
+
+    def patch(self, request):
+        rx_id = request.data.get('id') or request.data.get('prescription_id') or request.data.get('rxId')
+        if not rx_id:
+            return Response({'error': 'id field required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            if str(rx_id).isdigit():
+                rx = Prescription.objects.get(pk=int(rx_id))
+            else:
+                rx = Prescription.objects.get(prescription_id=rx_id)
+        except Prescription.DoesNotExist:
+            return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        if new_status:
+            rx.status = new_status
+            rx.save(update_fields=['status'])
+            return Response({
+                'id': rx.prescription_id,
+                'status': rx.status,
+                'message': f'Prescription {rx.prescription_id} status updated to {rx.status}'
+            })
+        return Response({'error': 'status field required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PrescriptionDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk_or_id):
+        try:
+            if str(pk_or_id).isdigit():
+                rx = Prescription.objects.get(pk=int(pk_or_id))
+            else:
+                rx = Prescription.objects.get(prescription_id=pk_or_id)
+            pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else 'PAT-1001')
+            return Response({
+                'id': rx.prescription_id,
+                'rxId': rx.prescription_id,
+                'database_id': rx.id,
+                'name': rx.patient_name,
+                'patientName': rx.patient_name,
+                'patientId': pid,
+                'status': rx.status,
+                'date': rx.date,
+                'diagnosis': rx.diagnosis,
+            })
+        except Prescription.DoesNotExist:
+            return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, pk_or_id):
+        try:
+            if str(pk_or_id).isdigit():
+                rx = Prescription.objects.get(pk=int(pk_or_id))
+            else:
+                rx = Prescription.objects.get(prescription_id=pk_or_id)
+        except Prescription.DoesNotExist:
+            return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        if new_status:
+            rx.status = new_status
+            rx.save(update_fields=['status'])
+            return Response({
+                'id': rx.prescription_id,
+                'status': rx.status,
+                'message': f'Prescription {rx.prescription_id} status updated to {rx.status}'
+            })
+        return Response({'error': 'status field required'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 CLINIC_SETTINGS_FILE = os.path.join(settings.BASE_DIR, 'clinic_settings.json')
@@ -506,7 +768,7 @@ DEFAULT_CLINIC_SETTINGS = {
     'contactNumber': '+91 98765 43210',
     'alternateNumber': '+91 99887 66554',
     'email': 'clinic.tripathi@gmail.com',
-    'address': '12, Green Park, MG Road, Bangalore, Karnataka - 560001'
+    'address': '12, Green Park, Bangalore'
 }
 
 def load_clinic_settings():
@@ -653,14 +915,32 @@ class PatientMyProfileView(APIView):
             'prescriptions': [{
                 'id': r.prescription_id,
                 'rxId': r.prescription_id,
+                'prescription_id': r.prescription_id,
                 'date': r.date,
                 'time': r.time,
+                'patientName': r.patient_name,
+                'name': r.patient_name,
+                'patientId': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
+                'patient_id_ref': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
+                'ageGender': r.age_gender or (r.patient_record.age_gender if r.patient_record else ''),
+                'contact': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
+                'mobile': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
                 'diagnosis': r.diagnosis,
                 'complaint': r.complaint,
                 'symptoms': r.symptoms,
                 'status': r.status,
                 'medicines': r.medicines or [],
                 'additionalInstructions': r.additional_instructions,
+                'additional_instructions': r.additional_instructions,
+                'notes': r.additional_instructions,
+                'created_at': r.created_at.isoformat() if r.created_at else None,
+                'patient': {
+                    'name': r.patient_name,
+                    'id': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
+                    'ageGender': r.age_gender or (r.patient_record.age_gender if r.patient_record else ''),
+                    'phone': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
+                    'contact': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
+                }
             } for r in p_rxs],
         })
 

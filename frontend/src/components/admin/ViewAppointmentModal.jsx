@@ -61,6 +61,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
         return { bg: '#e8f7ee', color: '#1e7e34', border: '#bbf7d0' };
       case 'Pending':
         return { bg: '#fef7e6', color: '#b45309', border: '#fde68a' };
+      case 'Complete':
       case 'Completed':
         return { bg: '#eaf2ff', color: '#2563eb', border: '#bfdbfe' };
       case 'Cancelled':
@@ -70,7 +71,20 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
     }
   };
 
+  const getPrescriptionBadge = (status) => {
+    switch (status) {
+      case 'Complete':
+      case 'Completed':
+        return { bg: '#e8f7ee', color: '#1e7e34', border: '#bbf7d0' };
+      case 'Pending':
+      default:
+        return { bg: '#fef7e6', color: '#b45309', border: '#fde68a' };
+    }
+  };
+
   const badge = getStatusBadge(apt.status || 'Confirmed');
+  const rxStatus = apt.prescriptionStatus || apt.prescription_status || 'Pending';
+  const rxBadge = getPrescriptionBadge(rxStatus);
 
   return (
     <div
@@ -162,7 +176,21 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  padding: '4px 12px',
+                  borderRadius: '9999px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  backgroundColor: rxBadge.bg,
+                  color: rxBadge.color,
+                  border: `1px solid ${rxBadge.border}`,
+                }}
+              >
+                Rx: {rxStatus}
+              </span>
               <span
                 style={{
                   display: 'inline-block',
