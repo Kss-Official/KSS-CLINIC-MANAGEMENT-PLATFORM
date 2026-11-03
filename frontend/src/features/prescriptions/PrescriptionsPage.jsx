@@ -37,7 +37,7 @@ const PrescriptionsPage = () => {
   const [isPickingDate, setIsPickingDate] = useState(false);
   const dateInputRef = useRef(null);
 
-  const [statusFilter, setStatusFilter] = useState('Pending');
+  const [statusFilter, setStatusFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
@@ -107,7 +107,7 @@ const PrescriptionsPage = () => {
     setDateFilter('All Dates');
     setCustomDate('');
     setIsPickingDate(false);
-    setStatusFilter('Pending');
+    setStatusFilter('All');
     setSearchQuery('');
     setCurrentPage(1);
   };
@@ -156,10 +156,15 @@ const PrescriptionsPage = () => {
       item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.complaint.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus =
-      !statusFilter ||
-      statusFilter === 'All' ||
-      (item.status && item.status.toLowerCase() === statusFilter.toLowerCase());
+    const matchesStatus = (() => {
+      if (!statusFilter || statusFilter === 'All') return true;
+      const target = statusFilter.trim().toLowerCase();
+      const current = (item.status || 'Pending').trim().toLowerCase();
+      if (target === 'delivered') {
+        return current === 'delivered' || current === 'sent';
+      }
+      return current === target;
+    })();
 
     const matchesDate = matchesDateFilter(item.date);
 
@@ -567,7 +572,7 @@ const PrescriptionsPage = () => {
               />
             </div>
 
-            {/* Status Dropdown */}
+            {/* WhatsApp Status Dropdown */}
             <select
               value={statusFilter}
               onChange={(e) => {
@@ -585,6 +590,7 @@ const PrescriptionsPage = () => {
                 outline: 'none',
               }}
             >
+              <option value="All">All WhatsApp Status</option>
               <option value="Pending">Pending</option>
               <option value="Delivered">Delivered</option>
             </select>
