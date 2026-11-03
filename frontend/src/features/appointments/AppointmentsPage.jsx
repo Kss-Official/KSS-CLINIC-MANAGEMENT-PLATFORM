@@ -230,7 +230,7 @@ const AppointmentsPage = () => {
   // Dynamic metrics calculation from live Neon data
   const totalAppointmentsCount = appointmentsList.length;
   const completedCount = appointmentsList.filter((a) => ['complete', 'completed'].includes((a.status || '').toLowerCase())).length;
-  const pendingCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'pending').length;
+  const pendingCount = appointmentsList.filter((a) => ['pending', 'confirmed'].includes((a.status || '').toLowerCase())).length;
   const cancelledCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'cancelled').length;
 
   const limit = parseInt(pageSize, 10) || 10;
