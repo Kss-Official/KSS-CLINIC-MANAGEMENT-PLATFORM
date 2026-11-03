@@ -7,7 +7,7 @@ import PatientAuthModal from '../../components/auth/PatientAuthModal';
 import ViewPrescriptionModal from '../../components/admin/ViewPrescriptionModal';
 import PrescriptionPreviewCard from '../../components/admin/PrescriptionPreviewCard';
 import { downloadPrescriptionPdf } from '../../utils/prescriptionPdf';
-import profileHerbs from '../../assets/profile-banner-herbs.png';
+import profileHerbs from '../../assets/profile-banner-herbs.png?v=v3_clean_mortar_herbs';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -558,50 +558,93 @@ const ProfilePage = () => {
           flex: 1,
         }}
       >
-        {/* Top Profile Banner Card (Exact match to Reference Image 1) */}
+        {/* Top Profile Banner Card with Rich Graphics & Expanded Info */}
         <div
           className="profile-header-card"
           style={{
             backgroundColor: '#edf5ee',
-            border: '1px solid #e1efe4',
-            borderRadius: '20px',
-            padding: '24px 44px',
+            background: 'linear-gradient(135deg, #eef7f0 0%, #edf5ee 50%, #e5f1e7 100%)',
+            border: '1px solid #d8e8dc',
+            borderRadius: '24px',
+            padding: '28px 44px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             marginBottom: '28px',
             overflow: 'hidden',
             position: 'relative',
+            boxShadow: '0 4px 20px -2px rgba(22, 101, 52, 0.05)',
           }}
         >
-          <div style={{ zIndex: 2, maxWidth: '680px' }}>
+          {/* Left Text Column */}
+          <div style={{ zIndex: 2, maxWidth: '620px' }}>
+            {/* Eyebrow Chip */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #c7ebd2',
+                borderRadius: '9999px',
+                padding: '4px 13px',
+                marginBottom: '10px',
+                boxShadow: '0 2px 6px rgba(22, 101, 52, 0.04)',
+              }}
+            >
+              <span
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  backgroundColor: '#10b981',
+                  display: 'inline-block',
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '11.5px',
+                  fontWeight: '800',
+                  color: '#166534',
+                  letterSpacing: '0.6px',
+                  textTransform: 'uppercase',
+                  fontFamily: "'Manrope', sans-serif",
+                }}
+              >
+                Patient Care Dashboard
+              </span>
+            </div>
+
             <h1
               style={{
                 fontSize: '34px',
                 fontWeight: '800',
                 color: '#111827',
-                margin: '0 0 6px 0',
+                margin: '0 0 10px 0',
                 letterSpacing: '-0.4px',
                 fontFamily: "'Manrope', sans-serif",
               }}
             >
               Profile
             </h1>
+
+            {/* Paragraph with enriched, professional text covering the space */}
             <p
               style={{
-                fontSize: '15px',
+                fontSize: '14.5px',
                 color: '#4b5563',
                 margin: 0,
                 fontWeight: '400',
                 fontFamily: "'Manrope', sans-serif",
-                lineHeight: '1.5',
+                lineHeight: '1.65',
+                maxWidth: '600px',
               }}
             >
-              Manage your profile, view your appointment history and prescriptions.
+              Manage your personal information, view your clinical consultation history, track treatment progress, and easily access your personalized homeopathic remedies and prescriptions.
             </p>
           </div>
 
-          {/* Right Herbal Graphic (High-definition, perfectly sized & positioned) */}
+          {/* Right Herbal Graphic (Wide High-definition, perfectly sized & positioned) */}
           <div
             className="profile-herbs-wrapper"
             style={{
@@ -609,7 +652,8 @@ const ProfilePage = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginRight: '12px',
+              position: 'relative',
+              zIndex: 2,
             }}
           >
             <img
@@ -617,11 +661,12 @@ const ProfilePage = () => {
               alt="Natural Homeopathy Herbs"
               className="profile-herbs-img"
               style={{
-                height: '170px',
+                height: '165px',
+                maxWidth: '560px',
                 width: 'auto',
                 display: 'block',
                 objectFit: 'contain',
-                filter: 'drop-shadow(0 10px 22px rgba(22, 101, 52, 0.12))',
+                filter: 'drop-shadow(0 10px 20px rgba(22, 101, 52, 0.12))',
                 transition: 'transform 0.3s ease',
               }}
             />
@@ -2092,7 +2137,8 @@ const ProfilePage = () => {
             padding: 22px 28px !important;
           }
           .profile-herbs-img {
-            height: 135px !important;
+            height: 125px !important;
+            max-width: 420px !important;
           }
           .profile-personal-grid {
             grid-template-columns: 1fr !important;
@@ -2119,7 +2165,8 @@ const ProfilePage = () => {
             margin-right: 0 !important;
           }
           .profile-herbs-img {
-            height: 110px !important;
+            height: 95px !important;
+            max-width: 320px !important;
           }
           .profile-container {
             padding: 24px 16px 50px !important;

@@ -59,13 +59,13 @@ const Footer = () => {
             <p
               style={{
                 fontSize: '14px',
-                lineHeight: '1.65',
+                lineHeight: '1.68',
                 color: '#8b978f',
-                maxWidth: '380px',
+                maxWidth: '460px',
                 margin: 0,
               }}
             >
-              Providing gentle, holistic, and evidence-informed homeopathic remedies tailored to individual health journeys.
+              Providing gentle, holistic, and evidence-informed homeopathic remedies tailored to individual health journeys. We focus on personalized care, understanding each patient's needs, and supporting their overall well-being through compassionate guidance and dedicated attention. Our goal is to help every patient feel confident, comfortable, and supported throughout their healing journey.
             </p>
           </div>
 

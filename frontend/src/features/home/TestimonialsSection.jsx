@@ -144,14 +144,14 @@ const TestimonialsSection = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Autoplay (every 4.5 seconds, safely paused on hover, drag, or hidden tab)
+  // Autoplay (every 5 seconds, safely paused on hover, drag, or hidden tab)
   useEffect(() => {
     if (isPaused || isDragging) return;
     const interval = setInterval(() => {
       if (!document.hidden && !isAnimating.current) {
         handleNext();
       }
-    }, 4500);
+    }, 5000);
     return () => clearInterval(interval);
   }, [isPaused, isDragging, handleNext]);
 

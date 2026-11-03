@@ -55,65 +55,66 @@ const AppRoutes = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      {/* 5. Admin Portal Routes (Fixed Header & Sidebar across all sections) */}
-      <Route
-        path="/dashboard"
-        element={
-          <AdminLayout>
-            <DashboardPage />
-          </AdminLayout>
-        }
-      />
-      <Route
-        path="/appointments"
-        element={
-          <AdminLayout>
-            <AppointmentsPage />
-          </AdminLayout>
-        }
-      />
-      <Route
-        path="/prescriptions"
-        element={
-          <AdminLayout>
-            <PrescriptionsPage />
-          </AdminLayout>
-        }
-      />
-      <Route
-        path="/patient-history"
-        element={
-          <AdminLayout>
-            <PatientHistoryPage />
-          </AdminLayout>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <AdminLayout>
-            <SettingsPage />
-          </AdminLayout>
-        }
-      />
-
-      {/* Legacy / User management */}
-      <Route
-        path="/users"
-        element={
-          <AdminLayout>
-            <UserListPage />
-          </AdminLayout>
-        }
-      />
-      <Route
-        path="/users/:id"
-        element={
-          <AdminLayout>
-            <UserDetailPage />
-          </AdminLayout>
-        }
-      />
+      {/* 5. Protected Admin Portal Routes (Requires authenticated Doctor/Admin) */}
+      <Route element={<ProtectedRoute redirectPath="/login" allowedRoles={['ADMIN', 'DOCTOR', 'RECEPTIONIST']} />}>
+        <Route
+          path="/dashboard"
+          element={
+            <AdminLayout>
+              <DashboardPage />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/appointments"
+          element={
+            <AdminLayout>
+              <AppointmentsPage />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/prescriptions"
+          element={
+            <AdminLayout>
+              <PrescriptionsPage />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/patient-history"
+          element={
+            <AdminLayout>
+              <PatientHistoryPage />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <AdminLayout>
+              <SettingsPage />
+            </AdminLayout>
+          }
+        />
+        {/* Legacy / User management */}
+        <Route
+          path="/users"
+          element={
+            <AdminLayout>
+              <UserListPage />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/users/:id"
+          element={
+            <AdminLayout>
+              <UserDetailPage />
+            </AdminLayout>
+          }
+        />
+      </Route>
 
       {/* Fallback to Home */}
       <Route path="*" element={<Navigate to="/" replace />} />

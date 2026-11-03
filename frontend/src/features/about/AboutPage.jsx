@@ -709,84 +709,51 @@ const AboutPage = () => {
               With years of experience in homeopathic care, Dr. K. Tripathi Ampeh (Pat.) is dedicated to providing compassionate and personalized treatment. His approach focuses on understanding the complete case and supporting each patient on their path to long-term wellness.
             </p>
 
-            {/* 3 Checkmark Items with filled dark green badges */}
+            {/* 6 Checkmark Items arranged side-by-side in 2 columns */}
             <div
+              className="about-doctor-points-grid"
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '14px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: '14px 28px',
                 marginBottom: '32px',
+                maxWidth: '680px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    backgroundColor: '#204a32',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+              {[
+                'Patient-Centered Approach',
+                'Guidance on Diet & Lifestyle',
+                'Gentle and Natural Healing',
+                'Root-Cause Based Approach',
+                'Trusted by Families',
+                'Holistic Care for Mind & Body',
+              ].map((point) => (
+                <div key={point} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      backgroundColor: '#204a32',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: '14.5px', fontWeight: '600', color: '#111827', fontFamily: "'Manrope', sans-serif" }}>
+                    {point}
+                  </span>
                 </div>
-                <span style={{ fontSize: '14.5px', fontWeight: '600', color: '#111827', fontFamily: "'Manrope', sans-serif" }}>
-                  Patient-Centered Approach
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    backgroundColor: '#204a32',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <span style={{ fontSize: '14.5px', fontWeight: '600', color: '#111827', fontFamily: "'Manrope', sans-serif" }}>
-                  Gentle and Natural Healing
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    backgroundColor: '#204a32',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <span style={{ fontSize: '14.5px', fontWeight: '600', color: '#111827', fontFamily: "'Manrope', sans-serif" }}>
-                  Trusted by Families
-                </span>
-              </div>
+              ))}
             </div>
+
+
 
             {/* CTA Button */}
             <button
@@ -911,260 +878,174 @@ const AboutPage = () => {
               gap: '24px',
             }}
           >
-            {/* Card 1: Detailed Consultation */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #eef2ef',
-                borderRadius: '20px',
-                padding: '36px 20px 32px 20px',
-                textAlign: 'center',
-                boxShadow: '0 4px 16px -4px rgba(0, 0, 0, 0.03)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(0, 0, 0, 0.06)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px -4px rgba(0, 0, 0, 0.03)';
-              }}
-            >
+            {[
+              {
+                step: '01',
+                title: 'Detailed Consultation',
+                desc: 'Understanding your health concerns',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                ),
+              },
+              {
+                step: '02',
+                title: 'Root Cause Analysis',
+                desc: 'Identifying the underlying cause',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                ),
+              },
+              {
+                step: '03',
+                title: 'Personalized Treatment',
+                desc: 'Tailored to your unique needs',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                  </svg>
+                ),
+              },
+              {
+                step: '04',
+                title: 'Continuous Support',
+                desc: 'Guidance for long-term wellness',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10" />
+                    <line x1="12" y1="20" x2="12" y2="4" />
+                    <line x1="6" y1="20" x2="6" y2="14" />
+                  </svg>
+                ),
+              },
+            ].map((card, idx) => (
               <div
+                key={card.step}
+                className="about-approach-card"
                 style={{
-                  width: '46px',
-                  height: '46px',
-                  borderRadius: '50%',
-                  backgroundColor: '#edf7f1',
-                  color: '#1c4428',
+                  position: 'relative',
+                  backgroundColor: '#ffffff',
+                  background: 'linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%)',
+                  border: '1.5px solid #e2ece5',
+                  borderRadius: '22px',
+                  padding: '38px 24px 34px',
+                  textAlign: 'center',
+                  boxShadow: '0 4px 18px -4px rgba(26, 60, 36, 0.04)',
+                  transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+                  cursor: 'default',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 20px',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 20px 32px -8px rgba(28, 68, 40, 0.12), 0 8px 16px -4px rgba(0, 0, 0, 0.04)';
+                  e.currentTarget.style.borderColor = '#86efac';
+                  const iconEl = e.currentTarget.querySelector('.about-approach-icon-wrap');
+                  if (iconEl) {
+                    iconEl.style.transform = 'scale(1.1) rotate(2deg)';
+                    iconEl.style.backgroundColor = '#dcfce7';
+                  }
+                  const stepEl = e.currentTarget.querySelector('.about-approach-step-badge');
+                  if (stepEl) {
+                    stepEl.style.backgroundColor = '#204a32';
+                    stepEl.style.color = '#ffffff';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 18px -4px rgba(26, 60, 36, 0.04)';
+                  e.currentTarget.style.borderColor = '#e2ece5';
+                  const iconEl = e.currentTarget.querySelector('.about-approach-icon-wrap');
+                  if (iconEl) {
+                    iconEl.style.transform = 'scale(1) rotate(0deg)';
+                    iconEl.style.backgroundColor = '#ecfdf5';
+                  }
+                  const stepEl = e.currentTarget.querySelector('.about-approach-step-badge');
+                  if (stepEl) {
+                    stepEl.style.backgroundColor = '#eef8f2';
+                    stepEl.style.color = '#204a32';
+                  }
                 }}
               >
-                {/* Document / Consultation Icon */}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                </svg>
-              </div>
-              <h3
-                style={{
-                  fontSize: '15.5px',
-                  fontWeight: '700',
-                  color: '#111827',
-                  marginBottom: '8px',
-                  fontFamily: "'Manrope', sans-serif",
-                }}
-              >
-                Detailed Consultation
-              </h3>
-              <p
-                style={{
-                  fontSize: '13px',
-                  color: '#6b7280',
-                  lineHeight: '1.5',
-                  fontFamily: "'Manrope', sans-serif",
-                  margin: 0,
-                }}
-              >
-                Understanding your health concerns
-              </p>
-            </div>
+                {/* Step Number Pill Badge */}
+                <div
+                  className="about-approach-step-badge"
+                  style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '18px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    letterSpacing: '0.8px',
+                    color: '#204a32',
+                    backgroundColor: '#eef8f2',
+                    border: '1px solid #d4ebd9',
+                    padding: '2px 9px',
+                    borderRadius: '999px',
+                    transition: 'all 0.25s ease',
+                  }}
+                >
+                  STEP {card.step}
+                </div>
 
-            {/* Card 2: Root Cause Analysis */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #eef2ef',
-                borderRadius: '20px',
-                padding: '36px 20px 32px 20px',
-                textAlign: 'center',
-                boxShadow: '0 4px 16px -4px rgba(0, 0, 0, 0.03)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(0, 0, 0, 0.06)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px -4px rgba(0, 0, 0, 0.03)';
-              }}
-            >
-              <div
-                style={{
-                  width: '46px',
-                  height: '46px',
-                  borderRadius: '50%',
-                  backgroundColor: '#edf7f1',
-                  color: '#1c4428',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 20px',
-                }}
-              >
-                {/* Magnifying Glass Search Icon */}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </div>
-              <h3
-                style={{
-                  fontSize: '15.5px',
-                  fontWeight: '700',
-                  color: '#111827',
-                  marginBottom: '8px',
-                  fontFamily: "'Manrope', sans-serif",
-                }}
-              >
-                Root Cause Analysis
-              </h3>
-              <p
-                style={{
-                  fontSize: '13px',
-                  color: '#6b7280',
-                  lineHeight: '1.5',
-                  fontFamily: "'Manrope', sans-serif",
-                  margin: 0,
-                }}
-              >
-                Indentifying the underlying cause
-              </p>
-            </div>
+                {/* Animated Rounded Icon Box */}
+                <div
+                  className="about-approach-icon-wrap"
+                  style={{
+                    width: '52px',
+                    height: '52px',
+                    borderRadius: '16px',
+                    backgroundColor: '#ecfdf5',
+                    border: '1px solid #d1fae5',
+                    color: '#1c4428',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '8px auto 20px',
+                    boxShadow: '0 4px 12px rgba(22, 101, 52, 0.06)',
+                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                >
+                  {card.icon}
+                </div>
 
-            {/* Card 3: Personalized Treatment */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #eef2ef',
-                borderRadius: '20px',
-                padding: '36px 20px 32px 20px',
-                textAlign: 'center',
-                boxShadow: '0 4px 16px -4px rgba(0, 0, 0, 0.03)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(0, 0, 0, 0.06)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px -4px rgba(0, 0, 0, 0.03)';
-              }}
-            >
-              <div
-                style={{
-                  width: '46px',
-                  height: '46px',
-                  borderRadius: '50%',
-                  backgroundColor: '#edf7f1',
-                  color: '#1c4428',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 20px',
-                }}
-              >
-                {/* Open Book Icon */}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                </svg>
-              </div>
-              <h3
-                style={{
-                  fontSize: '15.5px',
-                  fontWeight: '700',
-                  color: '#111827',
-                  marginBottom: '8px',
-                  fontFamily: "'Manrope', sans-serif",
-                }}
-              >
-                Personalized Treatment
-              </h3>
-              <p
-                style={{
-                  fontSize: '13px',
-                  color: '#6b7280',
-                  lineHeight: '1.5',
-                  fontFamily: "'Manrope', sans-serif",
-                  margin: 0,
-                }}
-              >
-                Tailored to your unique needs
-              </p>
-            </div>
+                {/* Title */}
+                <h3
+                  style={{
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    color: '#111827',
+                    marginBottom: '8px',
+                    lineHeight: '1.35',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  {card.title}
+                </h3>
 
-            {/* Card 4: Continuous Support */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #eef2ef',
-                borderRadius: '20px',
-                padding: '36px 20px 32px 20px',
-                textAlign: 'center',
-                boxShadow: '0 4px 16px -4px rgba(0, 0, 0, 0.03)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(0, 0, 0, 0.06)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px -4px rgba(0, 0, 0, 0.03)';
-              }}
-            >
-              <div
-                style={{
-                  width: '46px',
-                  height: '46px',
-                  borderRadius: '50%',
-                  backgroundColor: '#edf7f1',
-                  color: '#1c4428',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 20px',
-                }}
-              >
-                {/* Analytics Bar Chart Icon */}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="20" x2="18" y2="10" />
-                  <line x1="12" y1="20" x2="12" y2="4" />
-                  <line x1="6" y1="20" x2="6" y2="14" />
-                </svg>
+                {/* Description */}
+                <p
+                  style={{
+                    fontSize: '13.5px',
+                    color: '#6b7280',
+                    lineHeight: '1.55',
+                    fontFamily: "'Manrope', sans-serif",
+                    margin: 0,
+                  }}
+                >
+                  {card.desc}
+                </p>
               </div>
-              <h3
-                style={{
-                  fontSize: '15.5px',
-                  fontWeight: '700',
-                  color: '#111827',
-                  marginBottom: '8px',
-                  fontFamily: "'Manrope', sans-serif",
-                }}
-              >
-                Continuous Support
-              </h3>
-              <p
-                style={{
-                  fontSize: '13px',
-                  color: '#6b7280',
-                  lineHeight: '1.5',
-                  fontFamily: "'Manrope', sans-serif",
-                  margin: 0,
-                }}
-              >
-                Guidance for long-term wellness
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -1242,265 +1123,179 @@ const AboutPage = () => {
               gap: '24px',
             }}
           >
-            {/* Value Card 1: Compassion */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #eef2ef',
-                borderRadius: '18px',
-                padding: '32px 24px',
-                textAlign: 'left',
-                boxShadow: '0 4px 16px -4px rgba(0, 0, 0, 0.03)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(0, 0, 0, 0.06)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px -4px rgba(0, 0, 0, 0.03)';
-              }}
-            >
+            {[
+              {
+                num: '01',
+                title: 'Compassion',
+                desc: 'We listen and care with empathy.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                ),
+              },
+              {
+                num: '02',
+                title: 'Integrity',
+                desc: 'Honest and ethical practice.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <polyline points="9 12 11 14 15 10" />
+                  </svg>
+                ),
+              },
+              {
+                num: '03',
+                title: 'Patient First',
+                desc: 'Your well-being is our priority.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                ),
+              },
+              {
+                num: '04',
+                title: 'Natural Healing',
+                desc: 'Safe, gentle and effective solutions.',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="4" />
+                    <line x1="12" y1="2" x2="12" y2="4" />
+                    <line x1="12" y1="20" x2="12" y2="22" />
+                    <line x1="4.93" y1="4.93" x2="6.34" y2="6.34" />
+                    <line x1="17.66" y1="17.66" x2="19.07" y2="19.07" />
+                    <line x1="2" y1="12" x2="4" y2="12" />
+                    <line x1="20" y1="12" x2="22" y2="12" />
+                    <line x1="6.34" y1="17.66" x2="4.93" y2="19.07" />
+                    <line x1="19.07" y1="4.93" x2="17.66" y2="6.34" />
+                  </svg>
+                ),
+              },
+            ].map((card) => (
               <div
+                key={card.num}
+                className="about-value-card"
                 style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: '#edf7f1',
-                  color: '#1c4428',
+                  position: 'relative',
+                  backgroundColor: '#ffffff',
+                  background: 'linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%)',
+                  border: '1.5px solid #e2ece5',
+                  borderRadius: '22px',
+                  padding: '36px 24px 32px',
+                  textAlign: 'left',
+                  boxShadow: '0 4px 18px -4px rgba(26, 60, 36, 0.04)',
+                  transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+                  cursor: 'default',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: '20px',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 20px 32px -8px rgba(28, 68, 40, 0.12), 0 8px 16px -4px rgba(0, 0, 0, 0.04)';
+                  e.currentTarget.style.borderColor = '#86efac';
+                  const iconEl = e.currentTarget.querySelector('.about-value-icon-wrap');
+                  if (iconEl) {
+                    iconEl.style.transform = 'scale(1.1) rotate(2deg)';
+                    iconEl.style.backgroundColor = '#dcfce7';
+                  }
+                  const badgeEl = e.currentTarget.querySelector('.about-value-num-badge');
+                  if (badgeEl) {
+                    badgeEl.style.backgroundColor = '#204a32';
+                    badgeEl.style.color = '#ffffff';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 18px -4px rgba(26, 60, 36, 0.04)';
+                  e.currentTarget.style.borderColor = '#e2ece5';
+                  const iconEl = e.currentTarget.querySelector('.about-value-icon-wrap');
+                  if (iconEl) {
+                    iconEl.style.transform = 'scale(1) rotate(0deg)';
+                    iconEl.style.backgroundColor = '#ecfdf5';
+                  }
+                  const badgeEl = e.currentTarget.querySelector('.about-value-num-badge');
+                  if (badgeEl) {
+                    badgeEl.style.backgroundColor = '#eef8f2';
+                    badgeEl.style.color = '#204a32';
+                  }
                 }}
               >
-                {/* Heart Icon */}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-              </div>
-              <h3
-                style={{
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  color: '#111827',
-                  marginBottom: '8px',
-                  fontFamily: "'Manrope', sans-serif",
-                }}
-              >
-                Compassion
-              </h3>
-              <p
-                style={{
-                  fontSize: '13.5px',
-                  color: '#6b7280',
-                  lineHeight: '1.55',
-                  fontFamily: "'Manrope', sans-serif",
-                  margin: 0,
-                }}
-              >
-                We listen and care with empathy.
-              </p>
-            </div>
+                {/* Number Badge in Top Right */}
+                <div
+                  className="about-value-num-badge"
+                  style={{
+                    position: 'absolute',
+                    top: '18px',
+                    right: '18px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    letterSpacing: '0.8px',
+                    color: '#204a32',
+                    backgroundColor: '#eef8f2',
+                    border: '1px solid #d4ebd9',
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    transition: 'all 0.25s ease',
+                  }}
+                >
+                  {card.num}
+                </div>
 
-            {/* Value Card 2: Integrity */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #eef2ef',
-                borderRadius: '18px',
-                padding: '32px 24px',
-                textAlign: 'left',
-                boxShadow: '0 4px 16px -4px rgba(0, 0, 0, 0.03)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(0, 0, 0, 0.06)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px -4px rgba(0, 0, 0, 0.03)';
-              }}
-            >
-              <div
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: '#edf7f1',
-                  color: '#1c4428',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: '20px',
-                }}
-              >
-                {/* Shield with Checkmark Icon */}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <polyline points="9 12 11 14 15 10" />
-                </svg>
-              </div>
-              <h3
-                style={{
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  color: '#111827',
-                  marginBottom: '8px',
-                  fontFamily: "'Manrope', sans-serif",
-                }}
-              >
-                Integrity
-              </h3>
-              <p
-                style={{
-                  fontSize: '13.5px',
-                  color: '#6b7280',
-                  lineHeight: '1.55',
-                  fontFamily: "'Manrope', sans-serif",
-                  margin: 0,
-                }}
-              >
-                Honest and ethical practice.
-              </p>
-            </div>
+                {/* Icon Container */}
+                <div
+                  className="about-value-icon-wrap"
+                  style={{
+                    width: '50px',
+                    height: '50px',
+                    borderRadius: '16px',
+                    backgroundColor: '#ecfdf5',
+                    border: '1px solid #d1fae5',
+                    color: '#1c4428',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '20px',
+                    boxShadow: '0 4px 12px rgba(22, 101, 52, 0.06)',
+                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                >
+                  {card.icon}
+                </div>
 
-            {/* Value Card 3: Patient First */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #eef2ef',
-                borderRadius: '18px',
-                padding: '32px 24px',
-                textAlign: 'left',
-                boxShadow: '0 4px 16px -4px rgba(0, 0, 0, 0.03)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(0, 0, 0, 0.06)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px -4px rgba(0, 0, 0, 0.03)';
-              }}
-            >
-              <div
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: '#edf7f1',
-                  color: '#1c4428',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: '20px',
-                }}
-              >
-                {/* People / Patients Icon */}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </div>
-              <h3
-                style={{
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  color: '#111827',
-                  marginBottom: '8px',
-                  fontFamily: "'Manrope', sans-serif",
-                }}
-              >
-                Patient First
-              </h3>
-              <p
-                style={{
-                  fontSize: '13.5px',
-                  color: '#6b7280',
-                  lineHeight: '1.55',
-                  fontFamily: "'Manrope', sans-serif",
-                  margin: 0,
-                }}
-              >
-                Your well-being is our priority.
-              </p>
-            </div>
+                {/* Title */}
+                <h3
+                  style={{
+                    fontSize: '16.5px',
+                    fontWeight: '700',
+                    color: '#111827',
+                    marginBottom: '8px',
+                    lineHeight: '1.35',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  {card.title}
+                </h3>
 
-            {/* Value Card 4: Natural Healing */}
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #eef2ef',
-                borderRadius: '18px',
-                padding: '32px 24px',
-                textAlign: 'left',
-                boxShadow: '0 4px 16px -4px rgba(0, 0, 0, 0.03)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(0, 0, 0, 0.06)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px -4px rgba(0, 0, 0, 0.03)';
-              }}
-            >
-              <div
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: '#edf7f1',
-                  color: '#1c4428',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: '20px',
-                }}
-              >
-                {/* Sun / Natural Radiance Icon */}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="4" />
-                  <line x1="12" y1="2" x2="12" y2="4" />
-                  <line x1="12" y1="20" x2="12" y2="22" />
-                  <line x1="4.93" y1="4.93" x2="6.34" y2="6.34" />
-                  <line x1="17.66" y1="17.66" x2="19.07" y2="19.07" />
-                  <line x1="2" y1="12" x2="4" y2="12" />
-                  <line x1="20" y1="12" x2="22" y2="12" />
-                  <line x1="6.34" y1="17.66" x2="4.93" y2="19.07" />
-                  <line x1="19.07" y1="4.93" x2="17.66" y2="6.34" />
-                </svg>
+                {/* Description */}
+                <p
+                  style={{
+                    fontSize: '13.5px',
+                    color: '#6b7280',
+                    lineHeight: '1.55',
+                    fontFamily: "'Manrope', sans-serif",
+                    margin: 0,
+                  }}
+                >
+                  {card.desc}
+                </p>
               </div>
-              <h3
-                style={{
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  color: '#111827',
-                  marginBottom: '8px',
-                  fontFamily: "'Manrope', sans-serif",
-                }}
-              >
-                Natural Healing
-              </h3>
-              <p
-                style={{
-                  fontSize: '13.5px',
-                  color: '#6b7280',
-                  lineHeight: '1.55',
-                  fontFamily: "'Manrope', sans-serif",
-                  margin: 0,
-                }}
-              >
-                Safe, gentle and effective solutions.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -1522,6 +1317,10 @@ const AboutPage = () => {
             grid-template-columns: 1fr !important;
             gap: 40px !important;
             padding: 0 24px !important;
+          }
+          .about-doctor-points-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
           }
           .about-process-cards-grid,
           .about-values-cards-grid {
