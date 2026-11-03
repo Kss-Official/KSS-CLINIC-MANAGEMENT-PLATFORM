@@ -254,11 +254,25 @@ class AppointmentDetailView(APIView):
             return Response({'error': 'Appointment not found'}, status=status.HTTP_404_NOT_FOUND)
 
         new_status = request.data.get('status')
+        new_prescription_status = request.data.get('prescription_status') or request.data.get('prescriptionStatus')
+
+        if not new_status and not new_prescription_status:
+            return Response({'error': 'status or prescription_status field required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        fields_to_update = ['updated_at']
         if new_status:
             apt.status = new_status
-            apt.save(update_fields=['status', 'updated_at'])
-            return Response(AppointmentSerializer(apt).data)
-        return Response({'error': 'status field required'}, status=status.HTTP_400_BAD_REQUEST)
+            fields_to_update.append('status')
+        if new_prescription_status:
+            apt.prescription_status = new_prescription_status
+            fields_to_update.append('prescription_status')
+            if str(new_prescription_status).strip().lower() in ['complete', 'completed'] and apt.status != 'Cancelled':
+                apt.status = 'Complete'
+                if 'status' not in fields_to_update:
+                    fields_to_update.append('status')
+
+        apt.save(update_fields=fields_to_update)
+        return Response(AppointmentSerializer(apt).data)
 
 
 class NotificationListView(APIView):

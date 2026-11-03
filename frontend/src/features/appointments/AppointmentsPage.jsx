@@ -47,22 +47,31 @@ const AppointmentsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const mapApiAppointment = (item) => ({
-    id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
-    rawId: item.id,
-    name: item.patient_name || item.name || 'Anonymous Patient',
-    contact: item.patient_phone || item.contact || 'N/A',
-    email: item.patient_email || item.email || '',
-    date: item.appointment_date || item.date || '',
-    time: item.time_slot || item.time || '',
-    reason: item.reason_for_visit || item.reason || 'General Consultation',
-    consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
-    status: item.status || 'Confirmed',
-    prescriptionStatus: item.prescription_status || item.prescriptionStatus || 'Pending',
-    ageGender: item.age_gender || item.ageGender || 'Adult',
-    notes: item.notes || item.reason_for_visit || '',
-    doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
-  });
+  const mapApiAppointment = (item) => {
+    const rxStatus = item.prescription_status || item.prescriptionStatus || 'Pending';
+    const isRxComplete = ['complete', 'completed'].includes(String(rxStatus).trim().toLowerCase());
+    let aptStatus = item.status || 'Confirmed';
+    if (isRxComplete && String(aptStatus).toLowerCase() !== 'cancelled') {
+      aptStatus = 'Complete';
+    }
+
+    return {
+      id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
+      rawId: item.id,
+      name: item.patient_name || item.name || 'Anonymous Patient',
+      contact: item.patient_phone || item.contact || 'N/A',
+      email: item.patient_email || item.email || '',
+      date: item.appointment_date || item.date || '',
+      time: item.time_slot || item.time || '',
+      reason: item.reason_for_visit || item.reason || 'General Consultation',
+      consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
+      status: aptStatus,
+      prescriptionStatus: rxStatus,
+      ageGender: item.age_gender || item.ageGender || 'Adult',
+      notes: item.notes || item.reason_for_visit || '',
+      doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+    };
+  };
 
   const fetchAppointments = useCallback(async () => {
     try {
