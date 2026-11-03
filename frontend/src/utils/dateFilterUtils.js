@@ -109,3 +109,4 @@ export const matchesDateFilter = (itemDate, dateFilter) => {
 
   return String(itemDate).trim().toLowerCase() === String(dateFilter).trim().toLowerCase();
 };
+
