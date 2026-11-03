@@ -113,7 +113,7 @@ const ServicesSection = () => {
               marginBottom: '14px',
             }}
           >
-            OUR SERVICE
+            OUR SERVICES
           </span>
 
           <h2

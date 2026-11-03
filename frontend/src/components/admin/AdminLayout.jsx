@@ -1,4 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 import NewAppointmentModal from './NewAppointmentModal';
@@ -18,6 +20,39 @@ export const AdminContext = createContext({
 export const useAdmin = () => useContext(AdminContext);
 
 const AdminLayout = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // If user is not authenticated, block admin layout and immediately redirect to login page
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Prevent browser Back button from exiting the Admin Portal to the Home page while logged in.
+  // The Admin Portal should ONLY be exited when the user explicitly logs out, which directs to /login.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // Push an entry to history so back button is captured within the admin session
+    window.history.pushState({ inAdminPortal: true }, '', window.location.href);
+
+    const handlePopState = () => {
+      // While logged into Admin Portal, clicking browser Back must NEVER dump the user to the public home page.
+      if (location.pathname === '/dashboard') {
+        window.history.pushState({ inAdminPortal: true }, '', window.location.href);
+      } else {
+        // If on an inner admin page, route back to /dashboard inside Admin Portal
+        navigate('/dashboard', { replace: true });
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isAuthenticated, location.pathname, navigate]);
+
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [selectedPatientForPrescription, setSelectedPatientForPrescription] = useState(null);

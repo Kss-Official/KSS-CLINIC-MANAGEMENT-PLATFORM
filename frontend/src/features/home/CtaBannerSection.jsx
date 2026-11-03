@@ -40,7 +40,7 @@ const CtaBannerSection = ({ onOpenBooking }) => {
           width: '100%',
           height: '100%',
           background:
-            'linear-gradient(90deg, rgba(16, 46, 26, 0.90) 0%, rgba(16, 46, 26, 0.72) 35%, rgba(16, 46, 26, 0.25) 50%, rgba(16, 46, 26, 0) 62%)',
+            'linear-gradient(90deg, rgba(16, 46, 26, 0.92) 0%, rgba(16, 46, 26, 0.78) 40%, rgba(16, 46, 26, 0.35) 58%, rgba(16, 46, 26, 0) 72%)',
           zIndex: 1,
           pointerEvents: 'none',
         }}
@@ -61,57 +61,55 @@ const CtaBannerSection = ({ onOpenBooking }) => {
         <div
           className="cta-banner-content"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '32px',
+            maxWidth: '820px',
           }}
         >
-          {/* Left Text Column */}
-          <div style={{ maxWidth: '720px' }}>
-            <span
-              style={{
-                display: 'inline-block',
-                fontSize: '12.5px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '1.8px',
-                color: '#74c69d',
-                marginBottom: '14px',
-              }}
-            >
-              READY TO START YOUR WELLNESS JOURNEY?
-            </span>
+          {/* Eyebrow */}
+          <span
+            style={{
+              display: 'inline-block',
+              fontSize: '12.5px',
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              letterSpacing: '1.8px',
+              color: '#74c69d',
+              marginBottom: '14px',
+            }}
+          >
+            READY TO START YOUR WELLNESS JOURNEY?
+          </span>
 
-            <h2
-              className="cta-banner-heading"
-              style={{
-                fontSize: '48px',
-                fontWeight: '800',
-                lineHeight: '1.14',
-                color: '#ffffff',
-                letterSpacing: '-0.8px',
-                marginBottom: '16px',
-              }}
-            >
-              Book Your Appointment<br />Today
-            </h2>
+          {/* Heading in ONE line */}
+          <h1
+            className="cta-banner-heading"
+            style={{
+              fontSize: '46px',
+              fontWeight: '800',
+              lineHeight: '1.18',
+              color: '#ffffff',
+              letterSpacing: '-0.8px',
+              margin: '0 0 16px 0',
+            }}
+          >
+            Book Your Appointment Today
+          </h1>
 
-            <p
-              className="cta-banner-subheading"
-              style={{
-                fontSize: '15.5px',
-                color: 'rgba(255, 255, 255, 0.92)',
-                lineHeight: '1.6',
-                margin: 0,
-              }}
-            >
-              Take the first step towards better health with personalized homeopathic care from Dr. Kumar<br className="cta-sub-break" /> Tripathi Ampeh (Pat.).
-            </p>
-          </div>
+          {/* Subheading Paragraph */}
+          <p
+            className="cta-banner-subheading"
+            style={{
+              fontSize: '15.5px',
+              color: 'rgba(255, 255, 255, 0.92)',
+              lineHeight: '1.6',
+              margin: '0 0 28px 0',
+              maxWidth: '640px',
+            }}
+          >
+            Take the first step towards better health with personalized homeopathic care from Dr. Kumar Tripathi Ampeh (Pat.).
+          </p>
 
-          {/* Right Button Column */}
-          <div style={{ flexShrink: 0 }}>
+          {/* Book Appointment Button on LHS directly after paragraph */}
+          <div className="cta-btn-wrapper">
             <button
               type="button"
               onClick={handleBooking}
@@ -124,7 +122,7 @@ const CtaBannerSection = ({ onOpenBooking }) => {
                 color: '#153e26',
                 fontSize: '15.5px',
                 fontWeight: '700',
-                padding: '15px 34px',
+                padding: '14px 32px',
                 borderRadius: '9999px',
                 border: 'none',
                 cursor: 'pointer',
@@ -163,6 +161,11 @@ const CtaBannerSection = ({ onOpenBooking }) => {
       </div>
 
       <style>{`
+        @media (min-width: 900px) {
+          .cta-banner-heading {
+            white-space: nowrap !important;
+          }
+        }
         @media (max-width: 1024px) {
           .cta-banner-container {
             padding: 70px 28px !important;
@@ -181,16 +184,9 @@ const CtaBannerSection = ({ onOpenBooking }) => {
           .cta-banner-container {
             padding: 55px 20px !important;
           }
-          .cta-banner-content {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-            gap: 26px !important;
-          }
           .cta-banner-heading {
-            font-size: 32px !important;
-          }
-          .cta-sub-break {
-            display: none !important;
+            font-size: 30px !important;
+            white-space: normal !important;
           }
         }
       `}</style>

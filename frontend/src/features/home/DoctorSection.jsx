@@ -128,109 +128,99 @@ const DoctorSection = ({ onOpenBooking }) => {
               With years of experience in homeopathic care, Dr. K. Tripathi Ampeh (Pat.) is dedicated to providing compassionate and personalized treatment. His approach focuses on understanding the root cause of health concerns and supporting each patient's overall well-being.
             </p>
 
-            {/* 3 Points: Row 1 (Points 1 & 2 side by side) and Row 2 (Point 3) */}
+            {/* 4 Key Points in a balanced 2x2 grid */}
             <div
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, max-content)',
+                gap: '16px 36px',
                 marginBottom: '34px',
               }}
+              className="doctor-points-grid"
             >
-              {/* Row 1: Points 1 and 2 side by side */}
-              <div
-                className="doctor-points-row1"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '36px',
-                  flexWrap: 'wrap',
-                }}
-              >
-                {/* Point 1: Qualified & Experienced Practitioner */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: '50%',
-                      backgroundColor: '#edf7f0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#265e38',
-                      flexShrink: 0,
-                    }}
+              {/* Point 1: Qualified & Experienced Practitioner */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    backgroundColor: '#edf7f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#265e38',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-                      <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
-                    </svg>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#111827',
-                      fontFamily: "'Manrope', sans-serif",
-                    }}
-                  >
-                    Qualified & Experienced Practitioner
-                  </span>
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                    <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
+                  </svg>
                 </div>
-
-                {/* Point 2: Trusted by 15K+ Patients */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: '50%',
-                      backgroundColor: '#edf7f0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#265e38',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="m9 12 2 2 4-4" />
-                    </svg>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#111827',
-                      fontFamily: "'Manrope', sans-serif",
-                    }}
-                  >
-                    Trusted by 15K+ Patients
-                  </span>
-                </div>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#111827',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  Qualified &amp; Experienced Practitioner
+                </span>
               </div>
 
-              {/* Row 2: Point 3 */}
+              {/* Point 2: Trusted by 15K+ Patients */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    backgroundColor: '#edf7f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#265e38',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="m9 12 2 2 4-4" />
+                  </svg>
+                </div>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#111827',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  Trusted by 15K+ Patients
+                </span>
+              </div>
+
+              {/* Point 3: Commitment to Natural Healing */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div
                   style={{
@@ -267,6 +257,47 @@ const DoctorSection = ({ onOpenBooking }) => {
                   }}
                 >
                   Commitment to Natural Healing
+                </span>
+              </div>
+
+              {/* Point 4: Safe & Gentle Remedies */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    backgroundColor: '#edf7f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#265e38',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <path d="m9 12 2 2 4-4" />
+                  </svg>
+                </div>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#111827',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  Safe &amp; Gentle Remedies
                 </span>
               </div>
             </div>
@@ -360,8 +391,9 @@ const DoctorSection = ({ onOpenBooking }) => {
           .doctor-title {
             font-size: 26px !important;
           }
-          .doctor-points-row1 {
-            gap: 16px !important;
+          .doctor-points-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
           }
         }
       `}</style>

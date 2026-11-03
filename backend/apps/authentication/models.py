@@ -32,3 +32,4 @@ class PasswordResetCode(models.Model):
 
     def __str__(self):
         return f"Reset code for {self.user.username} ({'Used' if self.is_used else 'Active'})"
+

@@ -73,9 +73,10 @@ const AboutSection = () => {
                 marginBottom: '30px',
                 maxWidth: '545px',
                 fontFamily: "'Manrope', sans-serif",
+                textWrap: 'pretty',
               }}
             >
-              At Dr. Kumar Tripathi Ampeh (Pat.) Homeopathy Clinic, we believe in treating the person, not just the symptoms. Our approach focuses on understanding your unique health concerns and providing personalized homeopathic care for long-term well-being.
+              At Dr. Kumari Tripathi Ampeh (Pat.) Homeopathy Clinic, we believe in treating the person, not just the symptoms. Our approach focuses on understanding your unique health concerns and providing personalized homeopathic care for long-term well-being. We are committed to creating a comfortable and supportive environment where every patient feels heard, valued, and cared for throughout their healing journey.
             </p>
 
             <button

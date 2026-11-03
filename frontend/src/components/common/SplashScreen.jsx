@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import splashLogo from '../../assets/splash-logo-clean.png';
 
+// In-memory flag:
+// - Resets automatically on full page reload (F5 / Refresh button) -> Splash animation plays on refresh!
+// - Persists during client-side SPA navigation between pages -> No repeated flash when switching routes!
 let splashAlreadyShown = false;
+
+// Clear legacy persistent storage so reload / refresh is never blocked
 try {
-  if (sessionStorage.getItem('clinic_splash_shown') === 'true') {
-    splashAlreadyShown = true;
-  }
+  sessionStorage.removeItem('clinic_splash_shown');
+  localStorage.removeItem('clinic_splash_shown');
 } catch {}
 
 export const markSplashAsShown = () => {
   splashAlreadyShown = true;
-  try {
-    sessionStorage.setItem('clinic_splash_shown', 'true');
-  } catch {}
 };
 
 export const hasSplashBeenShown = () => {

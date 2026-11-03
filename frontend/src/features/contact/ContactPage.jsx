@@ -745,6 +745,8 @@ const ContactPage = () => {
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
+                      alignSelf: 'flex-start',
+                      width: 'fit-content',
                       gap: '8px',
                       backgroundColor: '#eaf6ee',
                       border: '1px solid #c7ebd2',
