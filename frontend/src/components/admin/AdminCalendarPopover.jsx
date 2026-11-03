@@ -30,7 +30,7 @@ const parseDateValue = (val) => {
   if (parts.length === 3) {
     const day = parseInt(parts[0], 10);
     const monthIdx = SHORT_MONTHS.findIndex(
-      (m) => m.toLowerCase() === parts[1].toLowerCase()
+      (m) => m.toLowerCase() === parts[1].toLowerCase().slice(0, 3)
     );
     const year = parseInt(parts[2], 10);
     if (monthIdx !== -1 && !isNaN(day) && !isNaN(year)) {

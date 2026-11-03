@@ -5,29 +5,7 @@ import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
 import ActionDropdown from '../../components/admin/ActionDropdown';
 import AdminPagination from '../../components/admin/AdminPagination';
 import AdminCalendarPopover from '../../components/admin/AdminCalendarPopover';
-
-const formatDateForDataset = (isoStr) => {
-  if (!isoStr) return '';
-  const [year, month, day] = isoStr.split('-');
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const monthName = months[parseInt(month, 10) - 1];
-  return `${parseInt(day, 10)} ${monthName} ${year}`;
-};
-
-const parseDateString = (str) => {
-  if (!str) return null;
-  const parts = str.trim().split(' ');
-  if (parts.length === 3) {
-    const day = parseInt(parts[0], 10);
-    const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-    const month = months.indexOf(parts[1].toLowerCase());
-    const year = parseInt(parts[2], 10);
-    if (month !== -1 && !isNaN(day) && !isNaN(year)) {
-      return new Date(year, month, day);
-    }
-  }
-  return new Date(str);
-};
+import { formatDateForDataset, parseDateString, matchesDateFilter as checkDateFilter } from '../../utils/dateFilterUtils';
 
 const AppointmentsPage = () => {
   const { openNewAppointment, openViewAppointment, openNewPrescription } = useAdmin();
@@ -181,23 +159,7 @@ const AppointmentsPage = () => {
     setCurrentPage(1);
   };
 
-  const matchesDateFilter = (itemDate) => {
-    if (dateFilter === 'All Dates') return true;
-    if (dateFilter === 'Today') return itemDate === '28 Oct 2026';
-    if (dateFilter === 'Tomorrow') return itemDate === '29 Oct 2026';
-    if (dateFilter === 'This Week') {
-      const d = parseDateString(itemDate);
-      if (!d) return false;
-      const startOfWeek = new Date(2026, 9, 25);
-      const endOfWeek = new Date(2026, 9, 31, 23, 59, 59);
-      return d >= startOfWeek && d <= endOfWeek;
-    }
-    if (dateFilter.startsWith('Custom:')) {
-      const targetDate = dateFilter.replace('Custom: ', '').trim();
-      return itemDate === targetDate;
-    }
-    return itemDate === dateFilter;
-  };
+  const matchesDateFilter = (itemDate) => checkDateFilter(itemDate, dateFilter);
 
   // Filtered rows matching all filter criteria
   const filteredAppointments = appointmentsList.filter((item) => {
@@ -620,7 +582,7 @@ const AppointmentsPage = () => {
               <AdminCalendarPopover
                 isOpen={isPickingDate}
                 onClose={() => setIsPickingDate(false)}
-                selectedDate={dateFilter.startsWith('Custom:') ? dateFilter.replace('Custom: ', '') : (customDate || '28 Oct 2026')}
+                selectedDate={dateFilter.startsWith('Custom:') ? dateFilter.replace('Custom: ', '') : (customDate || formatDateForDataset(new Date().toISOString().split('T')[0]))}
                 onSelectDate={(displayStr, isoStr) => {
                   if (displayStr) {
                     setCustomDate(isoStr);
