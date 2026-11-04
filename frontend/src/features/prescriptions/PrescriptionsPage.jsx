@@ -45,13 +45,29 @@ const PrescriptionsPage = () => {
       fetchPrescriptions();
     };
 
-    window.addEventListener('prescription-created', handleRxCreated);
-    window.addEventListener('prescription-updated', handleRxCreated);
-    window.addEventListener('focus', fetchPrescriptions);
-    return () => {
-      window.removeEventListener('prescription-created', handleRxCreated);
-      window.removeEventListener('prescription-updated', handleRxCreated);
-      window.removeEventListener('focus', fetchPrescriptions);
+    // Update row status instantly when WhatsApp send succeeds
+      const handleWhatsAppSent = (e) => {
+        const { rxId, status } = e.detail || {};
+        if (rxId && status) {
+          setPrescriptionsList((prev) =>
+            prev.map((rx) =>
+              (rx.id === rxId || rx.rxId === rxId || rx.prescription_id === rxId)
+                ? { ...rx, status }
+                : rx
+            )
+          );
+        }
+      };
+
+      window.addEventListener('prescription-created', handleRxCreated);
+      window.addEventListener('prescription-updated', handleRxCreated);
+      window.addEventListener('focus', fetchPrescriptions);
+      window.addEventListener('prescription-whatsapp-sent', handleWhatsAppSent);
+      return () => {
+        window.removeEventListener('prescription-created', handleRxCreated);
+        window.removeEventListener('prescription-updated', handleRxCreated);
+        window.removeEventListener('focus', fetchPrescriptions);
+        window.removeEventListener('prescription-whatsapp-sent', handleWhatsAppSent);
     };
   }, [fetchPrescriptions]);
 

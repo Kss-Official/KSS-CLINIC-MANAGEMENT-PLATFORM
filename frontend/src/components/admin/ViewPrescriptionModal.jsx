@@ -7,6 +7,7 @@ const ViewPrescriptionModal = ({
   onClose,
   prescription,
   onNavigateToPatient,
+  onWhatsAppSent,
 }) => {
   const [activeRx, setActiveRx] = useState(prescription);
 
@@ -259,6 +260,14 @@ const ViewPrescriptionModal = ({
                 pdf_base64: extraData.pdf_base64,
               });
               setActiveRx((prev) => (prev ? { ...prev, status: 'Delivered' } : prev));
+              // Notify parent page to update the list row status instantly
+              if (onWhatsAppSent) {
+                onWhatsAppSent(rxIdentifier, 'Delivered');
+              }
+              // Also broadcast so PrescriptionsPage listener can catch it
+              window.dispatchEvent(new CustomEvent('prescription-whatsapp-sent', {
+                detail: { rxId: rxIdentifier, status: 'Delivered' }
+              }));
               return res;
             }}
           />
