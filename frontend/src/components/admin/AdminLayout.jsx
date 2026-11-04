@@ -310,6 +310,26 @@ const AdminLayout = ({ children }) => {
           }}
         />
       </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .admin-portal-wrapper {
+            height: 100dvh !important;
+          }
+          .admin-portal-body {
+            height: calc(100dvh - 70px) !important;
+          }
+          .admin-main-content {
+            padding: 16px 12px 24px 12px !important;
+          }
+          .admin-footer {
+            flex-direction: column !important;
+            gap: 10px !important;
+            padding: 16px 12px !important;
+            text-align: center !important;
+          }
+        }
+      `}</style>
     </AdminContext.Provider>
   );
 };

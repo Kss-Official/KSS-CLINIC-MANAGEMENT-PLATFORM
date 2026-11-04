@@ -234,6 +234,7 @@ const AppointmentsPage = () => {
     <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* 1. Top Appointments Banner */}
       <div
+        className="admin-page-banner"
         style={{
           backgroundColor: '#eaf5ed',
           borderRadius: '20px',
@@ -262,6 +263,7 @@ const AppointmentsPage = () => {
             APPOINTMENTS
           </div>
           <h1
+            className="admin-page-banner-title"
             style={{
               fontSize: '28px',
               fontWeight: '800',
@@ -286,6 +288,7 @@ const AppointmentsPage = () => {
 
         {/* Herbal Mortar Illustration */}
         <div
+          className="admin-page-banner-img-wrap"
           style={{
             position: 'absolute',
             right: 0,
@@ -299,6 +302,7 @@ const AppointmentsPage = () => {
           <img
             src={bannerHerbsImg}
             alt="Herbal Medicine"
+            className="admin-page-banner-img"
             style={{
               height: '158px',
               maxHeight: '100%',
@@ -313,6 +317,7 @@ const AppointmentsPage = () => {
 
       {/* 2. Four Metrics Summary Cards */}
       <div
+        className="admin-metrics-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
@@ -565,6 +570,7 @@ const AppointmentsPage = () => {
 
         {/* Filter Toolbar */}
         <div
+          className="admin-page-filter-toolbar"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -574,7 +580,7 @@ const AppointmentsPage = () => {
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 500px' }}>
+          <div className="admin-page-filter-group" style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 500px', flexWrap: 'wrap' }}>
             {/* Date Dropdown with 5 options: All Dates, Today, Tomorrow, This Week, Select Date (Calendar) */}
             <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
               <select
@@ -740,8 +746,8 @@ const AppointmentsPage = () => {
         </div>
 
         {/* Appointments Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div className="admin-table-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>APPOINTMENT ID</th>
@@ -943,6 +949,52 @@ const AppointmentsPage = () => {
           recordType="appointments"
         />
       </div>
+
+      <style>{`
+        @media (max-width: 1080px) {
+          .admin-metrics-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 16px !important;
+          }
+        }
+        @media (max-width: 768px) {
+          .admin-page-banner {
+            height: auto !important;
+            min-height: 120px !important;
+            padding: 22px 18px !important;
+          }
+          .admin-page-banner-title {
+            font-size: 22px !important;
+          }
+          .admin-page-banner-img {
+            opacity: 0.28 !important;
+            height: 120px !important;
+          }
+          .admin-page-filter-toolbar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .admin-page-filter-group {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+          }
+          .admin-page-filter-group select {
+            flex: 1 1 calc(50% - 6px) !important;
+          }
+        }
+        @media (max-width: 540px) {
+          .admin-metrics-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .admin-page-filter-group select,
+          .admin-page-filter-group button {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

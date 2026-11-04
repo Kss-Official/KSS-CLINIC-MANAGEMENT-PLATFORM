@@ -429,6 +429,7 @@ const SettingsPage = () => {
 
       {/* Settings Banner */}
       <div
+        className="admin-page-banner"
         style={{
           backgroundColor: '#eaf5ed',
           borderRadius: '20px',
@@ -445,6 +446,7 @@ const SettingsPage = () => {
       >
         <div style={{ zIndex: 2 }}>
           <h1
+            className="admin-page-banner-title"
             style={{
               fontSize: '28px',
               fontWeight: '800',
@@ -469,6 +471,7 @@ const SettingsPage = () => {
 
         {/* Herbal Mortar Illustration */}
         <div
+          className="admin-page-banner-img-wrap"
           style={{
             position: 'absolute',
             right: 0,
@@ -482,6 +485,7 @@ const SettingsPage = () => {
           <img
             src={bannerHerbsImg}
             alt="Herbal Medicine"
+            className="admin-page-banner-img"
             style={{
               height: '148px',
               maxHeight: '100%',
@@ -566,6 +570,7 @@ const SettingsPage = () => {
 
         {/* Unified 4-Column Grid: Row 1 & Row 2 perfectly aligned */}
         <div
+          className="admin-clinic-info-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: '1.15fr 1.55fr 1.25fr 1.25fr',
@@ -573,7 +578,7 @@ const SettingsPage = () => {
           }}
         >
           {/* Row 1, Col 1: Clinic Name */}
-          <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+          <div className="admin-info-cell admin-info-cell-1" style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               CLINIC NAME
             </div>
@@ -583,7 +588,7 @@ const SettingsPage = () => {
           </div>
 
           {/* Row 1, Col 2: Doctor Name */}
-          <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+          <div className="admin-info-cell admin-info-cell-2" style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               DOCTOR NAME
             </div>
@@ -593,7 +598,7 @@ const SettingsPage = () => {
           </div>
 
           {/* Row 1, Col 3: Contact Number */}
-          <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+          <div className="admin-info-cell admin-info-cell-3" style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               CONTACT NUMBER
             </div>
@@ -606,7 +611,7 @@ const SettingsPage = () => {
           </div>
 
           {/* Row 1, Col 4: Alternate Number */}
-          <div style={{ paddingLeft: '24px' }}>
+          <div className="admin-info-cell admin-info-cell-4" style={{ paddingLeft: '24px' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               ALTERNATE NUMBER
             </div>
@@ -619,7 +624,7 @@ const SettingsPage = () => {
           </div>
 
           {/* Row 2, Col 1: Email Address (Directly under Clinic Name) */}
-          <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+          <div className="admin-info-cell admin-info-cell-5" style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               EMAIL ADDRESS
             </div>
@@ -633,7 +638,7 @@ const SettingsPage = () => {
           </div>
 
           {/* Row 2, Col 2: Address (Directly under Doctor Name!) */}
-          <div style={{ gridColumn: '2 / span 3', paddingLeft: '24px' }}>
+          <div className="admin-info-cell admin-info-cell-address" style={{ gridColumn: '2 / span 3', paddingLeft: '24px' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
               ADDRESS
             </div>
@@ -718,7 +723,7 @@ const SettingsPage = () => {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1.25fr 1fr', alignItems: 'center' }}>
+        <div className="admin-appt-settings-grid" style={{ display: 'grid', gridTemplateColumns: '1.45fr 1.25fr 1fr', alignItems: 'center' }}>
           {/* Column 1: Working Days */}
           <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '10px' }}>
@@ -831,7 +836,7 @@ const SettingsPage = () => {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+        <div className="admin-notification-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
           {[
             { key: 'newAppointment', title: 'New Appointment', desc: 'Get notified when a new appointment is booked.' },
             { key: 'appointmentReminder', title: 'Appointment Reminder', desc: 'Receive reminders for upcoming appointments.' },
@@ -1677,6 +1682,79 @@ const SettingsPage = () => {
           </div>
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 1024px) {
+          .admin-clinic-info-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 18px !important;
+          }
+          .admin-info-cell-address {
+            grid-column: 1 / span 2 !important;
+            padding-left: 0 !important;
+            border-top: 1px solid #f1f5f9 !important;
+            padding-top: 14px !important;
+          }
+          .admin-notification-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 16px !important;
+          }
+        }
+        @media (max-width: 768px) {
+          .admin-page-banner {
+            height: auto !important;
+            min-height: 120px !important;
+            padding: 22px 18px !important;
+          }
+          .admin-page-banner-title {
+            font-size: 22px !important;
+          }
+          .admin-page-banner-img {
+            opacity: 0.28 !important;
+            height: 120px !important;
+          }
+          .admin-appt-settings-grid {
+            grid-template-columns: 1fr !important;
+            gap: 18px !important;
+          }
+          .admin-appt-settings-grid > div {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            border-right: none !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+            padding-bottom: 14px !important;
+          }
+          .admin-appt-settings-grid > div:last-child {
+            border-bottom: none !important;
+            padding-bottom: 0 !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .admin-clinic-info-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+          .admin-info-cell {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            border-right: none !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+            padding-bottom: 12px !important;
+          }
+          .admin-info-cell:last-child {
+            border-bottom: none !important;
+            padding-bottom: 0 !important;
+          }
+          .admin-info-cell-address {
+            grid-column: 1 / span 1 !important;
+            border-top: none !important;
+          }
+          .admin-notification-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

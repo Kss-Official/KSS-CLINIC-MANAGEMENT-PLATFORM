@@ -394,4 +394,26 @@ dialog::backdrop {
     padding: 8px 14px !important;
     font-size: 13px !important;
   }
+
+  /* Admin Modals & Tables on Mobile */
+  .admin-modal-card {
+    border-radius: 18px !important;
+    width: 95% !important;
+    max-height: calc(100dvh - 24px) !important;
+  }
+
+  .admin-modal-scroll {
+    padding: 22px 16px !important;
+  }
+
+  .admin-modal-scroll form div[style*="grid-template-columns: 1fr 1fr"],
+  .admin-modal-scroll form div[style*="gridTemplateColumns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .admin-table-container {
+    border-radius: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
 }

@@ -236,24 +236,6 @@ class ForgotPasswordView(views.APIView):
             or user.is_superuser
         )
 
-        if portal == 'patient' and (is_staff_or_admin or user.role != User.Role.PATIENT):
-            return Response(
-                {
-                    'success': False,
-                    'error': 'Access denied. Administrator accounts cannot reset password through the Patient Portal. Please use the Admin Login.'
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if portal == 'admin' and (not is_staff_or_admin or user.role == User.Role.PATIENT):
-            return Response(
-                {
-                    'success': False,
-                    'error': 'Access denied. Patient accounts cannot reset password through the Admin Portal. Please use the Patient Login.'
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         if not user.email or '@' not in user.email:
             return Response(
                 {'success': False, 'error': 'No registered email address found for this account. Please contact clinic support.'},
@@ -325,7 +307,8 @@ class ForgotPasswordView(views.APIView):
                 'success': True,
                 'message': f"A 6-digit verification code has been sent to {masked}.",
                 'email': masked,
-                'username': user.username
+                'username': user.username,
+                'is_admin': is_staff_or_admin,
             }, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Error sending password reset email via Brevo: {e}", exc_info=True)
@@ -391,24 +374,6 @@ class ResetPasswordView(views.APIView):
             or user.is_superuser
         )
 
-        if portal == 'patient' and (is_staff_or_admin or user.role != User.Role.PATIENT):
-            return Response(
-                {
-                    'success': False,
-                    'error': 'Access denied. Administrator accounts cannot reset password through the Patient Portal. Please use the Admin Login.'
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if portal == 'admin' and (not is_staff_or_admin or user.role == User.Role.PATIENT):
-            return Response(
-                {
-                    'success': False,
-                    'error': 'Access denied. Patient accounts cannot reset password through the Admin Portal. Please use the Patient Login.'
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         reset_code = PasswordResetCode.objects.filter(
             user=user,
             code=code,
@@ -431,5 +396,7 @@ class ResetPasswordView(views.APIView):
 
         return Response({
             'success': True,
-            'message': 'Password has been reset successfully. You can now login with your new password.'
+            'message': 'Password has been reset successfully. You can now login with your new password.',
+            'is_admin': is_staff_or_admin,
+            'redirect_url': '/admin-login' if is_staff_or_admin else '/login'
         }, status=status.HTTP_200_OK)

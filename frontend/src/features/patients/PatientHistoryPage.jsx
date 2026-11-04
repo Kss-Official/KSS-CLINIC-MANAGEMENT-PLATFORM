@@ -126,6 +126,7 @@ const PatientHistoryPage = () => {
     <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* 1. Top Banner */}
       <div
+        className="admin-page-banner"
         style={{
           backgroundColor: '#eaf5ed',
           borderRadius: '20px',
@@ -154,6 +155,7 @@ const PatientHistoryPage = () => {
             PATIENT HISTORY
           </div>
           <h1
+            className="admin-page-banner-title"
             style={{
               fontSize: '28px',
               fontWeight: '800',
@@ -178,6 +180,7 @@ const PatientHistoryPage = () => {
 
         {/* Herbal Mortar Illustration */}
         <div
+          className="admin-page-banner-img-wrap"
           style={{
             position: 'absolute',
             right: 0,
@@ -191,6 +194,7 @@ const PatientHistoryPage = () => {
           <img
             src={bannerHerbsImg}
             alt="Herbal Medicine"
+            className="admin-page-banner-img"
             style={{
               height: '158px',
               maxHeight: '100%',
@@ -205,6 +209,7 @@ const PatientHistoryPage = () => {
 
       {/* 2. Four Metrics Cards */}
       <div
+        className="admin-metrics-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
@@ -394,6 +399,7 @@ const PatientHistoryPage = () => {
       >
         {/* Filter Toolbar */}
         <div
+          className="admin-page-filter-toolbar"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -403,7 +409,7 @@ const PatientHistoryPage = () => {
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 650px' }}>
+          <div className="admin-page-filter-group" style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 650px', flexWrap: 'wrap' }}>
             {/* Search Input */}
             <div style={{ position: 'relative', flex: 1 }}>
               <div
@@ -527,8 +533,8 @@ const PatientHistoryPage = () => {
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div className="admin-table-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b' }}>Patient ID</th>
@@ -663,6 +669,52 @@ const PatientHistoryPage = () => {
           recordType="patients"
         />
       </div>
+
+      <style>{`
+        @media (max-width: 1080px) {
+          .admin-metrics-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 16px !important;
+          }
+        }
+        @media (max-width: 768px) {
+          .admin-page-banner {
+            height: auto !important;
+            min-height: 120px !important;
+            padding: 22px 18px !important;
+          }
+          .admin-page-banner-title {
+            font-size: 22px !important;
+          }
+          .admin-page-banner-img {
+            opacity: 0.28 !important;
+            height: 120px !important;
+          }
+          .admin-page-filter-toolbar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .admin-page-filter-group {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+          }
+          .admin-page-filter-group select {
+            flex: 1 1 calc(50% - 6px) !important;
+          }
+        }
+        @media (max-width: 540px) {
+          .admin-metrics-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .admin-page-filter-group select,
+          .admin-page-filter-group button {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

@@ -123,6 +123,7 @@ const Navbar = ({ onOpenBooking }) => {
           <img
             src={logoImg}
             alt="Homeopathy Clinic"
+            className="navbar-logo-img"
             style={{
               height: '38px',
               width: 'auto',
@@ -189,6 +190,7 @@ const Navbar = ({ onOpenBooking }) => {
 
         {/* Right: Login Button, Book Appointment Button & Avatar */}
         <div
+          className="navbar-right-controls"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -200,6 +202,7 @@ const Navbar = ({ onOpenBooking }) => {
           {!isAuthenticated && (
             <button
               type="button"
+              className="nav-login-btn"
               onClick={() => navigate('/login')}
               style={{
                 display: 'inline-flex',
@@ -231,6 +234,7 @@ const Navbar = ({ onOpenBooking }) => {
 
           <button
             type="button"
+            className="nav-book-btn"
             onClick={handleBookClick}
             style={{
               display: 'inline-flex',
@@ -272,11 +276,11 @@ const Navbar = ({ onOpenBooking }) => {
               <line x1="8" y1="2" x2="8" y2="6" />
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
-            Book Appointment
+            <span className="nav-book-btn-text">Book Appointment</span>
           </button>
 
           {/* Profile Avatar with Dropdown */}
-          <div style={{ position: 'relative' }} ref={dropdownRef}>
+          <div className="navbar-avatar-wrap" style={{ position: 'relative' }} ref={dropdownRef}>
             <div
               onClick={() => {
                 if (isAuthenticated) {
@@ -614,6 +618,37 @@ const Navbar = ({ onOpenBooking }) => {
           }
           .mobile-toggle {
             display: block !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .navbar-inner {
+            padding: 0 16px !important;
+            height: 62px !important;
+          }
+          .navbar-logo-img {
+            height: 32px !important;
+          }
+          .nav-login-btn {
+            display: none !important;
+          }
+          .nav-book-btn {
+            padding: 8px 14px !important;
+            font-size: 13px !important;
+          }
+          .navbar-right-controls {
+            gap: 10px !important;
+          }
+        }
+        @media (max-width: 420px) {
+          .navbar-inner {
+            padding: 0 12px !important;
+          }
+          .nav-book-btn-text {
+            display: none !important;
+          }
+          .nav-book-btn {
+            padding: 8px 10px !important;
+            gap: 0 !important;
           }
         }
       `}</style>

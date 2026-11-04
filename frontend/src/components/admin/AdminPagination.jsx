@@ -50,6 +50,7 @@ const AdminPagination = ({
 
   return (
     <div
+      className="admin-pagination-container"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -63,11 +64,11 @@ const AdminPagination = ({
         gap: '12px',
       }}
     >
-      <div>
+      <div className="admin-pagination-info">
         Showing {displayStart} - {endIndex} of {totalRecords} {recordType}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div className="admin-pagination-controls" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           {/* Previous Page Button */}
           <button

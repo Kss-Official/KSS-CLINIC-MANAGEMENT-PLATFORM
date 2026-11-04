@@ -4,7 +4,7 @@ import useAuth from "../../hooks/useAuth";
 import { extractErrorMessage } from "../../utils/helpers";
 import authApi from "../../api/authApi";
 import doctorPortalLogo from "../../assets/doctor-portal-logo.png";
-import patientLoginBg from "../../assets/patient-login-bg.jpg";
+import patientLoginBg from "../../assets/patient-login-bg.jpg?v=v2_crystal_clean";
 
 const LoginPage = ({ initialMode = "login" }) => {
   const navigate = useNavigate();
@@ -61,7 +61,9 @@ const LoginPage = ({ initialMode = "login" }) => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [maskedEmail, setMaskedEmail] = useState("");
+  const [isResetUserAdmin, setIsResetUserAdmin] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState("");
 
@@ -72,8 +74,11 @@ const LoginPage = ({ initialMode = "login" }) => {
     setForgotCode("");
     setNewPassword("");
     setConfirmPassword("");
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+    setIsResetUserAdmin(false);
     const currentUsername = (loginData.username || "").trim();
-    if (currentUsername && currentUsername.toLowerCase() !== "admin") {
+    if (currentUsername) {
       setForgotIdentifier(currentUsername);
     } else {
       setForgotIdentifier("");
@@ -87,17 +92,16 @@ const LoginPage = ({ initialMode = "login" }) => {
     setForgotCode("");
     setNewPassword("");
     setConfirmPassword("");
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+    setIsResetUserAdmin(false);
   };
 
   const handleSendResetCode = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     const trimmed = (forgotIdentifier || "").trim();
     if (!trimmed) {
-      setForgotError("Please enter your registered patient email address, mobile number, or username.");
-      return;
-    }
-    if (trimmed.toLowerCase() === "admin") {
-      setForgotError("Access denied. Administrator accounts cannot reset password through the Patient Portal. Please use the Admin Login.");
+      setForgotError("Please enter your registered email address, mobile number, or username.");
       return;
     }
 
@@ -108,10 +112,18 @@ const LoginPage = ({ initialMode = "login" }) => {
       const res = await authApi.forgotPassword(trimmed, "patient");
       if (res && res.success) {
         setMaskedEmail(res.email || "your registered email");
+        if (res.is_admin) {
+          setIsResetUserAdmin(true);
+        }
+        setForgotCode("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setShowNewPassword(false);
+        setShowConfirmPassword(false);
         setForgotStep(2);
       } else {
         setForgotError(
-          res?.error || "No patient account found with this username, email, or mobile number.",
+          res?.error || "No account found with this username, email, or mobile number.",
         );
       }
     } catch (err) {
@@ -156,6 +168,9 @@ const LoginPage = ({ initialMode = "login" }) => {
       });
 
       if (res && res.success) {
+        if (res.is_admin) {
+          setIsResetUserAdmin(true);
+        }
         setForgotStep(3);
       } else {
         setForgotError(res?.error || "Invalid or expired verification code.");
@@ -1264,7 +1279,29 @@ const LoginPage = ({ initialMode = "login" }) => {
                       textAlign: "left",
                     }}
                   >
-                    {forgotError}
+                    <div>{forgotError}</div>
+                    {forgotError.includes("Admin Login") && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleCloseForgotModal();
+                          navigate("/admin-login");
+                        }}
+                        style={{
+                          marginTop: "8px",
+                          padding: "6px 12px",
+                          backgroundColor: "#166534",
+                          color: "#ffffff",
+                          border: "none",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Go to Admin Login →
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -1345,6 +1382,23 @@ const LoginPage = ({ initialMode = "login" }) => {
                   <strong style={{ color: "#144a2b" }}>{maskedEmail}</strong>
                 </p>
 
+                {isResetUserAdmin && (
+                  <div
+                    style={{
+                      backgroundColor: "#f0fdf4",
+                      color: "#166534",
+                      border: "1px solid #bbf7d0",
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      marginBottom: "14px",
+                      textAlign: "left",
+                    }}
+                  >
+                    🛡️ Administrator Account: After resetting your password, you will be redirected to the Admin Login portal.
+                  </div>
+                )}
+
                 {forgotError && (
                   <div
                     style={{
@@ -1357,7 +1411,29 @@ const LoginPage = ({ initialMode = "login" }) => {
                       textAlign: "left",
                     }}
                   >
-                    {forgotError}
+                    <div>{forgotError}</div>
+                    {forgotError.includes("Admin Login") && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleCloseForgotModal();
+                          navigate("/admin-login");
+                        }}
+                        style={{
+                          marginTop: "8px",
+                          padding: "6px 12px",
+                          backgroundColor: "#166534",
+                          color: "#ffffff",
+                          border: "none",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Go to Admin Login →
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -1412,25 +1488,79 @@ const LoginPage = ({ initialMode = "login" }) => {
                   >
                     New Password
                   </label>
-                  <input
-                    type={showNewPassword ? "text" : "password"}
-                    name="patient_new_password"
-                    autoComplete="new-password"
-                    placeholder="Minimum 6 characters"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: "46px",
-                      padding: "0 14px",
-                      borderRadius: "10px",
-                      border: "1.5px solid #e2e8f0",
-                      fontSize: "14px",
-                      boxSizing: "border-box",
-                      outline: "none",
-                      backgroundColor: "#ffffff",
-                    }}
-                  />
+                  <div style={{ position: "relative", width: "100%" }}>
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      name="patient_new_password"
+                      id="patient_new_password"
+                      autoComplete="new-password"
+                      data-form-type="other"
+                      data-lpignore="true"
+                      placeholder="Minimum 6 characters"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      style={{
+                        width: "100%",
+                        height: "46px",
+                        padding: "0 44px 0 14px",
+                        borderRadius: "10px",
+                        border: "1.5px solid #e2e8f0",
+                        fontSize: "14px",
+                        boxSizing: "border-box",
+                        outline: "none",
+                        backgroundColor: "#ffffff",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      aria-label={showNewPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      style={{
+                        position: "absolute",
+                        right: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#64748b",
+                      }}
+                    >
+                      {showNewPassword ? (
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      ) : (
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ textAlign: "left", marginBottom: "16px" }}>
@@ -1445,25 +1575,79 @@ const LoginPage = ({ initialMode = "login" }) => {
                   >
                     Confirm New Password
                   </label>
-                  <input
-                    type={showNewPassword ? "text" : "password"}
-                    name="patient_confirm_password"
-                    autoComplete="new-password"
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: "46px",
-                      padding: "0 14px",
-                      borderRadius: "10px",
-                      border: "1.5px solid #e2e8f0",
-                      fontSize: "14px",
-                      boxSizing: "border-box",
-                      outline: "none",
-                      backgroundColor: "#ffffff",
-                    }}
-                  />
+                  <div style={{ position: "relative", width: "100%" }}>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="patient_confirm_password"
+                      id="patient_confirm_password"
+                      autoComplete="new-password"
+                      data-form-type="other"
+                      data-lpignore="true"
+                      placeholder="Confirm new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      style={{
+                        width: "100%",
+                        height: "46px",
+                        padding: "0 44px 0 14px",
+                        borderRadius: "10px",
+                        border: "1.5px solid #e2e8f0",
+                        fontSize: "14px",
+                        boxSizing: "border-box",
+                        outline: "none",
+                        backgroundColor: "#ffffff",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{
+                        position: "absolute",
+                        right: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#64748b",
+                      }}
+                    >
+                      {showConfirmPassword ? (
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      ) : (
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -1507,12 +1691,18 @@ const LoginPage = ({ initialMode = "login" }) => {
                     margin: "0 0 20px 0",
                   }}
                 >
-                  Your password has been updated. You can now log in with your
-                  new credentials.
+                  {isResetUserAdmin
+                    ? "Your administrator password has been updated. Please log in through the Admin Portal."
+                    : "Your password has been updated. You can now log in with your new credentials."}
                 </p>
                 <button
                   type="button"
-                  onClick={handleCloseForgotModal}
+                  onClick={() => {
+                    handleCloseForgotModal();
+                    if (isResetUserAdmin) {
+                      navigate("/admin-login");
+                    }
+                  }}
                   style={{
                     width: "100%",
                     height: "46px",
@@ -1525,7 +1715,7 @@ const LoginPage = ({ initialMode = "login" }) => {
                     cursor: "pointer",
                   }}
                 >
-                  Continue to Login
+                  {isResetUserAdmin ? "Go to Admin Login" : "Continue to Login"}
                 </button>
               </div>
             )}

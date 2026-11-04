@@ -217,6 +217,7 @@ const PrescriptionPreviewCard = ({
 
         {/* Patient Metadata Grid */}
         <div
+          className="prescription-meta-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: '1.2fr 1fr',
@@ -298,10 +299,11 @@ const PrescriptionPreviewCard = ({
         </div>
 
         {/* Medicines Table */}
-        <div style={{ marginTop: '14px', overflowX: 'auto' }}>
+        <div style={{ marginTop: '14px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table
             style={{
               width: '100%',
+              minWidth: '460px',
               borderCollapse: 'collapse',
               textAlign: 'left',
               fontSize: '11.5px',
@@ -619,6 +621,7 @@ const PrescriptionPreviewCard = ({
 
       {/* 3. Bottom Action Buttons */}
       <div
+        className="prescription-action-buttons-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
@@ -760,6 +763,19 @@ const PrescriptionPreviewCard = ({
           )}
         </button>
       </div>
+
+      <style>{`
+        @media (max-width: 540px) {
+          .prescription-action-buttons-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .prescription-meta-grid {
+            grid-template-columns: 1fr !important;
+            gap: 6px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

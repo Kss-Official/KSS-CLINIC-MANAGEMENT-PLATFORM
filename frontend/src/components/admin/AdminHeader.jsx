@@ -4,7 +4,7 @@ import brandLogoImg from '../../assets/brand-logo.png';
 import useAuth from '../../hooks/useAuth';
 import appointmentApi from '../../api/appointmentApi';
 
-const AdminHeader = () => {
+const AdminHeader = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -103,33 +103,63 @@ const AdminHeader = () => {
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
     >
-      {/* Left: Website Logo & Brand Name from Brand/Logo.png */}
-      <div
-        className="admin-header-brand"
-        onClick={() => navigate('/dashboard')}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          cursor: 'pointer',
-          userSelect: 'none',
-        }}
-        title="Homeopathy Clinic"
-      >
-        <img
-          src={brandLogoImg}
-          alt="Homeopathy Clinic"
-          className="admin-header-logo-img"
+      {/* Left: Hamburger Button (Mobile) + Website Logo & Brand Name */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <button
+          type="button"
+          className="admin-mobile-menu-btn"
+          onClick={onToggleSidebar}
+          aria-label="Toggle Sidebar Menu"
           style={{
+            display: 'none',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '38px',
             height: '38px',
-            width: 'auto',
-            objectFit: 'contain',
-            display: 'block',
+            borderRadius: '10px',
+            border: '1px solid #e2e8f0',
+            backgroundColor: '#ffffff',
+            color: '#1e4620',
+            cursor: 'pointer',
+            padding: 0,
+            flexShrink: 0,
           }}
-        />
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+
+        <div
+          className="admin-header-brand"
+          onClick={() => navigate('/dashboard')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
+          title="Homeopathy Clinic"
+        >
+          <img
+            src={brandLogoImg}
+            alt="Homeopathy Clinic"
+            className="admin-header-logo-img"
+            style={{
+              height: '38px',
+              width: 'auto',
+              objectFit: 'contain',
+              display: 'block',
+            }}
+          />
+        </div>
       </div>
 
       {/* Right: Notifications & Doctor Profile Dropdown */}
       <div
+        className="admin-header-right-group"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -505,7 +535,7 @@ const AdminHeader = () => {
             </div>
 
             {/* Doctor Info */}
-            <div style={{ textAlign: 'left', lineHeight: 1.25 }}>
+            <div className="admin-header-doctor-text" style={{ textAlign: 'left', lineHeight: 1.25 }}>
               <div
                 style={{
                   fontSize: '13.5px',

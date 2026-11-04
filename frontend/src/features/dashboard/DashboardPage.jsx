@@ -357,6 +357,7 @@ const DashboardPage = () => {
     <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* 1. Top Greeting Banner */}
       <div
+        className="admin-dashboard-banner"
         style={{
           backgroundColor: '#eaf5ed',
           borderRadius: '20px',
@@ -385,6 +386,7 @@ const DashboardPage = () => {
             GOOD MORNING,
           </div>
           <h1
+            className="admin-dashboard-banner-title"
             style={{
               fontSize: '28px',
               fontWeight: '800',
@@ -409,6 +411,7 @@ const DashboardPage = () => {
 
         {/* Herbal Mortar Illustration */}
         <div
+          className="admin-dashboard-banner-img-wrap"
           style={{
             position: 'absolute',
             right: 0,
@@ -422,6 +425,7 @@ const DashboardPage = () => {
           <img
             src={bannerHerbsImg}
             alt="Herbal Medicine"
+            className="admin-dashboard-banner-img"
             style={{
               height: '158px',
               maxHeight: '100%',
@@ -436,6 +440,7 @@ const DashboardPage = () => {
 
       {/* 2. Four Metrics Summary Cards */}
       <div
+        className="admin-dashboard-metrics-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
@@ -626,6 +631,7 @@ const DashboardPage = () => {
       >
         {/* Header Controls */}
         <div
+          className="admin-dashboard-card-header"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -665,7 +671,7 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="admin-dashboard-filter-group" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             {/* Date Dropdown with 5 options: All Dates, Today, Tomorrow, This Week, Select Date (Calendar) */}
             <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
               <select
@@ -762,8 +768,8 @@ const DashboardPage = () => {
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div className="admin-table-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: '680px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Time</th>
@@ -923,6 +929,7 @@ const DashboardPage = () => {
         }}
       >
         <div
+          className="admin-dashboard-card-header"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -962,7 +969,7 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="admin-dashboard-filter-group" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             {/* Date Dropdown with 5 options: All Dates, Today, Tomorrow, This Week, Select Date (Calendar) */}
             <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
               <select
@@ -1054,8 +1061,8 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div className="admin-table-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Patient Name</th>
@@ -1249,7 +1256,7 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div className="admin-dashboard-quick-actions-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           {/* Action 1: Add Patient */}
           <div
             onClick={openNewAppointment}
@@ -1357,6 +1364,59 @@ const DashboardPage = () => {
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 1080px) {
+          .admin-dashboard-metrics-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 16px !important;
+          }
+        }
+        @media (max-width: 768px) {
+          .admin-dashboard-banner {
+            height: auto !important;
+            min-height: 120px !important;
+            padding: 22px 18px !important;
+          }
+          .admin-dashboard-banner-title {
+            font-size: 22px !important;
+          }
+          .admin-dashboard-banner-img {
+            opacity: 0.28 !important;
+            height: 120px !important;
+          }
+          .admin-dashboard-card-header {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 14px !important;
+          }
+          .admin-dashboard-filter-group {
+            width: 100% !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+          }
+          .admin-dashboard-filter-group select,
+          .admin-dashboard-filter-group button {
+            flex: 1 1 calc(50% - 8px) !important;
+          }
+        }
+        @media (max-width: 540px) {
+          .admin-dashboard-metrics-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .admin-dashboard-quick-actions-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .admin-dashboard-filter-group select,
+          .admin-dashboard-filter-group button {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
