@@ -1,5 +1,7 @@
 import os
 import json
+import base64
+import logging
 from django.conf import settings
 from django.db import models
 from rest_framework.views import APIView
@@ -9,6 +11,10 @@ from rest_framework.permissions import AllowAny
 from .models import Appointment, Notification, Prescription, Patient
 from .serializers import AppointmentSerializer, NotificationSerializer, ClinicSettingsSerializer
 from datetime import datetime
+from .services.whatsapp_service import whatsapp_service
+from .services.prescription_pdf import generate_prescription_pdf_bytes
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_date_str(date_str):
@@ -984,3 +990,138 @@ class ClinicSettingsView(APIView):
 
     def put(self, request):
         return self.post(request)
+
+
+class SendPrescriptionWhatsAppView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, rx_id=None):
+        payload = request.data or {}
+
+        # 1. Resolve Prescription by rx_id or request payload
+        target_id = rx_id or payload.get('prescription_id') or payload.get('id') or payload.get('rxId')
+        rx = None
+        if target_id:
+            cleaned_target = str(target_id).strip()
+            lookup_q = models.Q(prescription_id__iexact=cleaned_target)
+            if cleaned_target.isdigit():
+                lookup_q |= models.Q(id=int(cleaned_target))
+            rx = Prescription.objects.filter(lookup_q).first()
+
+        # 2. Extract prescription data
+        if rx:
+            rx_data = {
+                'rxId': rx.prescription_id,
+                'patientName': rx.patient_name,
+                'patientId': rx.patient_id_ref,
+                'mobile': payload.get('phone') or payload.get('mobile') or rx.patient_phone or getattr(rx.patient_record, 'phone', ''),
+                'ageGender': rx.age_gender,
+                'date': rx.date,
+                'diagnosis': rx.diagnosis or rx.complaint,
+                'symptoms': rx.symptoms,
+                'medicines': rx.medicines or [],
+                'additionalInstructions': rx.additional_instructions,
+            }
+        else:
+            rx_data = {
+                'rxId': payload.get('rxId') or payload.get('prescription_id') or 'RX-2026',
+                'patientName': payload.get('patientName') or payload.get('name') or 'Patient',
+                'patientId': payload.get('patientId') or 'PAT-1001',
+                'mobile': payload.get('phone') or payload.get('mobile') or payload.get('contact'),
+                'ageGender': payload.get('ageGender') or 'Adult',
+                'date': payload.get('date') or datetime.now().strftime('%d %b %Y'),
+                'diagnosis': payload.get('diagnosis') or 'Clinical Consultation',
+                'symptoms': payload.get('symptoms') or '',
+                'medicines': payload.get('medicines') or [],
+                'additionalInstructions': payload.get('additionalInstructions') or payload.get('additional_instructions') or '',
+            }
+
+        recipient_phone = rx_data.get('mobile')
+        if not recipient_phone:
+            return Response({
+                'success': False,
+                'error': 'Patient mobile number is required to send prescription via WhatsApp.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 3. Obtain PDF bytes: either from client base64 or generated via ReportLab
+        pdf_base64 = payload.get('pdf_base64')
+        if pdf_base64:
+            try:
+                if ',' in str(pdf_base64):
+                    pdf_base64 = str(pdf_base64).split(',', 1)[1]
+                pdf_bytes = base64.b64decode(pdf_base64)
+            except Exception as e:
+                logger.warning(f"Could not decode client base64 PDF, falling back to ReportLab: {e}")
+                pdf_bytes = generate_prescription_pdf_bytes(rx_data)
+        else:
+            pdf_bytes = generate_prescription_pdf_bytes(rx_data)
+
+        # 4. Dispatch via Meta WhatsApp Cloud API
+        success, result = whatsapp_service.send_prescription_pdf(
+            recipient_phone=recipient_phone,
+            pdf_bytes=pdf_bytes,
+            patient_name=rx_data.get('patientName', 'Patient'),
+            rx_id=rx_data.get('rxId', 'RX-2026')
+        )
+
+        if success:
+            if rx and rx.status != 'Delivered':
+                rx.status = 'Delivered'
+                rx.save(update_fields=['status'])
+
+            return Response({
+                'success': True,
+                'message': f"Prescription PDF successfully sent via WhatsApp to {rx_data.get('patientName')} (+{result.get('recipient')})!",
+                'whatsapp_message_id': result.get('message_id'),
+                'recipient': result.get('recipient'),
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'error': result.get('error', 'Failed to send WhatsApp message.'),
+                'meta_details': result
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PrescriptionPdfDownloadView(APIView):
+    """
+    Publicly serves / streams official prescription PDF with clinic letterhead.
+    Accessible directly via WhatsApp link.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, rx_id):
+        cleaned_id = str(rx_id).strip()
+        lookup_q = models.Q(prescription_id__iexact=cleaned_id)
+        if cleaned_id.isdigit():
+            lookup_q |= models.Q(id=int(cleaned_id))
+        rx = Prescription.objects.filter(lookup_q).first()
+
+        if not rx:
+            return Response({'error': f'Prescription {rx_id} not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        rx_data = {
+            'rxId': rx.prescription_id,
+            'patientName': rx.patient_name,
+            'patientId': rx.patient_id_ref,
+            'mobile': rx.patient_phone or getattr(rx.patient_record, 'phone', ''),
+            'ageGender': rx.age_gender,
+            'date': rx.date,
+            'diagnosis': rx.diagnosis or rx.complaint,
+            'symptoms': rx.symptoms,
+            'medicines': rx.medicines or [],
+            'additionalInstructions': rx.additional_instructions,
+        }
+
+        try:
+            pdf_bytes = generate_prescription_pdf_bytes(rx_data)
+            from django.http import HttpResponse
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            safe_name = (rx.patient_name or 'Patient').replace(' ', '_')
+            filename = f"Prescription_{safe_name}_{rx.prescription_id}.pdf"
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
+            return response
+        except Exception as e:
+            logger.error(f"Failed to generate prescription PDF for {rx_id}: {e}")
+            return Response({'error': 'Failed to generate PDF.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

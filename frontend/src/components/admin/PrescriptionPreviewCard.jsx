@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import doctorLogoImg from '../../assets/doctor-portal-logo.png';
-import { downloadPrescriptionPdf } from '../../utils/prescriptionPdf';
+import { downloadPrescriptionPdf, generatePrescriptionPdfBase64 } from '../../utils/prescriptionPdf';
+import appointmentApi from '../../api/appointmentApi';
 
 const PrescriptionPreviewCard = ({
   prescriptionId,
@@ -17,6 +18,9 @@ const PrescriptionPreviewCard = ({
   const cardRef = useRef(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState('');
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [whatsAppSuccess, setWhatsAppSuccess] = useState('');
+  const [whatsAppError, setWhatsAppError] = useState('');
 
   // Normalize patient fields
   const patientName = patient.name || 'Rahul Sharma';
@@ -57,11 +61,54 @@ const PrescriptionPreviewCard = ({
     }
   };
 
-  const handleWhatsApp = () => {
-    if (onSendWhatsApp) {
-      onSendWhatsApp();
-    } else {
-      alert(`Prescription successfully sent via WhatsApp to ${patientName} (${contact})!`);
+  const handleWhatsApp = async () => {
+    setWhatsAppError('');
+    setWhatsAppSuccess('');
+    setDownloadError('');
+    setIsSendingWhatsApp(true);
+
+    const rxIdentifier = prescriptionId || patient.rxId || patient.id || 'RX-2026';
+
+    try {
+      // 1. Capture exact visual card element to high-res PDF base64
+      let clientPdfBase64 = null;
+      try {
+        clientPdfBase64 = await generatePrescriptionPdfBase64(cardRef.current);
+      } catch (pdfCaptureErr) {
+        console.warn('Could not capture exact client PDF base64:', pdfCaptureErr);
+      }
+
+      if (onSendWhatsApp) {
+        const result = await onSendWhatsApp({ pdf_base64: clientPdfBase64 });
+        if (result && result.message) {
+          setWhatsAppSuccess(result.message);
+        } else {
+          setWhatsAppSuccess(`Prescription PDF successfully sent via WhatsApp to ${patientName}!`);
+        }
+      } else {
+        const res = await appointmentApi.sendPrescriptionWhatsApp(rxIdentifier, {
+          patientName,
+          patientId,
+          phone: contact,
+          ageGender,
+          date,
+          consultationType,
+          diagnosis,
+          medicines: medicineList,
+          additionalInstructions,
+          pdf_base64: clientPdfBase64,
+        });
+        setWhatsAppSuccess(res?.message || `Prescription PDF successfully delivered to ${patientName}'s WhatsApp!`);
+      }
+    } catch (err) {
+      console.error('WhatsApp send error:', err);
+      const errMsg =
+        err?.response?.data?.error ||
+        err?.message ||
+        'Failed to deliver prescription via WhatsApp. In Meta test mode, ensure the recipient phone number is verified in the Meta Sandbox list.';
+      setWhatsAppError(errMsg);
+    } finally {
+      setIsSendingWhatsApp(false);
     }
   };
 
@@ -401,6 +448,118 @@ const PrescriptionPreviewCard = ({
         </div>
       </div>
 
+      {/* WhatsApp Success Banner */}
+      {whatsAppSuccess && (
+        <div
+          role="status"
+          style={{
+            marginTop: '16px',
+            padding: '12px 16px',
+            backgroundColor: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            color: '#15803d',
+            fontSize: '13px',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ flexShrink: 0 }}
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>{whatsAppSuccess}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setWhatsAppSuccess('')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#15803d',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '600',
+              padding: '2px 6px',
+              textDecoration: 'underline',
+              flexShrink: 0,
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* WhatsApp Error Banner */}
+      {whatsAppError && (
+        <div
+          role="alert"
+          style={{
+            marginTop: '16px',
+            padding: '12px 16px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            color: '#991b1b',
+            fontSize: '13px',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ flexShrink: 0 }}
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{whatsAppError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setWhatsAppError('')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#991b1b',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '600',
+              padding: '2px 6px',
+              textDecoration: 'underline',
+              flexShrink: 0,
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Download Error Banner */}
       {downloadError && (
         <div
@@ -471,7 +630,7 @@ const PrescriptionPreviewCard = ({
         <button
           type="button"
           onClick={handleWhatsApp}
-          disabled={isDownloading}
+          disabled={isDownloading || isSendingWhatsApp}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -484,43 +643,61 @@ const PrescriptionPreviewCard = ({
             color: '#15803d',
             fontSize: '13.5px',
             fontWeight: '600',
-            cursor: isDownloading ? 'not-allowed' : 'pointer',
-            opacity: isDownloading ? 0.7 : 1,
+            cursor: isDownloading || isSendingWhatsApp ? 'not-allowed' : 'pointer',
+            opacity: isDownloading || isSendingWhatsApp ? 0.7 : 1,
             transition: 'all 0.15s ease',
           }}
           onMouseEnter={(e) => {
-            if (!isDownloading) {
+            if (!isDownloading && !isSendingWhatsApp) {
               e.currentTarget.style.backgroundColor = '#f0fdf4';
               e.currentTarget.style.borderColor = '#15803d';
             }
           }}
           onMouseLeave={(e) => {
-            if (!isDownloading) {
+            if (!isDownloading && !isSendingWhatsApp) {
               e.currentTarget.style.backgroundColor = '#ffffff';
               e.currentTarget.style.borderColor = '#16a34a';
             }
           }}
         >
-          <svg
-            width="17"
-            height="17"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-          </svg>
-          <span>Send via WhatsApp</span>
+          {isSendingWhatsApp ? (
+            <>
+              <div
+                style={{
+                  width: '15px',
+                  height: '15px',
+                  border: '2px solid rgba(22, 163, 74, 0.3)',
+                  borderTopColor: '#15803d',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                }}
+              />
+              <span>Sending via WhatsApp...</span>
+            </>
+          ) : (
+            <>
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              <span>Send via WhatsApp</span>
+            </>
+          )}
         </button>
 
         {/* Download PDF Button */}
         <button
           type="button"
           onClick={handlePrintDownload}
-          disabled={isDownloading}
+          disabled={isDownloading || isSendingWhatsApp}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -533,17 +710,17 @@ const PrescriptionPreviewCard = ({
             color: '#ffffff',
             fontSize: '13.5px',
             fontWeight: '600',
-            cursor: isDownloading ? 'not-allowed' : 'pointer',
-            opacity: isDownloading ? 0.8 : 1,
+            cursor: isDownloading || isSendingWhatsApp ? 'not-allowed' : 'pointer',
+            opacity: isDownloading || isSendingWhatsApp ? 0.8 : 1,
             transition: 'background-color 0.15s ease',
           }}
           onMouseEnter={(e) => {
-            if (!isDownloading) {
+            if (!isDownloading && !isSendingWhatsApp) {
               e.currentTarget.style.backgroundColor = '#0f3d21';
             }
           }}
           onMouseLeave={(e) => {
-            if (!isDownloading) {
+            if (!isDownloading && !isSendingWhatsApp) {
               e.currentTarget.style.backgroundColor = '#14532d';
             }
           }}

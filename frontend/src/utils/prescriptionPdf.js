@@ -87,3 +87,76 @@ export const downloadPrescriptionPdf = async (element, filename = 'Prescription.
   }
 };
 
+/**
+ * Renders the exact prescription preview element to a base64 encoded PDF string.
+ * Used for sending the exact visual prescription directly via WhatsApp API.
+ *
+ * @param {HTMLElement} element - The DOM element containing the prescription card.
+ * @returns {Promise<string|null>} - Base64 string without data prefix
+ */
+export const generatePrescriptionPdfBase64 = async (element) => {
+  if (!element) return null;
+
+  try {
+    const images = Array.from(element.querySelectorAll('img'));
+    await Promise.all(
+      images.map((img) => {
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        });
+      })
+    );
+
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      imageTimeout: 10000,
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    if (!imgData || imgData === 'data:,') return null;
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true,
+    });
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const contentWidth = pdfWidth - margin * 2;
+    const contentHeight = (canvas.height * contentWidth) / canvas.width;
+
+    if (contentHeight <= pdfHeight - margin * 2) {
+      pdf.addImage(imgData, 'PNG', margin, margin + 4, contentWidth, contentHeight, '', 'FAST');
+    } else {
+      let heightLeft = contentHeight;
+      let position = margin;
+      pdf.addImage(imgData, 'PNG', margin, position, contentWidth, contentHeight, '', 'FAST');
+      heightLeft -= (pdfHeight - margin * 2);
+      while (heightLeft > 0) {
+        position = heightLeft - contentHeight + margin;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', margin, position, contentWidth, contentHeight, '', 'FAST');
+        heightLeft -= (pdfHeight - margin * 2);
+      }
+    }
+
+    const dataUri = pdf.output('datauristring');
+    if (dataUri && dataUri.includes(',')) {
+      return dataUri.split(',')[1];
+    }
+    return null;
+  } catch (err) {
+    console.error('generatePrescriptionPdfBase64 error:', err);
+    return null;
+  }
+};
+

@@ -179,3 +179,8 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'pratikshaharode0@gmail.com')
 CLINIC_CONTACT_EMAIL = os.getenv('CLINIC_CONTACT_EMAIL', 'pratikshaharode0@gmail.com')
 
+# Meta WhatsApp Cloud API Configuration
+WHATSAPP_API_VERSION = os.getenv('WHATSAPP_API_VERSION', 'v21.0')
+WHATSAPP_PHONE_NUMBER_ID = os.getenv('WHATSAPP_PHONE_NUMBER_ID', '')
+WHATSAPP_ACCESS_TOKEN = os.getenv('WHATSAPP_ACCESS_TOKEN', '')
+

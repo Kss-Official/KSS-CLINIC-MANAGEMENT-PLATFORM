@@ -110,6 +110,13 @@ export const appointmentApi = {
     const response = await axiosClient.post('/settings/clinic/', settingsData);
     return response.data;
   },
+
+  // WhatsApp Cloud API Prescription Sender
+  sendPrescriptionWhatsApp: async (rxId, data = {}) => {
+    const target = rxId ? `/prescriptions/${encodeURIComponent(rxId)}/send-whatsapp/` : '/prescriptions/send-whatsapp/';
+    const response = await axiosClient.post(target, data);
+    return response.data;
+  },
 };
 
 export default appointmentApi;
