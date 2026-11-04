@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import brandLogoImg from '../../assets/brand-logo.png';
 
 const AdminSidebar = ({ isOpenMobile, onCloseMobile }) => {
   // Lock background scroll when mobile sidebar is open
@@ -120,6 +121,53 @@ const AdminSidebar = ({ isOpenMobile, onCloseMobile }) => {
           fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         }}
       >
+        {/* Mobile-Only Sidebar Header with Logo & Close Button (Hidden on Desktop) */}
+        <div
+          className="admin-mobile-sidebar-header"
+          style={{
+            display: 'none',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            height: '62px',
+            borderBottom: '1px solid #f1f5f9',
+            marginBottom: '12px',
+            padding: '0 4px',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img
+              src={brandLogoImg}
+              alt="Homeopathy Clinic"
+              style={{
+                height: '32px',
+                width: 'auto',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            aria-label="Close Sidebar"
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '20px',
+              color: '#64748b',
+              cursor: 'pointer',
+              padding: '6px 8px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {navItems.map((item) => (
             <NavLink
