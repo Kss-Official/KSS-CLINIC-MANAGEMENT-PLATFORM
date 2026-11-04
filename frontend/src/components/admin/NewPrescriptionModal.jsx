@@ -143,9 +143,15 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
       const match = patientAppointments.find((a) => {
         const aIso = parseDisplayDateToIso(a.date);
         return aIso && aIso === appointmentDate;
-      });
+      }) || patientAppointments[0];
       if (match) {
         setSelectedAppointment(match);
+        if (match.reason || match.reason_for_visit) {
+          setMainComplaint(match.reason || match.reason_for_visit);
+        }
+        if (match.consultationType || match.consultation_type) {
+          setConsultationType(match.consultationType || match.consultation_type);
+        }
       }
     }
   }, [selectedPatient, appointmentDate, patientAppointments]);
@@ -273,6 +279,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         appointmentDate,
         consultationType,
         mainComplaint,
+        complaint: mainComplaint,
         symptoms,
         diagnosis: diagnosis || 'Clinical Consultation',
         medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
@@ -316,6 +323,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         appointmentDate,
         consultationType,
         mainComplaint,
+        complaint: mainComplaint,
         symptoms,
         diagnosis: diagnosis || 'Skin allergy due to seasonal change.',
         medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
@@ -607,7 +615,23 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                             gender: p.ageGender?.split('/')[1]?.trim() || 'Adult',
                             ageGender: p.ageGender || '28 Years / Adult',
                             initials: p.initials || 'PT',
+                            appointments: p.appointments || [],
                           });
+                          const apts = p.appointments || [];
+                          if (apts.length > 0) {
+                            const latestApt = apts[0];
+                            setSelectedAppointment(latestApt);
+                            if (latestApt.reason || latestApt.reason_for_visit) {
+                              setMainComplaint(latestApt.reason || latestApt.reason_for_visit);
+                            }
+                            if (latestApt.consultationType) {
+                              setConsultationType(latestApt.consultationType);
+                            }
+                            const iso = parseDisplayDateToIso(latestApt.date);
+                            if (iso) setAppointmentDate(iso);
+                          } else if (p.primaryConcern) {
+                            setMainComplaint(p.primaryConcern);
+                          }
                           setSearchQuery('');
                         }}
                         style={{
@@ -813,6 +837,31 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                 </select>
               </div>
 
+            </div>
+
+            {/* Main Complaint / Reason for Visit field auto-populated from Appointment */}
+            <div style={{ marginTop: '14px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                Main Complaint (Reason for Visit)
+              </label>
+              <input
+                type="text"
+                value={mainComplaint}
+                onChange={(e) => setMainComplaint(e.target.value)}
+                placeholder="Reason for Visit from appointment booking"
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  padding: '0 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13px',
+                  color: '#1e293b',
+                  backgroundColor: '#ffffff',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
             </div>
           </div>
 

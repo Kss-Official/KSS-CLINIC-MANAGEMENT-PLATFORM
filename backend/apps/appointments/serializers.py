@@ -11,6 +11,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'patient_name',
             'patient_phone',
             'patient_email',
+            'patient_gender',
+            'patient_dob',
             'appointment_date',
             'time_slot',
             'reason_for_visit',
@@ -21,6 +23,49 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'appointment_id', 'created_at', 'updated_at']
+
+    def validate_patient_name(self, value):
+        val = (value or '').strip()
+        if not val:
+            raise serializers.ValidationError("Patient name is required.")
+        if len(val) > 35:
+            raise serializers.ValidationError("Patient name must not exceed 35 characters.")
+        import re
+        if not re.match(r'^[a-zA-Z\s]+$', val):
+            raise serializers.ValidationError("Patient name must contain only alphabetic characters and spaces. Numbers and special characters are not allowed.")
+        return val
+
+    def validate_patient_phone(self, value):
+        val = (value or '').strip()
+        if not val:
+            raise serializers.ValidationError("Mobile number is required.")
+        import re
+        digits = re.sub(r'\D', '', val)
+        if len(digits) != 10:
+            raise serializers.ValidationError("Mobile number must be exactly 10 digits.")
+        if not digits.startswith(('6', '7', '8', '9')):
+            raise serializers.ValidationError("Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.")
+        return digits
+
+    def validate_patient_email(self, value):
+        if not value:
+            return value
+        val = value.strip()
+        if not val:
+            return None
+        import re
+        if re.search(r'\.com.+$', val, re.IGNORECASE):
+            raise serializers.ValidationError("Invalid email address. No characters or text allowed after .com.")
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$'
+        if not re.match(email_regex, val):
+            raise serializers.ValidationError("Please enter a valid email address.")
+        return val
+
+    def validate_reason_for_visit(self, value):
+        val = (value or '').strip()
+        if not val:
+            raise serializers.ValidationError("Reason for visit is required.")
+        return val
 
 
 class NotificationSerializer(serializers.ModelSerializer):

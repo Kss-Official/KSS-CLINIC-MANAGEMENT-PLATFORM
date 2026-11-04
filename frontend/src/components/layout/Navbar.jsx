@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import logoImg from '../../assets/logo.png';
@@ -10,6 +10,18 @@ const Navbar = ({ onOpenBooking }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeNav, setActiveNav] = useState('Home');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const navLinks = [
     { label: 'Home', href: '#home' },
@@ -75,7 +87,9 @@ const Navbar = ({ onOpenBooking }) => {
       style={{
         position: 'sticky',
         top: 0,
-        zIndex: 100,
+        marginTop: 0,
+        zIndex: 1000,
+        width: '100%',
         backgroundColor: '#ffffff',
         borderBottom: '1px solid #f0f2f1',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
@@ -182,73 +196,8 @@ const Navbar = ({ onOpenBooking }) => {
             gap: '16px',
           }}
         >
-          {/* Login / Portal Button */}
-          {isAuthenticated ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {(user?.role === 'ADMIN' || user?.role === 'DOCTOR') ? (
-                <button
-                  type="button"
-                  onClick={() => navigate('/dashboard')}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#ffffff',
-                    color: '#265e38',
-                    border: '1.5px solid #265e38',
-                    padding: '8.5px 18px',
-                    borderRadius: '9999px',
-                    fontSize: '13.5px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Admin Portal
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => navigate('/profile')}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#ffffff',
-                    color: '#265e38',
-                    border: '1.5px solid #265e38',
-                    padding: '8.5px 18px',
-                    borderRadius: '9999px',
-                    fontSize: '13.5px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  My Portal
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={async () => {
-                  await logout();
-                  navigate('/');
-                }}
-                title="Logout"
-                style={{
-                  backgroundColor: 'transparent',
-                  color: '#64748b',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  padding: '6px 8px',
-                }}
-              >
-                Logout
-              </button>
-            </div>
-          ) : (
+          {/* Login Button (Hidden when patient is authenticated) */}
+          {!isAuthenticated && (
             <button
               type="button"
               onClick={() => navigate('/login')}
@@ -326,41 +275,185 @@ const Navbar = ({ onOpenBooking }) => {
             Book Appointment
           </button>
 
-          {/* Profile Avatar Circle */}
-          <div
-            onClick={() => navigate('/profile')}
-            title="View Patient Profile"
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              overflow: 'hidden',
-              boxSizing: 'border-box',
-              border: location.pathname === '/profile' ? '2.5px solid #265e38' : '1px solid #e5e7eb',
-              cursor: 'pointer',
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: location.pathname === '/profile' ? '#265e38' : '#ffffff',
-              transition: 'all 0.15s ease',
-              boxShadow: location.pathname === '/profile' ? '0 0 0 1px rgba(38, 94, 56, 0.15)' : 'none',
-              padding: 0,
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.06)')}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-          >
-            <img
-              src={avatarImg}
-              alt="Profile"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                display: 'block',
-                borderRadius: '50%',
+          {/* Profile Avatar with Dropdown */}
+          <div style={{ position: 'relative' }} ref={dropdownRef}>
+            <div
+              onClick={() => {
+                if (isAuthenticated) {
+                  setDropdownOpen((prev) => !prev);
+                } else {
+                  navigate('/login');
+                }
               }}
-            />
+              title={isAuthenticated ? 'Account Options' : 'Login'}
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                boxSizing: 'border-box',
+                border: (location.pathname === '/profile' || dropdownOpen) ? '2.5px solid #265e38' : '1px solid #e5e7eb',
+                cursor: 'pointer',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: (location.pathname === '/profile' || dropdownOpen) ? '#265e38' : '#ffffff',
+                transition: 'all 0.15s ease',
+                boxShadow: (location.pathname === '/profile' || dropdownOpen) ? '0 0 0 1px rgba(38, 94, 56, 0.15)' : 'none',
+                padding: 0,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.06)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+            >
+              <img
+                src={avatarImg}
+                alt="Profile"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                  borderRadius: '50%',
+                }}
+              />
+            </div>
+
+            {/* Profile Dropdown Menu for Authenticated Patient */}
+            {isAuthenticated && dropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '48px',
+                  right: 0,
+                  width: '230px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '16px',
+                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.05)',
+                  border: '1px solid #e2e8f0',
+                  padding: '12px',
+                  zIndex: 1000,
+                  boxSizing: 'border-box',
+                  animation: 'fadeIn 0.15s ease-out',
+                }}
+              >
+                {/* User info banner */}
+                <div style={{ padding: '4px 8px 10px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                  <p style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user?.first_name || user?.username || 'Patient'}
+                  </p>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user?.email || user?.phone_number || 'Logged In'}
+                  </p>
+                </div>
+
+                <div style={{ paddingTop: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      navigate('/profile');
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      width: '100%',
+                      padding: '8.5px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: '#1e293b',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    My Profile
+                  </button>
+
+                  {(user?.role === 'ADMIN' || user?.role === 'DOCTOR') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        navigate('/dashboard');
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        width: '100%',
+                        padding: '8.5px 10px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: '#1e293b',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                      </svg>
+                      Admin Portal
+                    </button>
+                  )}
+
+                  <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '6px 0' }} />
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setDropdownOpen(false);
+                      await logout();
+                      navigate('/');
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      width: '100%',
+                      padding: '8.5px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: '#dc2626',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    Logout
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Mobile Hamburger Menu Toggle */}

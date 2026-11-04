@@ -11,6 +11,8 @@ const AppointmentModal = ({ isOpen, onClose }) => {
     name: '',
     phone: '',
     email: '',
+    gender: '',
+    dateOfBirth: '',
     date: '',
     time: '10:00 AM',
     notes: '',
@@ -165,6 +167,9 @@ const AppointmentModal = ({ isOpen, onClose }) => {
       patient_name: formData.name,
       patient_phone: formData.phone,
       patient_email: formData.email,
+      gender: formData.gender || '',
+      date_of_birth: formData.dateOfBirth || '',
+      dateOfBirth: formData.dateOfBirth || '',
       appointment_date: bookingDate,
       time_slot: formData.time || '10:00 AM',
       reason_for_visit: formData.notes || 'Homeopathic Consultation',
@@ -374,6 +379,54 @@ const AppointmentModal = ({ isOpen, onClose }) => {
                       }}
                     />
                     {modalErrors.email && <p style={{ fontSize: '12px', color: '#ef4444', margin: '4px 0 0' }}>{modalErrors.email}</p>}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
+                      Gender (Optional)
+                    </label>
+                    <select
+                      name="gender"
+                      value={formData.gender || ''}
+                      onChange={handleChange}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid #d1d5db',
+                        fontSize: '14px',
+                        outline: 'none',
+                        backgroundColor: '#ffffff',
+                      }}
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
+                      Date of Birth (Optional)
+                    </label>
+                    <input
+                      type="date"
+                      name="dateOfBirth"
+                      max={new Date().toISOString().split('T')[0]}
+                      value={formData.dateOfBirth || ''}
+                      onChange={handleChange}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid #d1d5db',
+                        fontSize: '14px',
+                        outline: 'none',
+                        backgroundColor: '#ffffff',
+                      }}
+                    />
                   </div>
                 </div>
 

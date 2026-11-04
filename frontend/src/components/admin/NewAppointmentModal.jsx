@@ -26,34 +26,55 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
     email: '',
     ageGender: '28 Years / Male',
   });
-  const [appointmentDate, setAppointmentDate] = useState('2026-10-28');
+  const getTodayISO = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [appointmentDate, setAppointmentDate] = useState(getTodayISO);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [timeSlot, setTimeSlot] = useState('10:30 AM - 11:00 AM');
-  const [reasonForVisit, setReasonForVisit] = useState('Skin Allergy');
+  const [reasonForVisit, setReasonForVisit] = useState('');
   const [consultationType, setConsultationType] = useState('In-clinic Visit');
   const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch real patients from Neon PostgreSQL
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setSelectedPatient(null);
+      setSearchQuery('');
+      setErrors({});
+      setReasonForVisit('');
+      setNewPatient({
+        name: '',
+        phone: '',
+        email: '',
+        ageGender: '28 Years / Male',
+      });
+      return;
+    }
+    // Reset state on open: Patient Name field should initially be empty
+    setSelectedPatient(null);
+    setSearchQuery('');
+    setErrors({});
+    setReasonForVisit('');
+    setNewPatient({
+      name: '',
+      phone: '',
+      email: '',
+      ageGender: '28 Years / Male',
+    });
+
     const fetchPatients = async () => {
       try {
         const data = await appointmentApi.getPatients();
         if (Array.isArray(data) && data.length > 0) {
           setAvailablePatients(data);
-          if (!selectedPatient) {
-            const p = data[0];
-            setSelectedPatient({
-              id: p.id,
-              name: p.name,
-              phone: p.mobile,
-              email: p.email || '',
-              age: p.ageGender?.split('/')[0]?.trim() || '28 Years',
-              gender: p.ageGender?.split('/')[1]?.trim() || 'Male',
-              initials: p.initials || 'PT',
-            });
-          }
         }
       } catch (err) {
         console.error('Failed to load patients for new appointment:', err);
@@ -99,8 +120,62 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
 
   if (!isOpen) return null;
 
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (patientType === 'existing') {
+      if (!selectedPatient) {
+        newErrors.patient = 'Please search and select a patient first.';
+      }
+    } else {
+      // 1. Name: Allow a maximum of 35 alphabetic characters only. Do not allow numbers or special characters.
+      const trimmedName = (newPatient.name || '').trim();
+      if (!trimmedName) {
+        newErrors.name = 'Patient full name is required.';
+      } else if (trimmedName.length > 35) {
+        newErrors.name = 'Patient name must not exceed 35 characters.';
+      } else if (!/^[a-zA-Z\s]+$/.test(trimmedName)) {
+        newErrors.name = 'Name must contain only alphabets and spaces. Numbers and special characters are not allowed.';
+      }
+
+      // 2. Mobile Number: Use a numeric input field and accept only valid 10-digit Indian mobile numbers starting with 6, 7, 8, or 9.
+      const trimmedPhone = (newPatient.phone || '').trim();
+      if (!trimmedPhone) {
+        newErrors.phone = 'Mobile number is required.';
+      } else if (!/^\d+$/.test(trimmedPhone)) {
+        newErrors.phone = 'Mobile number must contain only numeric digits.';
+      } else if (trimmedPhone.length !== 10) {
+        newErrors.phone = 'Mobile number must be exactly 10 digits.';
+      } else if (!/^[6-9]/.test(trimmedPhone)) {
+        newErrors.phone = 'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.';
+      }
+
+      // 3. Email: Apply proper email validation and prevent users from typing anything after .com.
+      const trimmedEmail = (newPatient.email || '').trim();
+      if (trimmedEmail) {
+        if (/\.com.+$/i.test(trimmedEmail)) {
+          newErrors.email = 'Invalid email address. No characters or text allowed after .com.';
+        } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(trimmedEmail)) {
+          newErrors.email = 'Please enter a valid email address (e.g. name@example.com).';
+        }
+      }
+    }
+
+    // 4. Reason for Visit: Provide a text input field where users can type the reason for the visit.
+    const trimmedReason = (reasonForVisit || '').trim();
+    if (!trimmedReason) {
+      newErrors.reasonForVisit = 'Reason for visit is required.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
     setIsSubmitting(true);
     try {
       const patientName = patientType === 'new' ? (newPatient.name.trim() || 'Patient') : (selectedPatient?.name || 'Patient');
@@ -113,7 +188,7 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
         patient_email: patientEmail,
         appointment_date: formatDateForDisplay(appointmentDate),
         time_slot: timeSlot,
-        reason_for_visit: reasonForVisit,
+        reason_for_visit: reasonForVisit.trim(),
         consultation_type: consultationType,
         status: 'Confirmed',
       });
@@ -124,7 +199,7 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
           patient: selectedPatient || newPatient,
           date: appointmentDate,
           timeSlot,
-          reasonForVisit,
+          reasonForVisit: reasonForVisit.trim(),
           consultationType,
           notes,
         });
@@ -132,7 +207,8 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
       onClose();
     } catch (err) {
       console.error('Booking failed:', err);
-      alert(err.response?.data?.error || err.response?.data?.detail || 'Failed to save appointment. Please verify details.');
+      const serverMsg = err.response?.data?.error || err.response?.data?.detail || 'Failed to save appointment. Please verify details.';
+      alert(serverMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -227,7 +303,7 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           {/* Section 1: Patient Details */}
           <div style={{ marginBottom: '24px' }}>
             <h3 style={{ fontSize: '14.5px', fontWeight: '700', color: '#1e293b', margin: '0 0 2px 0' }}>
@@ -287,11 +363,11 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
             {patientType === 'existing' ? (
               <>
                 {/* Search Patient Input */}
-                <div style={{ position: 'relative', marginBottom: '14px' }}>
+                <div style={{ position: 'relative', zIndex: 60, marginBottom: '14px' }}>
                   <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '500', color: '#475569', marginBottom: '6px' }}>
                     Search Patient
                   </label>
-                  <div style={{ position: 'relative' }}>
+                  <div style={{ position: 'relative', zIndex: 61 }}>
                     <div
                       style={{
                         position: 'absolute',
@@ -333,6 +409,7 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                     {/* Search results dropdown */}
                     {searchQuery.trim() && (
                       <div
+                        className="patient-search-dropdown"
                         style={{
                           position: 'absolute',
                           top: '100%',
@@ -345,20 +422,29 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                           maxHeight: '180px',
                           overflowY: 'auto',
-                          zIndex: 50,
+                          zIndex: 100,
                         }}
                       >
-                        {availablePatients
-                          .filter(
+                        {(() => {
+                          const matches = availablePatients.filter(
                             (p) =>
                               (p.name && p.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
                               (p.mobile && p.mobile.includes(searchQuery)) ||
                               (p.id && p.id.toLowerCase().includes(searchQuery.toLowerCase()))
-                          )
-                          .map((p) => (
+                          );
+                          if (matches.length === 0) {
+                            return (
+                              <div style={{ padding: '10px 14px', fontSize: '13px', color: '#64748b' }}>
+                                No matching patients found
+                              </div>
+                            );
+                          }
+                          return matches.map((p) => (
                             <div
                               key={p.id}
-                              onClick={() => {
+                              className="patient-suggestion-item"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
                                 setSelectedPatient({
                                   id: p.id,
                                   name: p.name,
@@ -366,8 +452,9 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                                   email: p.email || '',
                                   age: p.ageGender?.split('/')[0]?.trim() || '28 Years',
                                   gender: p.ageGender?.split('/')[1]?.trim() || 'Male',
-                                  initials: p.initials || 'PT',
+                                  initials: p.initials || (p.name ? p.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : 'PT'),
                                 });
+                                if (errors.patient) setErrors((prev) => ({ ...prev, patient: '' }));
                                 setSearchQuery('');
                               }}
                               style={{
@@ -382,8 +469,14 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                             >
                               <strong>{p.name}</strong> ({p.id}) - {p.mobile}
                             </div>
-                          ))}
+                          ));
+                        })()}
                       </div>
+                    )}
+                    {errors.patient && !selectedPatient && (
+                      <span style={{ color: '#dc2626', fontSize: '11.5px', marginTop: '4px', display: 'block' }}>
+                        {errors.patient}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -462,20 +555,30 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                     <input
                       type="text"
                       required
+                      maxLength={35}
                       value={newPatient.name}
-                      onChange={(e) => setNewPatient((prev) => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => {
+                        const cleanVal = e.target.value.replace(/[^a-zA-Z\s]/g, '').slice(0, 35);
+                        setNewPatient((prev) => ({ ...prev, name: cleanVal }));
+                        if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+                      }}
                       placeholder="e.g. John Doe"
                       style={{
                         width: '100%',
                         height: '42px',
                         padding: '0 12px',
                         borderRadius: '10px',
-                        border: '1px solid #cbd5e1',
+                        border: errors.name ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                         fontSize: '13.5px',
                         outline: 'none',
                         boxSizing: 'border-box',
                       }}
                     />
+                    {errors.name && (
+                      <span style={{ color: '#dc2626', fontSize: '11.5px', marginTop: '4px', display: 'block' }}>
+                        {errors.name}
+                      </span>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
@@ -483,21 +586,32 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                     </label>
                     <input
                       type="tel"
+                      inputMode="numeric"
                       required
+                      maxLength={10}
                       value={newPatient.phone}
-                      onChange={(e) => setNewPatient((prev) => ({ ...prev, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                      placeholder="10-digit mobile number"
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setNewPatient((prev) => ({ ...prev, phone: digits }));
+                        if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+                      }}
+                      placeholder="10-digit Indian mobile number"
                       style={{
                         width: '100%',
                         height: '42px',
                         padding: '0 12px',
                         borderRadius: '10px',
-                        border: '1px solid #cbd5e1',
+                        border: errors.phone ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                         fontSize: '13.5px',
                         outline: 'none',
                         boxSizing: 'border-box',
                       }}
                     />
+                    {errors.phone && (
+                      <span style={{ color: '#dc2626', fontSize: '11.5px', marginTop: '4px', display: 'block' }}>
+                        {errors.phone}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
@@ -508,19 +622,35 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                     <input
                       type="email"
                       value={newPatient.email}
-                      onChange={(e) => setNewPatient((prev) => ({ ...prev, email: e.target.value }))}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\s/g, '');
+                        // Prevent users from typing anything after .com
+                        const comMatch = val.match(/^([^@]+@[a-zA-Z0-9.-]+\.com)(.+)$/i);
+                        if (comMatch) {
+                          val = comMatch[1];
+                          setErrors((prev) => ({ ...prev, email: 'No words or characters allowed after .com' }));
+                        } else if (errors.email) {
+                          setErrors((prev) => ({ ...prev, email: '' }));
+                        }
+                        setNewPatient((prev) => ({ ...prev, email: val }));
+                      }}
                       placeholder="e.g. patient@gmail.com"
                       style={{
                         width: '100%',
                         height: '42px',
                         padding: '0 12px',
                         borderRadius: '10px',
-                        border: '1px solid #cbd5e1',
+                        border: errors.email ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                         fontSize: '13.5px',
                         outline: 'none',
                         boxSizing: 'border-box',
                       }}
                     />
+                    {errors.email && (
+                      <span style={{ color: '#dc2626', fontSize: '11.5px', marginTop: '4px', display: 'block' }}>
+                        {errors.email}
+                      </span>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
@@ -636,32 +766,33 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
                   Reason for Visit <span style={{ color: '#ef4444' }}>*</span>
                 </label>
-                <select
-                  value={reasonForVisit}
-                  onChange={(e) => setReasonForVisit(e.target.value)}
+                <input
+                  type="text"
                   required
+                  value={reasonForVisit}
+                  onChange={(e) => {
+                    setReasonForVisit(e.target.value);
+                    if (errors.reasonForVisit) setErrors((prev) => ({ ...prev, reasonForVisit: '' }));
+                  }}
+                  placeholder="e.g. Skin Allergy, Migraine, Stomach Pain..."
                   style={{
                     width: '100%',
                     height: '44px',
                     padding: '0 14px',
                     borderRadius: '10px',
-                    border: '1px solid #cbd5e1',
+                    border: errors.reasonForVisit ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                     fontSize: '13.5px',
                     color: '#1e293b',
                     backgroundColor: '#ffffff',
                     outline: 'none',
                     boxSizing: 'border-box',
-                    cursor: 'pointer',
                   }}
-                >
-                  <option value="Skin Allergy">Skin Allergy</option>
-                  <option value="Consultation">Consultation</option>
-                  <option value="Chronic Migraine">Chronic Migraine</option>
-                  <option value="Follow-up">Follow-up</option>
-                  <option value="Digestive Issue">Digestive Issue</option>
-                  <option value="Thyroid Consultation">Thyroid Consultation</option>
-                  <option value="General Health Checkup">General Health Checkup</option>
-                </select>
+                />
+                {errors.reasonForVisit && (
+                  <span style={{ color: '#dc2626', fontSize: '11.5px', marginTop: '4px', display: 'block' }}>
+                    {errors.reasonForVisit}
+                  </span>
+                )}
               </div>
 
               <div>

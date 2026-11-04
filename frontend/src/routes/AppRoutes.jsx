@@ -17,9 +17,10 @@ import BookAppointmentPage from '../features/booking/BookAppointmentPage';
 // Patient Profile Page
 import ProfilePage from '../features/profile/ProfilePage';
 
-// Public Authentication
+// Public Authentication (Patient Portal & Admin Portal)
 import LoginPage from '../features/auth/LoginPage';
 import RegisterPage from '../features/auth/RegisterPage';
+import AdminLoginPage from '../features/auth/AdminLoginPage';
 
 // Admin Portal Layout & Pages matching reference images exactly
 import AdminLayout from '../components/admin/AdminLayout';
@@ -48,15 +49,18 @@ const AppRoutes = () => {
       {/* 3. Book Appointment Page */}
       <Route path="/book-appointment" element={<BookAppointmentPage />} />
 
-      {/* 3. Patient Profile Page */}
-      <Route path="/profile" element={<ProfilePage />} />
+      {/* 4. Protected Patient Portal (Only accessible by authenticated patients) */}
+      <Route element={<ProtectedRoute redirectPath="/login" allowedRoles={['PATIENT']} />}>
+        <Route path="/profile" element={<ProfilePage />} />
+      </Route>
 
-      {/* 4. Authentication */}
-      <Route path="/login" element={<LoginPage />} />
+      {/* 5. Separate Patient and Admin Authentication */}
+      <Route path="/login" element={<LoginPage initialMode="login" />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/admin-login" element={<AdminLoginPage />} />
 
-      {/* 5. Protected Admin Portal Routes (Requires authenticated Doctor/Admin) */}
-      <Route element={<ProtectedRoute redirectPath="/login" allowedRoles={['ADMIN', 'DOCTOR', 'RECEPTIONIST']} />}>
+      {/* 6. Protected Admin Portal Routes (Requires authenticated Doctor/Admin) */}
+      <Route element={<ProtectedRoute redirectPath="/admin-login" allowedRoles={['ADMIN', 'DOCTOR', 'RECEPTIONIST']} />}>
         <Route
           path="/dashboard"
           element={

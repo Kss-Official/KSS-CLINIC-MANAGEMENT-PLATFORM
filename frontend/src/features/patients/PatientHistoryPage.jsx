@@ -93,10 +93,12 @@ const PatientHistoryPage = () => {
     const matchesStatus =
       statusFilter === 'All' || item.status.toLowerCase() === statusFilter.toLowerCase();
 
+    const genderLower = (item.ageGender || '').toLowerCase();
     const matchesGender =
       genderFilter === 'All' ||
-      (genderFilter === 'Male' && item.ageGender.toLowerCase().includes('male') && !item.ageGender.toLowerCase().includes('female')) ||
-      (genderFilter === 'Female' && item.ageGender.toLowerCase().includes('female'));
+      (genderFilter === 'Male' && genderLower.includes('male') && !genderLower.includes('female')) ||
+      (genderFilter === 'Female' && genderLower.includes('female')) ||
+      (genderFilter === 'Other' && (genderLower.includes('other') || (!genderLower.includes('male') && !genderLower.includes('female'))));
 
     const ageNum = parseInt(item.ageGender.match(/\d+/)?.[0] || '0', 10);
     const matchesAge =
@@ -468,6 +470,7 @@ const PatientHistoryPage = () => {
               <option value="All">All Gender</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
+              <option value="Other">Other</option>
             </select>
 
             {/* All Age Groups Dropdown */}

@@ -16,10 +16,12 @@ class Patient(TimeStampedModel):
     name = models.CharField(max_length=150)
     phone = models.CharField(max_length=50, blank=True, default='')
     email = models.EmailField(blank=True, null=True)
-    age_gender = models.CharField(max_length=100, blank=True, default='30 / Adult')
-    blood_group = models.CharField(max_length=20, blank=True, default='O+')
+    gender = models.CharField(max_length=50, blank=True, default='')
+    date_of_birth = models.CharField(max_length=100, blank=True, default='')
+    age_gender = models.CharField(max_length=100, blank=True, default='')
+    blood_group = models.CharField(max_length=20, blank=True, default='')
     address = models.TextField(blank=True, default='')
-    known_allergies = models.TextField(blank=True, default='None')
+    known_allergies = models.TextField(blank=True, default='')
     primary_concern = models.TextField(blank=True, default='General Consultation')
     medical_history = models.TextField(blank=True, default='')
     notes = models.TextField(blank=True, default='Registered via Appointment Booking.')
@@ -30,8 +32,22 @@ class Patient(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         if not self.patient_id:
-            count = Patient.objects.count() + 1
-            self.patient_id = f"PAT-{1000 + count}"
+            import re
+            max_num = 1000
+            for pid in Patient.objects.values_list('patient_id', flat=True):
+                if pid:
+                    match = re.search(r'PAT-(\d+)', str(pid))
+                    if match:
+                        try:
+                            num = int(match.group(1))
+                            if num > max_num:
+                                max_num = num
+                        except ValueError:
+                            pass
+            next_num = max_num + 1
+            while Patient.objects.filter(patient_id=f"PAT-{next_num}").exists():
+                next_num += 1
+            self.patient_id = f"PAT-{next_num}"
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -65,6 +81,8 @@ class Appointment(TimeStampedModel):
     patient_name = models.CharField(max_length=150)
     patient_phone = models.CharField(max_length=25)
     patient_email = models.EmailField(blank=True, null=True)
+    patient_gender = models.CharField(max_length=50, blank=True, default='')
+    patient_dob = models.CharField(max_length=100, blank=True, default='')
     appointment_date = models.CharField(max_length=50)
     time_slot = models.CharField(max_length=50)
     reason_for_visit = models.TextField(blank=True, default='')
@@ -157,9 +175,23 @@ class Prescription(TimeStampedModel):
     def save(self, *args, **kwargs):
         if not self.prescription_id:
             from datetime import datetime
+            import re
             year = datetime.now().year
-            count = Prescription.objects.count() + 1
-            self.prescription_id = f"RX-{year}-{1000 + count}"
+            max_num = 1000
+            for rx_id in Prescription.objects.values_list('prescription_id', flat=True):
+                if rx_id:
+                    match = re.search(rf'RX-{year}-(\d+)', str(rx_id))
+                    if match:
+                        try:
+                            num = int(match.group(1))
+                            if num > max_num:
+                                max_num = num
+                        except ValueError:
+                            pass
+            next_num = max_num + 1
+            while Prescription.objects.filter(prescription_id=f"RX-{year}-{next_num}").exists():
+                next_num += 1
+            self.prescription_id = f"RX-{year}-{next_num}"
         super().save(*args, **kwargs)
 
     def __str__(self):

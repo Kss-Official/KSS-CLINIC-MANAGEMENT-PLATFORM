@@ -31,24 +31,66 @@
 }
 
 html {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
   scroll-behavior: smooth;
   font-family: var(--font-sans);
   color: var(--text-dark);
   background-color: var(--bg-page);
   -webkit-font-smoothing: antialiased;
-  overflow-y: scroll;
+  overflow-y: auto;
   scrollbar-gutter: stable;
-  touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
 body {
-  overflow-x: hidden;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
   line-height: 1.6;
   font-family: var(--font-sans);
-  touch-action: manipulation;
+  background-color: var(--bg-page);
+}
+
+#root {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+}
+
+/* Common Page Wrappers: Flex layout ensuring footer sticks to bottom naturally without gaps */
+.homepage-wrapper,
+.about-page-wrapper,
+.services-page-wrapper,
+.stories-page-wrapper,
+.contact-page-wrapper,
+.profile-page-wrapper,
+.booking-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex: 1;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.homepage-wrapper > main,
+.about-page-wrapper > main,
+.services-page-wrapper > main,
+.stories-page-wrapper > main,
+.contact-page-wrapper > main {
+  flex: 1 0 auto;
 }
 
 button, input, select, textarea {
@@ -305,5 +347,51 @@ dialog::backdrop {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+
+/* Auth Pages Viewport & Scroll Isolation (Admin Login, Patient Login, Patient Sign-Up) */
+.patient-auth-viewport,
+.admin-login-viewport {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-height: 520px) {
+  .patient-auth-viewport,
+  .admin-login-viewport {
+    position: relative !important;
+    min-height: 100vh !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* Mobile & Small Screens Adaptation */
+@media (max-width: 640px) {
+  .patient-auth-card,
+  .admin-login-card {
+    padding: 24px 20px 20px 20px !important;
+    border-radius: 20px !important;
+  }
+
+  .signup-fields-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .back-to-home-btn {
+    top: 14px !important;
+    left: 14px !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
   }
 }

@@ -9,6 +9,21 @@ export const appointmentApi = {
 
   updateAppointmentStatus: async (id, status) => {
     const response = await axiosClient.patch(`/appointments/${id}/`, { status });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('appointment-updated', { detail: response.data })
+      );
+    }
+    return response.data;
+  },
+
+  deleteAppointment: async (id) => {
+    const response = await axiosClient.delete(`/appointments/${id}/`);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('appointment-deleted', { detail: { id } })
+      );
+    }
     return response.data;
   },
 
