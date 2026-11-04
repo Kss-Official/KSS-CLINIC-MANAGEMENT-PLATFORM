@@ -632,7 +632,9 @@ const Navbar = ({ onOpenBooking }) => {
         }
         @media (max-width: 819px) {
           .navbar-inner {
-            grid-template-columns: auto 1fr !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
           }
           .desktop-nav {
             display: none !important;
