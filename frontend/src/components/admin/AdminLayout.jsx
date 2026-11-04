@@ -329,6 +329,11 @@ const AdminLayout = ({ children }) => {
             text-align: center !important;
           }
         }
+        @media (max-width: 640px) {
+          .admin-portal-body {
+            height: calc(100dvh - 62px) !important;
+          }
+        }
       `}</style>
     </AdminContext.Provider>
   );

@@ -203,6 +203,7 @@ const AdminHeader = ({ onToggleSidebar }) => {
         <div ref={notifRef} style={{ position: 'relative' }}>
           <button
             type="button"
+            className="admin-header-notif-btn"
             onClick={() => setNotificationsOpen((prev) => !prev)}
             aria-label={`Notifications, ${unreadCount} unread`}
             style={{
@@ -263,6 +264,7 @@ const AdminHeader = ({ onToggleSidebar }) => {
           {/* Notifications Dropdown Panel */}
           {notificationsOpen && (
             <div
+              className="admin-notifications-dropdown"
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 12px)',
@@ -529,6 +531,7 @@ const AdminHeader = ({ onToggleSidebar }) => {
         >
           {/* Profile Trigger (Avatar + Doctor Info + Arrow) */}
           <div
+            className="admin-header-profile-trigger"
             onClick={() => setDropdownOpen((prev) => !prev)}
             title="Doctor Profile Menu"
             style={{
@@ -552,6 +555,7 @@ const AdminHeader = ({ onToggleSidebar }) => {
               <img
                 src={clinicProfileImage}
                 alt="Clinic Profile"
+                className="admin-header-avatar"
                 style={{
                   width: '40px',
                   height: '40px',
@@ -567,6 +571,7 @@ const AdminHeader = ({ onToggleSidebar }) => {
               />
             ) : (
               <div
+                className="admin-header-avatar"
                 style={{
                   width: '40px',
                   height: '40px',
@@ -611,6 +616,7 @@ const AdminHeader = ({ onToggleSidebar }) => {
 
             {/* Dropdown Chevron Arrow */}
             <div
+              className="admin-header-doctor-arrow"
               style={{
                 marginLeft: '4px',
                 display: 'flex',
@@ -640,6 +646,7 @@ const AdminHeader = ({ onToggleSidebar }) => {
           {/* Profile Dropdown Menu with Settings & Logout */}
           {dropdownOpen && (
             <div
+              className="admin-profile-dropdown"
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 6px)',
@@ -654,6 +661,37 @@ const AdminHeader = ({ onToggleSidebar }) => {
                 overflow: 'hidden',
               }}
             >
+              {/* Mobile-Only Header showing Doctor Info */}
+              <div
+                className="admin-mobile-dropdown-header"
+                style={{
+                  display: 'none',
+                  flexDirection: 'column',
+                  padding: '10px 12px 10px',
+                  borderBottom: '1px solid #f1f5f9',
+                  marginBottom: '4px',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    color: '#1e293b',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  Dr. K. Tripathi Ampeh (Pat.)
+                </span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#64748b',
+                    marginTop: '2px',
+                  }}
+                >
+                  Doctor / Administrator
+                </span>
+              </div>
               {/* Option 1: Settings */}
               <div
                 onClick={() => {

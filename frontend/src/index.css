@@ -257,6 +257,7 @@ body.admin-mode {
     text-align: center !important;
   }
   .admin-header {
+    height: 64px !important;
     padding: 0 16px !important;
   }
   .admin-header-logo-img {
@@ -265,6 +266,109 @@ body.admin-mode {
   }
   .admin-header-brand-name {
     font-size: 13px !important;
+  }
+  .admin-header-right-group {
+    gap: 12px !important;
+  }
+  .admin-header-doctor-text {
+    max-width: 140px;
+    overflow: hidden;
+  }
+  .admin-header-doctor-text > div:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Mobile Responsive View for Admin Portal (<= 640px) */
+@media (max-width: 640px) {
+  .admin-header {
+    height: 62px !important;
+    padding: 0 12px !important;
+  }
+  .admin-header-logo-img {
+    height: 28px !important;
+    max-width: 130px !important;
+    width: auto !important;
+  }
+  .admin-mobile-menu-btn {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .admin-header-right-group {
+    gap: 8px !important;
+  }
+  .admin-header-notif-btn {
+    padding: 6px !important;
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .admin-header-profile-trigger {
+    padding: 2px !important;
+    gap: 0 !important;
+    border-radius: 50% !important;
+  }
+  .admin-header-avatar {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 13px !important;
+  }
+  .admin-header-doctor-text {
+    display: none !important;
+  }
+  .admin-header-doctor-arrow {
+    display: none !important;
+  }
+  .admin-mobile-dropdown-header {
+    display: flex !important;
+  }
+  .admin-profile-dropdown {
+    min-width: 190px !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+  .admin-notifications-dropdown {
+    position: fixed !important;
+    top: 66px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+  .admin-portal-body {
+    height: calc(100dvh - 62px) !important;
+  }
+}
+
+/* Extra Small Mobile Devices (<= 380px) */
+@media (max-width: 380px) {
+  .admin-header {
+    padding: 0 8px !important;
+  }
+  .admin-header-logo-img {
+    height: 25px !important;
+    max-width: 110px !important;
+  }
+  .admin-mobile-menu-btn {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .admin-header-right-group {
+    gap: 6px !important;
+  }
+  .admin-header-notif-btn {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .admin-header-avatar {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 12px !important;
+  }
+  .admin-notifications-dropdown {
+    left: 8px !important;
+    right: 8px !important;
+    max-width: calc(100vw - 16px) !important;
   }
 }
 
