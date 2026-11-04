@@ -176,25 +176,11 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span
                 style={{
                   display: 'inline-block',
-                  padding: '4px 12px',
-                  borderRadius: '9999px',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  backgroundColor: rxBadge.bg,
-                  color: rxBadge.color,
-                  border: `1px solid ${rxBadge.border}`,
-                }}
-              >
-                Rx: {rxStatus}
-              </span>
-              <span
-                style={{
-                  display: 'inline-block',
-                  padding: '4px 12px',
+                  padding: '4px 14px',
                   borderRadius: '9999px',
                   fontSize: '12px',
                   fontWeight: '700',
@@ -397,7 +383,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               type="button"
               onClick={onClose}
               style={{
-                padding: '9px 20px',
+                padding: '9px 22px',
                 borderRadius: '8px',
                 border: '1px solid #e2e8f0',
                 backgroundColor: '#ffffff',
@@ -408,22 +394,6 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               }}
             >
               Close
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: '9px 24px',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: '#1e4620',
-                color: '#ffffff',
-                fontSize: '13.5px',
-                fontWeight: '600',
-                cursor: 'pointer',
-              }}
-            >
-              Done
             </button>
           </div>
         </div>

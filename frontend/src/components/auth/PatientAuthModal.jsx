@@ -4,7 +4,7 @@ import { extractErrorMessage } from '../../utils/helpers';
 import doctorPortalLogo from '../../assets/doctor-portal-logo.png';
 
 const PatientAuthModal = ({ isOpen, onClose, onSuccess }) => {
-  const { login, register } = useAuth();
+  const { patientLogin, register, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('login'); // 'login' or 'register'
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,10 +30,15 @@ const PatientAuthModal = ({ isOpen, onClose, onSuccess }) => {
     setError('');
 
     try {
-      const data = await login({
+      const data = await patientLogin({
         username: loginData.username.trim(),
         password: loginData.password,
       });
+      if (data?.user?.role !== 'PATIENT') {
+        await logout();
+        setError('Access denied. Administrator accounts cannot log in through the Patient Portal. Please use the Admin Login.');
+        return;
+      }
       if (onSuccess) {
         onSuccess(data?.user);
       }
@@ -50,22 +55,64 @@ const PatientAuthModal = ({ isOpen, onClose, onSuccess }) => {
     setIsLoading(true);
     setError('');
 
-    // Validations
-    const phoneClean = (regData.phoneNumber || '').replace(/\D/g, '');
-    if (!phoneClean || phoneClean.length !== 10 || !/^[6-9]/.test(phoneClean)) {
-      setError('Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9');
+    // 1. Name Validation: max 35 alphabetic characters, no numbers or special characters
+    const nameClean = ((regData.firstName || '') + ' ' + (regData.lastName || '')).trim();
+    if (!nameClean) {
+      setError('Please enter your full name.');
+      setIsLoading(false);
+      return;
+    }
+    if (nameClean.length > 35) {
+      setError('Name cannot exceed 35 characters.');
+      setIsLoading(false);
+      return;
+    }
+    if (!/^[a-zA-Z\s]+$/.test(nameClean)) {
+      setError('Name must contain only alphabetic characters. Numbers and special characters are not allowed.');
       setIsLoading(false);
       return;
     }
 
+    // 2. Email Validation: valid email format, no characters after .com
     const emailTrimmed = (regData.email || '').trim().toLowerCase();
-    if (!emailTrimmed || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(emailTrimmed)) {
-      setError('Please enter a valid email address');
+    if (!emailTrimmed) {
+      setError('Please enter your email address.');
       setIsLoading(false);
       return;
     }
-    if (/\.com.+$/i.test(emailTrimmed)) {
-      setError('No characters are allowed after .com in the email address');
+    if (emailTrimmed.includes('.com')) {
+      const comIndex = emailTrimmed.indexOf('.com');
+      if (emailTrimmed.length > comIndex + 4) {
+        setError('Invalid email address. No additional characters or text are allowed after the .com extension.');
+        setIsLoading(false);
+        return;
+      }
+    }
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(emailTrimmed)) {
+      setError('Please enter a valid email address (e.g., name@example.com).');
+      setIsLoading(false);
+      return;
+    }
+
+    // 3. Phone Number Validation: numeric only, exactly 10 digits, starts with 6, 7, 8, or 9
+    const phoneClean = (regData.phoneNumber || '').trim();
+    if (!phoneClean) {
+      setError('Please enter your phone number.');
+      setIsLoading(false);
+      return;
+    }
+    if (!/^\d+$/.test(phoneClean)) {
+      setError('Phone number must contain only numeric digits. Letters and special characters are not allowed.');
+      setIsLoading(false);
+      return;
+    }
+    if (phoneClean.length !== 10) {
+      setError('Phone number must contain exactly 10 digits.');
+      setIsLoading(false);
+      return;
+    }
+    if (!/^[6-9]/.test(phoneClean)) {
+      setError('Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.');
       setIsLoading(false);
       return;
     }

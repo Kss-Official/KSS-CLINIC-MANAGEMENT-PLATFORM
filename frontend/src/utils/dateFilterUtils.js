@@ -59,23 +59,48 @@ export const parseDateString = (str) => {
   return null;
 };
 
+export const getTodayInClinicTimezone = () => {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const [year, month, day] = formatter
+      .format(new Date())
+      .split('-')
+      .map((n) => parseInt(n, 10));
+    return new Date(year, month - 1, day);
+  } catch (e) {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+};
+
 export const matchesDateFilter = (itemDate, dateFilter) => {
   if (!dateFilter || dateFilter === 'All Dates') return true;
 
   const itemParsed = parseDateString(itemDate);
   if (!itemParsed) return false;
 
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = getTodayInClinicTimezone();
 
   if (dateFilter === 'Today') {
-    return itemParsed.getTime() === today.getTime();
+    return (
+      itemParsed.getFullYear() === today.getFullYear() &&
+      itemParsed.getMonth() === today.getMonth() &&
+      itemParsed.getDate() === today.getDate()
+    );
   }
 
   if (dateFilter === 'Tomorrow') {
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    return itemParsed.getTime() === tomorrow.getTime();
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    return (
+      itemParsed.getFullYear() === tomorrow.getFullYear() &&
+      itemParsed.getMonth() === tomorrow.getMonth() &&
+      itemParsed.getDate() === tomorrow.getDate()
+    );
   }
 
   if (dateFilter === 'This Week') {

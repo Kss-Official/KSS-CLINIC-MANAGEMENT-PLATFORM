@@ -10,6 +10,10 @@ const Footer = () => {
         color: '#9ca3af',
         padding: '65px 0 32px',
         borderTop: '1px solid #142f1d',
+        marginTop: 'auto',
+        marginBottom: 0,
+        width: '100%',
+        flexShrink: 0,
       }}
     >
       <div

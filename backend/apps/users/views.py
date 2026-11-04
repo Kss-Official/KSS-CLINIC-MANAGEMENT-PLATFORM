@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, filters
+from apps.core.permissions import IsStaffOrAdmin
 from .models import User
 from .serializers import UserSerializer, UserCreateUpdateSerializer
 from .permissions import IsAdminOrSelf
@@ -20,8 +21,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ['list', 'create', 'destroy']:
-            permission_classes = [permissions.IsAdminUser]
+            permission_classes = [permissions.IsAuthenticated, IsStaffOrAdmin]
         else:
             permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
         return [permission() for permission in permission_classes]
-

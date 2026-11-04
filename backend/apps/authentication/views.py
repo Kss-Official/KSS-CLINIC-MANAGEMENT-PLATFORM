@@ -26,7 +26,64 @@ def obfuscate_email(email):
     return f"{masked}@{domain}"
 
 
+class AdminLoginView(views.APIView):
+    """
+    Dedicated authentication endpoint for Clinic Administrators, Doctors, and Staff.
+    Rejects Patient accounts.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        data['portal'] = 'admin'
+        serializer = LoginSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token, _ = Token.objects.get_or_create(user=user)
+
+        return Response({
+            'token': token.key,
+            'user': UserSerializer(user).data,
+            'message': 'Admin login successful'
+        }, status=status.HTTP_200_OK)
+
+
+class PatientLoginView(views.APIView):
+    """
+    Dedicated authentication endpoint for Patients.
+    Rejects Administrator and Staff accounts.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        data['portal'] = 'patient'
+        serializer = LoginSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+
+        if user.role != User.Role.PATIENT or user.is_staff or user.is_superuser or user.is_staff_or_admin:
+            return Response({
+                'non_field_errors': [
+                    'Access denied. Administrator accounts cannot log in through the Patient Portal. Please use the Admin Login.'
+                ],
+                'detail': 'Access denied. Administrator accounts cannot log in through the Patient Portal. Please use the Admin Login.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        token, _ = Token.objects.get_or_create(user=user)
+
+        return Response({
+            'token': token.key,
+            'user': UserSerializer(user).data,
+            'message': 'Patient login successful'
+        }, status=status.HTTP_200_OK)
+
+
 class LoginView(views.APIView):
+    """
+    General authentication endpoint. Supports optional 'portal' ('admin' or 'patient')
+    for strict role-based portal separation.
+    """
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
@@ -58,20 +115,51 @@ class RegisterView(views.APIView):
             patient = Patient.objects.filter(user=user).first()
             if not patient and user.email:
                 patient = Patient.objects.filter(email__iexact=user.email).first()
-                if patient:
-                    patient.user = user
-                    if not patient.phone and user.phone_number:
-                        patient.phone = user.phone_number
-                    patient.save()
-            if not patient:
-                Patient.objects.create(
-                    user=user,
-                    name=full_name,
-                    email=user.email or f"{user.username}@gmail.com",
-                    phone=user.phone_number or '',
-                    status='Active',
-                    primary_concern='General Consultation',
-                )
+            if not patient and user.phone_number:
+                clean_phone = ''.join(c for c in user.phone_number if c.isdigit())
+                if clean_phone:
+                    patient = Patient.objects.filter(phone__endswith=clean_phone[-10:]).first()
+            if patient:
+                patient.user = user
+                if not patient.phone and user.phone_number:
+                    patient.phone = user.phone_number
+                if not patient.email and user.email:
+                    patient.email = user.email
+                patient.save()
+            else:
+                try:
+                    Patient.objects.create(
+                        user=user,
+                        name=full_name,
+                        email=user.email or f"{user.username}@gmail.com",
+                        phone=user.phone_number or '',
+                        status='Active',
+                        primary_concern='General Consultation',
+                    )
+                except Exception:
+                    # In case of any concurrent collision, find max ID explicitly and create
+                    import re
+                    max_num = 1000
+                    for pid in Patient.objects.values_list('patient_id', flat=True):
+                        if pid:
+                            match = re.search(r'PAT-(\d+)', str(pid))
+                            if match:
+                                try:
+                                    max_num = max(max_num, int(match.group(1)))
+                                except ValueError:
+                                    pass
+                    next_id = max_num + 1
+                    while Patient.objects.filter(patient_id=f"PAT-{next_id}").exists():
+                        next_id += 1
+                    Patient.objects.create(
+                        user=user,
+                        patient_id=f"PAT-{next_id}",
+                        name=full_name,
+                        email=user.email or f"{user.username}@gmail.com",
+                        phone=user.phone_number or '',
+                        status='Active',
+                        primary_concern='General Consultation',
+                    )
 
         return Response({
             'token': token.key,
@@ -101,11 +189,14 @@ class ForgotPasswordView(views.APIView):
     """
     Handles request for forgot password.
     Generates a secure 6-digit OTP code and emails it to the user via Brevo SMTP.
+    Validates portal role to prevent cross-portal password reset.
     """
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         identifier = str(request.data.get('identifier', '')).strip()
+        portal = (request.data.get('portal') or '').lower().strip()
+
         if not identifier:
             return Response(
                 {'success': False, 'error': 'Please enter your username or registered email address.'},
@@ -116,10 +207,51 @@ class ForgotPasswordView(views.APIView):
             models.Q(email__iexact=identifier) | models.Q(username__iexact=identifier)
         ).first()
 
+        clean_digits = ''.join(c for c in identifier if c.isdigit())
+        if not user and len(clean_digits) >= 10:
+            user = User.objects.filter(phone_number__endswith=clean_digits[-10:]).first()
+
         if not user:
+            try:
+                from apps.appointments.models import Patient
+                p_q = models.Q(email__iexact=identifier) | models.Q(patient_id__iexact=identifier)
+                if len(clean_digits) >= 10:
+                    p_q |= models.Q(phone__endswith=clean_digits[-10:])
+                patient_rec = Patient.objects.filter(p_q).first()
+                if patient_rec and patient_rec.user:
+                    user = patient_rec.user
+            except Exception:
+                pass
+
+        if not user:
+            portal_label = "patient " if portal == "patient" else ("administrator " if portal == "admin" else "")
             return Response(
-                {'success': False, 'error': 'No account found with this username or email.'},
+                {'success': False, 'error': f'No {portal_label}account found with this username, email, or mobile number.'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        is_staff_or_admin = (
+            user.role in [User.Role.ADMIN, User.Role.DOCTOR, User.Role.RECEPTIONIST]
+            or user.is_staff
+            or user.is_superuser
+        )
+
+        if portal == 'patient' and (is_staff_or_admin or user.role != User.Role.PATIENT):
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Access denied. Administrator accounts cannot reset password through the Patient Portal. Please use the Admin Login.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if portal == 'admin' and (not is_staff_or_admin or user.role == User.Role.PATIENT):
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Access denied. Patient accounts cannot reset password through the Admin Portal. Please use the Patient Login.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         if not user.email or '@' not in user.email:
@@ -226,14 +358,55 @@ class ResetPasswordView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        portal = (request.data.get('portal') or '').lower().strip()
         user = User.objects.filter(
             models.Q(email__iexact=identifier) | models.Q(username__iexact=identifier)
         ).first()
+
+        clean_digits = ''.join(c for c in identifier if c.isdigit())
+        if not user and len(clean_digits) >= 10:
+            user = User.objects.filter(phone_number__endswith=clean_digits[-10:]).first()
+
+        if not user:
+            try:
+                from apps.appointments.models import Patient
+                p_q = models.Q(email__iexact=identifier) | models.Q(patient_id__iexact=identifier)
+                if len(clean_digits) >= 10:
+                    p_q |= models.Q(phone__endswith=clean_digits[-10:])
+                patient_rec = Patient.objects.filter(p_q).first()
+                if patient_rec and patient_rec.user:
+                    user = patient_rec.user
+            except Exception:
+                pass
 
         if not user:
             return Response(
                 {'success': False, 'error': 'User not found.'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        is_staff_or_admin = (
+            user.role in [User.Role.ADMIN, User.Role.DOCTOR, User.Role.RECEPTIONIST]
+            or user.is_staff
+            or user.is_superuser
+        )
+
+        if portal == 'patient' and (is_staff_or_admin or user.role != User.Role.PATIENT):
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Access denied. Administrator accounts cannot reset password through the Patient Portal. Please use the Admin Login.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if portal == 'admin' and (not is_staff_or_admin or user.role == User.Role.PATIENT):
+            return Response(
+                {
+                    'success': False,
+                    'error': 'Access denied. Patient accounts cannot reset password through the Admin Portal. Please use the Patient Login.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         reset_code = PasswordResetCode.objects.filter(
@@ -260,4 +433,3 @@ class ResetPasswordView(views.APIView):
             'success': True,
             'message': 'Password has been reset successfully. You can now login with your new password.'
         }, status=status.HTTP_200_OK)
-

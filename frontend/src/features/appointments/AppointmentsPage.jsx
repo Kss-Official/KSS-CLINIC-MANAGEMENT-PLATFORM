@@ -51,43 +51,60 @@ const AppointmentsPage = () => {
     };
   };
 
-  const fetchAppointments = useCallback(async () => {
+  const fetchAppointments = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       setError(null);
       const data = await appointmentApi.getAppointments();
       if (Array.isArray(data)) {
-        setAppointmentsList(data.map(mapApiAppointment));
+        const mapped = data.map(mapApiAppointment);
+        setAppointmentsList((prev) => {
+          if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
+            return prev;
+          }
+          return mapped;
+        });
       } else {
         setAppointmentsList([]);
       }
     } catch (err) {
       console.error('Failed to fetch appointments:', err);
-      setError('Unable to load appointments from Neon cloud database. Please verify backend connection.');
+      if (!silent) {
+        setError('Unable to load appointments from Neon cloud database. Please verify backend connection.');
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchAppointments();
 
-    const handleAppointmentBooked = () => {
-      fetchAppointments();
+    const handleRefresh = () => {
+      fetchAppointments(true);
     };
 
-    const handlePrescriptionCreated = () => {
-      fetchAppointments();
-    };
+    window.addEventListener('appointment-booked', handleRefresh);
+    window.addEventListener('appointment-updated', handleRefresh);
+    window.addEventListener('appointment-deleted', handleRefresh);
+    window.addEventListener('prescription-created', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
 
-    window.addEventListener('appointment-booked', handleAppointmentBooked);
-    window.addEventListener('prescription-created', handlePrescriptionCreated);
-    window.addEventListener('focus', fetchAppointments);
+    const interval = setInterval(() => {
+      fetchAppointments(true);
+    }, 5000);
 
     return () => {
-      window.removeEventListener('appointment-booked', handleAppointmentBooked);
-      window.removeEventListener('prescription-created', handlePrescriptionCreated);
-      window.removeEventListener('focus', fetchAppointments);
+      window.removeEventListener('appointment-booked', handleRefresh);
+      window.removeEventListener('appointment-updated', handleRefresh);
+      window.removeEventListener('appointment-deleted', handleRefresh);
+      window.removeEventListener('prescription-created', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+      clearInterval(interval);
     };
   }, [fetchAppointments]);
 
@@ -175,8 +192,11 @@ const AppointmentsPage = () => {
       if (!statusFilter || statusFilter === 'All') return true;
       const aptStatus = String(item.status || 'Confirmed').trim().toLowerCase();
       const targetStatus = String(statusFilter).trim().toLowerCase();
-      if (targetStatus === 'complete') {
+      if (targetStatus === 'complete' || targetStatus === 'completed') {
         return aptStatus === 'complete' || aptStatus === 'completed';
+      }
+      if (targetStatus === 'pending' || targetStatus === 'confirmed') {
+        return aptStatus === 'pending' || aptStatus === 'confirmed';
       }
       return aptStatus === targetStatus;
     })();
@@ -200,6 +220,7 @@ const AppointmentsPage = () => {
   // Dynamic pagination calculation based on data and page size
   // Dynamic metrics calculation from live Neon data
   const totalAppointmentsCount = appointmentsList.length;
+  const todayAppointmentsCount = appointmentsList.filter((a) => checkDateFilter(a.date, 'Today')).length;
   const completedCount = appointmentsList.filter((a) => ['complete', 'completed'].includes((a.status || '').toLowerCase())).length;
   const pendingCount = appointmentsList.filter((a) => ['pending', 'confirmed'].includes((a.status || '').toLowerCase())).length;
   const cancelledCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'cancelled').length;
@@ -337,7 +358,7 @@ const AppointmentsPage = () => {
               Today's Appointments
             </span>
             <span style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', lineHeight: 1.1, marginTop: '4px' }}>
-              {isLoading ? '...' : totalAppointmentsCount}
+              {isLoading ? '...' : todayAppointmentsCount}
             </span>
           </div>
         </div>

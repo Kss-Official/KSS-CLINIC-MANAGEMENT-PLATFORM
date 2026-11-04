@@ -114,9 +114,9 @@ const PrescriptionsPage = () => {
   const filteredPrescriptions = prescriptionsList.filter((item) => {
     const matchesSearch =
       !searchQuery ||
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.complaint.toLowerCase().includes(searchQuery.toLowerCase());
+      (item.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.complaint || item.reason_for_visit || item.reason || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = (() => {
       if (!statusFilter || statusFilter === 'All') return true;
@@ -707,7 +707,7 @@ const PrescriptionsPage = () => {
                       <div style={{ fontSize: '12px', color: '#64748b' }}>{row.time}</div>
                     </td>
                     <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155' }}>
-                      {row.complaint}
+                      {row.complaint || row.reason_for_visit || row.reason || '—'}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <span

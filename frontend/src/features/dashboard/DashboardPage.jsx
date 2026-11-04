@@ -106,6 +106,7 @@ const DashboardPage = () => {
 
     window.addEventListener('appointment-booked', handleAppointmentBooked);
     window.addEventListener('appointment-updated', handleAppointmentBooked);
+    window.addEventListener('appointment-deleted', handleAppointmentBooked);
     window.addEventListener('prescription-created', handleAppointmentBooked);
     window.addEventListener('focus', handleFocus);
 
@@ -116,6 +117,7 @@ const DashboardPage = () => {
     return () => {
       window.removeEventListener('appointment-booked', handleAppointmentBooked);
       window.removeEventListener('appointment-updated', handleAppointmentBooked);
+      window.removeEventListener('appointment-deleted', handleAppointmentBooked);
       window.removeEventListener('prescription-created', handleAppointmentBooked);
       window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
@@ -140,7 +142,7 @@ const DashboardPage = () => {
           date: item.date,
           time: item.time || '10:00 AM',
           ageGender: item.ageGender || '',
-          complaint: item.complaint || 'Consultation',
+          complaint: item.complaint || item.reason_for_visit || item.reason || '',
           symptoms: item.symptoms || '',
           diagnosis: item.diagnosis || '',
           medicines: item.medicines || [],
@@ -181,7 +183,7 @@ const DashboardPage = () => {
           date: item.date,
           time: item.time || '10:00 AM',
           ageGender: item.ageGender || '',
-          complaint: item.complaint || 'Consultation',
+          complaint: item.complaint || item.reason_for_visit || item.reason || '',
           symptoms: item.symptoms || '',
           diagnosis: item.diagnosis || '',
           medicines: item.medicines || [],
@@ -271,13 +273,23 @@ const DashboardPage = () => {
 
   // Dynamic appointment metric counts from Neon PostgreSQL
   const totalDashboardAppointments = appointmentsData.length;
-  const completedDashboardAppointments = appointmentsData.filter(a => (a.status || '').toLowerCase() === 'completed').length;
-  const pendingDashboardAppointments = appointmentsData.filter(a => (a.status || '').toLowerCase() === 'pending').length;
+  const completedDashboardAppointments = appointmentsData.filter(a => ['complete', 'completed'].includes((a.status || '').toLowerCase().trim())).length;
+  const confirmedDashboardAppointments = appointmentsData.filter(a => ['confirmed', 'confirm', 'pending'].includes((a.status || '').toLowerCase().trim())).length;
 
   const filteredAppointmentsData = appointmentsData.filter((item) => {
     const matchesDate = matchesDateFilter(item.date);
-    const matchesStatus =
-      appointmentStatusFilter === 'All' || item.status.toLowerCase() === appointmentStatusFilter.toLowerCase();
+    const itemStatus = (item.status || '').toLowerCase().trim();
+    let matchesStatus = true;
+    if (appointmentStatusFilter !== 'All') {
+      const filterLower = appointmentStatusFilter.toLowerCase().trim();
+      if (filterLower === 'completed' || filterLower === 'complete') {
+        matchesStatus = ['complete', 'completed'].includes(itemStatus);
+      } else if (filterLower === 'pending' || filterLower === 'confirmed') {
+        matchesStatus = ['pending', 'confirmed'].includes(itemStatus);
+      } else {
+        matchesStatus = itemStatus === filterLower;
+      }
+    }
     return matchesDate && matchesStatus;
   });
 
@@ -431,7 +443,7 @@ const DashboardPage = () => {
           marginBottom: '26px',
         }}
       >
-        {/* Card 1: Today's Appointments */}
+        {/* Card 1: Total Appointments */}
         <div
           style={{
             backgroundColor: '#ffffff',
@@ -466,7 +478,7 @@ const DashboardPage = () => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '13.5px', color: '#64748b', fontWeight: '500' }}>
-              Today's Appointments
+              Total Appointments
             </span>
             <span style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', lineHeight: 1.1, marginTop: '4px' }}>
               {isAppointmentsLoading ? '...' : totalDashboardAppointments}
@@ -515,7 +527,7 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Card 3: Consultations Pending */}
+        {/* Card 3: Consultations Confirmed */}
         <div
           style={{
             backgroundColor: '#ffffff',
@@ -548,10 +560,10 @@ const DashboardPage = () => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '13.5px', color: '#64748b', fontWeight: '500' }}>
-              Consultations Pending
+              Consultations Confirmed
             </span>
             <span style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', lineHeight: 1.1, marginTop: '4px' }}>
-              {isAppointmentsLoading ? '...' : pendingDashboardAppointments}
+              {isAppointmentsLoading ? '...' : confirmedDashboardAppointments}
             </span>
           </div>
         </div>

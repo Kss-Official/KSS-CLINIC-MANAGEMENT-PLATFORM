@@ -16,6 +16,10 @@ export const useAppStore = create((set) => ({
   isAuthenticated: !!storedToken,
 
   setAuth: (user, token) => {
+    localStorage.removeItem('kss_patient_phone');
+    localStorage.removeItem('kss_patient_email');
+    localStorage.removeItem('kss_patient_name');
+    localStorage.removeItem('kss_patient_id');
     localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
     localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
     set({ user, token, isAuthenticated: true });
@@ -24,6 +28,10 @@ export const useAppStore = create((set) => ({
   clearAuth: () => {
     localStorage.removeItem(STORAGE_KEYS.USER_DATA);
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+    localStorage.removeItem('kss_patient_phone');
+    localStorage.removeItem('kss_patient_email');
+    localStorage.removeItem('kss_patient_name');
+    localStorage.removeItem('kss_patient_id');
     set({ user: null, token: null, isAuthenticated: false });
   },
 

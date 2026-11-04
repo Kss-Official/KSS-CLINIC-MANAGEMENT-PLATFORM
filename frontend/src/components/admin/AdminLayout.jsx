@@ -20,13 +20,16 @@ export const AdminContext = createContext({
 export const useAdmin = () => useContext(AdminContext);
 
 const AdminLayout = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // If user is not authenticated, block admin layout and immediately redirect to login page
+  // If user is not authenticated, block admin layout and immediately redirect to admin login page
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/admin-login" replace />;
+  }
+  if (user?.role === 'PATIENT') {
+    return <Navigate to="/profile" replace />;
   }
 
   // Prevent browser Back button from exiting the Admin Portal to the Home page while logged in.
