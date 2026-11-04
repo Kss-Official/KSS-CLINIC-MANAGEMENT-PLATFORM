@@ -23,6 +23,54 @@ const Navbar = ({ onOpenBooking }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Completely lock background page scrolling when mobile navigation menu is open
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    // 1. Capture exact vertical scroll position before locking
+    const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyTop = document.body.style.top;
+    const originalBodyWidth = document.body.style.width;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+
+    // 2. Lock both documentElement and body (prevents iOS Safari momentum bounce and window movement)
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+
+    return () => {
+      // 3. Restore styles
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
+      document.body.style.position = originalBodyPosition;
+      document.body.style.top = originalBodyTop;
+      document.body.style.width = originalBodyWidth;
+
+      // 4. Restore scroll position seamlessly without jarring jumps
+      window.scrollTo(0, scrollY);
+    };
+  }, [mobileMenuOpen]);
+
+  // Auto-close mobile navigation menu when route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Auto-close mobile menu if user resizes window to desktop screen size (>= 820px)
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 820) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const navLinks = [
     { label: 'Home', href: '#home' },
     { label: 'About', href: '#about' },
@@ -59,7 +107,9 @@ const Navbar = ({ onOpenBooking }) => {
       if (location.pathname !== '/') {
         navigate('/');
       } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 50);
       }
       return;
     }
@@ -67,10 +117,12 @@ const Navbar = ({ onOpenBooking }) => {
     if (location.pathname !== '/') {
       navigate('/' + href);
     } else {
-      const element = document.querySelector(href);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
+      setTimeout(() => {
+        const element = document.querySelector(href);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 50);
     }
   };
 
@@ -107,6 +159,8 @@ const Navbar = ({ onOpenBooking }) => {
           gridTemplateColumns: 'auto 1fr auto',
           alignItems: 'center',
           gap: '24px',
+          position: 'relative',
+          zIndex: 1000,
         }}
       >
         {/* Left: Brand Logo */}
@@ -502,58 +556,110 @@ const Navbar = ({ onOpenBooking }) => {
         </div>
       </div>
 
-      {/* Mobile Dropdown Drawer */}
+      {/* Mobile Dropdown Drawer & Backdrop */}
       {mobileMenuOpen && (
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderTop: '1px solid #f0f0f0',
-            padding: '16px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
-        >
-          {navLinks.map((link) => {
-            const isActive =
-              (location.pathname === '/about' && link.label === 'About') ||
-              (location.pathname === '/services' && link.label === 'Services') ||
-              (location.pathname === '/stories' && link.label === 'Stories') ||
-              (location.pathname === '/contact' && link.label === 'Contact') ||
-              (location.pathname === '/' && activeNav === link.label);
-            return (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleNavClick(link.label, link.href);
-                }}
-                style={{
-                  textDecoration: 'none',
-                  fontSize: '16px',
-                  fontWeight: isActive ? '700' : '500',
-                  color: isActive ? '#265e38' : '#596773',
-                  padding: '8px 0',
-                }}
-              >
-                {link.label}
-              </a>
-            );
-          })}
-          {isAuthenticated ? (
-            <>
-              {(user?.role === 'ADMIN' || user?.role === 'DOCTOR') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    navigate('/dashboard');
+        <>
+          {/* Backdrop overlay locking background touch/click */}
+          <div
+            className="mobile-nav-backdrop"
+            onClick={() => setMobileMenuOpen(false)}
+            onTouchMove={(e) => e.preventDefault()}
+            style={{
+              position: 'fixed',
+              top: '70px',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.35)',
+              backdropFilter: 'blur(2px)',
+              WebkitBackdropFilter: 'blur(2px)',
+              zIndex: 998,
+              touchAction: 'none',
+              cursor: 'pointer',
+            }}
+          />
+
+          <div
+            className="mobile-nav-drawer"
+            style={{
+              position: 'relative',
+              zIndex: 999,
+              backgroundColor: '#ffffff',
+              borderTop: '1px solid #f0f0f0',
+              borderBottom: '1px solid #e2e8f0',
+              padding: '16px 24px 24px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              maxHeight: 'calc(100dvh - 70px)',
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+              boxShadow: '0 12px 28px rgba(0, 0, 0, 0.12)',
+            }}
+          >
+            {navLinks.map((link) => {
+              const isActive =
+                (location.pathname === '/about' && link.label === 'About') ||
+                (location.pathname === '/services' && link.label === 'Services') ||
+                (location.pathname === '/stories' && link.label === 'Stories') ||
+                (location.pathname === '/contact' && link.label === 'Contact') ||
+                (location.pathname === '/' && activeNav === link.label);
+              return (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavClick(link.label, link.href);
                   }}
                   style={{
-                    backgroundColor: '#ffffff',
-                    color: '#265e38',
-                    border: '1.5px solid #265e38',
+                    textDecoration: 'none',
+                    fontSize: '16px',
+                    fontWeight: isActive ? '700' : '500',
+                    color: isActive ? '#265e38' : '#596773',
+                    padding: '8px 0',
+                  }}
+                >
+                  {link.label}
+                </a>
+              );
+            })}
+            {isAuthenticated ? (
+              <>
+                {(user?.role === 'ADMIN' || user?.role === 'DOCTOR') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      navigate('/dashboard');
+                    }}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      color: '#265e38',
+                      border: '1.5px solid #265e38',
+                      padding: '10px',
+                      borderRadius: '9999px',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      marginTop: '6px',
+                    }}
+                  >
+                    Admin Portal
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setMobileMenuOpen(false);
+                    await logout();
+                    navigate('/');
+                  }}
+                  style={{
+                    backgroundColor: '#fee2e2',
+                    color: '#dc2626',
+                    border: 'none',
                     padding: '10px',
                     borderRadius: '9999px',
                     fontSize: '15px',
@@ -562,20 +668,20 @@ const Navbar = ({ onOpenBooking }) => {
                     marginTop: '6px',
                   }}
                 >
-                  Admin Portal
+                  Logout
                 </button>
-              )}
+              </>
+            ) : (
               <button
                 type="button"
-                onClick={async () => {
+                onClick={() => {
                   setMobileMenuOpen(false);
-                  await logout();
-                  navigate('/');
+                  navigate('/login');
                 }}
                 style={{
-                  backgroundColor: '#fee2e2',
-                  color: '#dc2626',
-                  border: 'none',
+                  backgroundColor: '#ffffff',
+                  color: '#265e38',
+                  border: '1.5px solid #265e38',
                   padding: '10px',
                   borderRadius: '9999px',
                   fontSize: '15px',
@@ -584,35 +690,35 @@ const Navbar = ({ onOpenBooking }) => {
                   marginTop: '6px',
                 }}
               >
-                Logout
+                Login
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                navigate('/login');
-              }}
-              style={{
-                backgroundColor: '#ffffff',
-                color: '#265e38',
-                border: '1.5px solid #265e38',
-                padding: '10px',
-                borderRadius: '9999px',
-                fontSize: '15px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                marginTop: '6px',
-              }}
-            >
-              Login
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
 
       <style>{`
+        @keyframes mobileNavFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes mobileBackdropFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .mobile-nav-backdrop {
+          top: 70px !important;
+          animation: mobileBackdropFadeIn 0.2s ease-out forwards;
+        }
+        .mobile-nav-drawer {
+          animation: mobileNavFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
         @media (max-width: 1024px) {
           .navbar-inner {
             padding: 0 24px !important;
@@ -647,6 +753,13 @@ const Navbar = ({ onOpenBooking }) => {
           .navbar-inner {
             padding: 0 16px !important;
             height: 62px !important;
+          }
+          .mobile-nav-backdrop {
+            top: 62px !important;
+          }
+          .mobile-nav-drawer {
+            max-height: calc(100dvh - 62px) !important;
+            padding: 14px 20px 20px 20px !important;
           }
           .navbar-logo-img {
             height: 32px !important;

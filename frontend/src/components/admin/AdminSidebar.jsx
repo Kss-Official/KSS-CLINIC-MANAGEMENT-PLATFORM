@@ -2,6 +2,31 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 
 const AdminSidebar = ({ isOpenMobile, onCloseMobile }) => {
+  // Lock background scroll when mobile sidebar is open
+  React.useEffect(() => {
+    if (!isOpenMobile) return;
+    const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyTop = document.body.style.top;
+    const originalBodyWidth = document.body.style.width;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+
+    return () => {
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
+      document.body.style.position = originalBodyPosition;
+      document.body.style.top = originalBodyTop;
+      document.body.style.width = originalBodyWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isOpenMobile]);
   const navItems = [
     {
       label: 'Dashboard',
@@ -68,12 +93,14 @@ const AdminSidebar = ({ isOpenMobile, onCloseMobile }) => {
       {isOpenMobile && (
         <div
           onClick={onCloseMobile}
+          onTouchMove={(e) => e.preventDefault()}
           className="admin-sidebar-backdrop"
           style={{
             position: 'fixed',
             inset: 0,
             backgroundColor: 'rgba(15, 23, 42, 0.4)',
             zIndex: 140,
+            touchAction: 'none',
           }}
         />
       )}
