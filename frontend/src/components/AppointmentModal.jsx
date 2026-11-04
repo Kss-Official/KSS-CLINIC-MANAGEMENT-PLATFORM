@@ -479,7 +479,7 @@ const AppointmentModal = ({ isOpen, onClose }) => {
 
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
-                    Brief Health Concern / Symptoms
+                    Reason for Visit <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <textarea
                     name="notes"

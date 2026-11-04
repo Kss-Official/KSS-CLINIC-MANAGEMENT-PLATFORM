@@ -275,17 +275,12 @@ const Navbar = ({ onOpenBooking }) => {
             Book Appointment
           </button>
 
-          {/* Profile Avatar with Dropdown */}
-          <div style={{ position: 'relative' }} ref={dropdownRef}>
-            <div
-              onClick={() => {
-                if (isAuthenticated) {
-                  setDropdownOpen((prev) => !prev);
-                } else {
-                  navigate('/login');
-                }
-              }}
-              title={isAuthenticated ? 'Account Options' : 'Login'}
+          {/* Profile Avatar with Dropdown - Only displayed for authenticated users */}
+          {isAuthenticated && (
+            <div style={{ position: 'relative' }} ref={dropdownRef}>
+              <div
+                onClick={() => setDropdownOpen((prev) => !prev)}
+                title="Account Options"
               style={{
                 width: '40px',
                 height: '40px',
@@ -306,17 +301,42 @@ const Navbar = ({ onOpenBooking }) => {
               onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.06)')}
               onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
             >
-              <img
-                src={avatarImg}
-                alt="Profile"
+              {user?.profile_image_url ? (
+                <img
+                  src={user.profile_image_url}
+                  alt="Profile"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                    borderRadius: '50%',
+                  }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    if (e.currentTarget.nextSibling) {
+                      e.currentTarget.nextSibling.style.display = 'flex';
+                    }
+                  }}
+                />
+              ) : null}
+              <div
                 style={{
+                  display: user?.profile_image_url ? 'none' : 'flex',
                   width: '100%',
                   height: '100%',
-                  objectFit: 'cover',
-                  display: 'block',
                   borderRadius: '50%',
+                  backgroundColor: '#dcfce7',
+                  color: '#15803d',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '700',
+                  fontSize: '13.5px',
+                  letterSpacing: '0.5px',
                 }}
-              />
+              >
+                {user ? (((user.first_name?.[0] || '') + (user.last_name?.[0] || user.username?.[0] || '')).toUpperCase() || 'PT') : 'PT'}
+              </div>
             </div>
 
             {/* Profile Dropdown Menu for Authenticated Patient */}
@@ -455,6 +475,7 @@ const Navbar = ({ onOpenBooking }) => {
               </div>
             )}
           </div>
+          )}
 
           {/* Mobile Hamburger Menu Toggle */}
           <button

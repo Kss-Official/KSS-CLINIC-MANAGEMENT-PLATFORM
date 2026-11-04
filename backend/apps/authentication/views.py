@@ -43,7 +43,7 @@ class AdminLoginView(views.APIView):
 
         return Response({
             'token': token.key,
-            'user': UserSerializer(user).data,
+            'user': UserSerializer(user, context={'request': request}).data,
             'message': 'Admin login successful'
         }, status=status.HTTP_200_OK)
 
@@ -74,7 +74,7 @@ class PatientLoginView(views.APIView):
 
         return Response({
             'token': token.key,
-            'user': UserSerializer(user).data,
+            'user': UserSerializer(user, context={'request': request}).data,
             'message': 'Patient login successful'
         }, status=status.HTTP_200_OK)
 
@@ -94,7 +94,7 @@ class LoginView(views.APIView):
 
         return Response({
             'token': token.key,
-            'user': UserSerializer(user).data,
+            'user': UserSerializer(user, context={'request': request}).data,
             'message': 'Login successful'
         }, status=status.HTTP_200_OK)
 
@@ -163,7 +163,7 @@ class RegisterView(views.APIView):
 
         return Response({
             'token': token.key,
-            'user': UserSerializer(user).data,
+            'user': UserSerializer(user, context={'request': request}).data,
             'message': 'User registered successfully'
         }, status=status.HTTP_201_CREATED)
 
@@ -181,7 +181,7 @@ class CurrentUserView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        serializer = UserSerializer(request.user)
+        serializer = UserSerializer(request.user, context={'request': request})
         return Response(serializer.data)
 
 

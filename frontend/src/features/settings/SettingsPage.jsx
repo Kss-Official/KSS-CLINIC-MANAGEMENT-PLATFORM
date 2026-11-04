@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import appointmentApi from '../../api/appointmentApi';
 import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
 
@@ -81,7 +81,7 @@ const validateMobileNumber = (digits, isRequired = true) => {
 };
 
 const SettingsPage = () => {
-    // 1. Clinic Information State (Initializes from saved localStorage or default)
+  // 1. Clinic Information State (Initializes from saved localStorage or default)
   const [clinicInfo, setClinicInfo] = useState(() => {
     try {
       const saved = localStorage.getItem('clinic_info_settings');
@@ -97,16 +97,35 @@ const SettingsPage = () => {
     };
   });
 
+  // Clinic Profile Image State & Dropdown
+  const [clinicProfileImage, setClinicProfileImage] = useState(() => {
+    return localStorage.getItem('clinic_profile_image') || null;
+  });
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadDropdownOpen, setUploadDropdownOpen] = useState(false);
+  const fileInputRef = useRef(null);
+  const uploadDropdownRef = useRef(null);
+
   // Fetch clinic settings from backend on mount
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         const data = await appointmentApi.getClinicSettings();
-        if (data && (data.clinicName || data.doctorName)) {
-          setClinicInfo(data);
-          try {
-            localStorage.setItem('clinic_info_settings', JSON.stringify(data));
-          } catch {}
+        if (data) {
+          if (data.clinicName || data.doctorName) {
+            setClinicInfo(data);
+            try {
+              localStorage.setItem('clinic_info_settings', JSON.stringify(data));
+            } catch {}
+          }
+          const imgUrl = data.profile_image_url || data.profileImageUrl || null;
+          if (imgUrl) {
+            setClinicProfileImage(imgUrl);
+            localStorage.setItem('clinic_profile_image', imgUrl);
+          } else {
+            setClinicProfileImage(null);
+            localStorage.removeItem('clinic_profile_image');
+          }
         }
       } catch (err) {
         // Fall back gracefully to localStorage or defaults
@@ -115,6 +134,94 @@ const SettingsPage = () => {
     };
     fetchSettings();
   }, []);
+
+  // Listen to clinic-profile-image-updated events and outside clicks
+  useEffect(() => {
+    const handleClinicImageUpdated = (e) => {
+      const newImg = e?.detail?.profile_image_url || null;
+      setClinicProfileImage(newImg);
+    };
+    window.addEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
+
+    const handleClickOutside = (e) => {
+      if (uploadDropdownRef.current && !uploadDropdownRef.current.contains(e.target)) {
+        setUploadDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      window.removeEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Handlers for Clinic Profile Image Upload & Removal
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      showToast('Please upload a valid image file (JPG, PNG, WEBP, GIF).');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image size should be less than 5MB.');
+      e.target.value = '';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('profile_image', file);
+
+    setIsUploadingImage(true);
+    try {
+      const res = await appointmentApi.uploadClinicProfileImage(formData);
+      const newUrl = res.profile_image_url;
+      setClinicProfileImage(newUrl);
+      if (newUrl) {
+        localStorage.setItem('clinic_profile_image', newUrl);
+      }
+      window.dispatchEvent(
+        new CustomEvent('clinic-profile-image-updated', {
+          detail: { profile_image_url: newUrl },
+        })
+      );
+      showToast('Clinic profile picture updated successfully!');
+    } catch (err) {
+      console.error('Error uploading clinic profile image:', err);
+      showToast(err?.message || 'Failed to upload clinic profile picture.');
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveImage = async (e) => {
+    e?.stopPropagation?.();
+    setIsUploadingImage(true);
+    try {
+      await appointmentApi.removeClinicProfileImage();
+      setClinicProfileImage(null);
+      localStorage.removeItem('clinic_profile_image');
+      window.dispatchEvent(
+        new CustomEvent('clinic-profile-image-updated', {
+          detail: { profile_image_url: null },
+        })
+      );
+      showToast('Clinic profile picture removed successfully!');
+    } catch (err) {
+      console.error('Error removing clinic profile image:', err);
+      showToast(err?.message || 'Failed to remove clinic profile picture.');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   // 2. Appointment Settings State
   const [workingDays, setWorkingDays] = useState(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
@@ -564,85 +671,348 @@ const SettingsPage = () => {
           </button>
         </div>
 
-        {/* Unified 4-Column Grid: Row 1 & Row 2 perfectly aligned */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1.15fr 1.55fr 1.25fr 1.25fr',
-            rowGap: '22px',
-          }}
-        >
-          {/* Row 1, Col 1: Clinic Name */}
-          <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
-              CLINIC NAME
+        {/* Unified Flex Layout: Avatar + Details Grid */}
+        <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start' }}>
+          {/* Clinic Profile Picture & Upload Option */}
+          <div
+            ref={uploadDropdownRef}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              position: 'relative',
+              flexShrink: 0,
+              minWidth: '110px',
+              paddingTop: '2px',
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              style={{ display: 'none' }}
+              onChange={handleImageUpload}
+            />
+
+            {/* Circular Avatar */}
+            <div
+              style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                backgroundColor: '#dcfce7',
+                color: '#166534',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '700',
+                fontSize: '26px',
+                letterSpacing: '0.5px',
+                marginBottom: '10px',
+                overflow: 'hidden',
+                position: 'relative',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                border: clinicProfileImage ? '2px solid #22c55e' : '1px solid #bbf7d0',
+                flexShrink: 0,
+              }}
+            >
+              {clinicProfileImage ? (
+                <img
+                  src={clinicProfileImage}
+                  alt="Clinic Profile"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                    borderRadius: '50%',
+                  }}
+                  onError={() => {
+                    setClinicProfileImage(null);
+                    localStorage.removeItem('clinic_profile_image');
+                  }}
+                />
+              ) : (
+                'DT'
+              )}
+
+              {/* Upload Spinner Overlay */}
+              {isUploadingImage && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    borderRadius: '50%',
+                  }}
+                >
+                  <svg
+                    style={{ animation: 'spin 1s linear infinite' }}
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" />
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" />
+                  </svg>
+                </div>
+              )}
             </div>
-            <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
-              {clinicInfo.clinicName}
+
+            {/* Profile Upload Dropdown Button */}
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => !isUploadingImage && setUploadDropdownOpen((prev) => !prev)}
+                disabled={isUploadingImage}
+                style={{
+                  backgroundColor: uploadDropdownOpen ? '#f0fdf4' : 'transparent',
+                  border: 'none',
+                  color: '#166534',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: isUploadingImage ? 'not-allowed' : 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontFamily: "'Manrope', sans-serif",
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isUploadingImage) {
+                    e.currentTarget.style.backgroundColor = '#f0fdf4';
+                    e.currentTarget.style.color = '#15803d';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!uploadDropdownOpen) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#166534';
+                  }
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                <span>Profile Upload</span>
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{
+                    transform: uploadDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.15s ease',
+                  }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {/* Dropdown Menu with Change Profile and Remove Profile */}
+              {uploadDropdownOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04)',
+                    padding: '6px',
+                    minWidth: '160px',
+                    zIndex: 60,
+                    animation: 'fadeIn 0.12s ease-out',
+                  }}
+                >
+                  {/* Action 1: Change Profile */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadDropdownOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                    disabled={isUploadingImage}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      border: 'none',
+                      borderRadius: '8px',
+                      backgroundColor: 'transparent',
+                      color: '#1e293b',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontFamily: "'Manrope', sans-serif",
+                      transition: 'all 0.15s ease',
+                      boxSizing: 'border-box',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f0fdf4';
+                      e.currentTarget.style.color = '#15803d';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#1e293b';
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                    <span>Change Profile</span>
+                  </button>
+
+                  {/* Action 2: Remove Profile */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      setUploadDropdownOpen(false);
+                      handleRemoveImage(e);
+                    }}
+                    disabled={isUploadingImage || !clinicProfileImage}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      border: 'none',
+                      borderRadius: '8px',
+                      backgroundColor: 'transparent',
+                      color: !clinicProfileImage ? '#cbd5e1' : '#dc2626',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: !clinicProfileImage ? 'not-allowed' : 'pointer',
+                      textAlign: 'left',
+                      fontFamily: "'Manrope', sans-serif",
+                      transition: 'all 0.15s ease',
+                      boxSizing: 'border-box',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (clinicProfileImage) {
+                        e.currentTarget.style.backgroundColor = '#fef2f2';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    <span>Remove Profile</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Row 1, Col 2: Doctor Name */}
-          <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
-              DOCTOR NAME
+          {/* Unified 4-Column Grid: Row 1 & Row 2 perfectly aligned */}
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: 'grid',
+              gridTemplateColumns: '1.15fr 1.55fr 1.25fr 1.25fr',
+              rowGap: '22px',
+            }}
+          >
+            {/* Row 1, Col 1: Clinic Name */}
+            <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                CLINIC NAME
+              </div>
+              <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
+                {clinicInfo.clinicName}
+              </div>
             </div>
-            <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
-              {clinicInfo.doctorName}
-            </div>
-          </div>
 
-          {/* Row 1, Col 3: Contact Number */}
-          <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
-              CONTACT NUMBER
+            {/* Row 1, Col 2: Doctor Name */}
+            <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                DOCTOR NAME
+              </div>
+              <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
+                {clinicInfo.doctorName}
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
-              <span>{clinicInfo.contactNumber}</span>
-            </div>
-          </div>
 
-          {/* Row 1, Col 4: Alternate Number */}
-          <div style={{ paddingLeft: '24px' }}>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
-              ALTERNATE NUMBER
+            {/* Row 1, Col 3: Contact Number */}
+            <div style={{ paddingLeft: '24px', paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                CONTACT NUMBER
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                </svg>
+                <span>{clinicInfo.contactNumber}</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
-              <span>{clinicInfo.alternateNumber}</span>
-            </div>
-          </div>
 
-          {/* Row 2, Col 1: Email Address (Directly under Clinic Name) */}
-          <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
-              EMAIL ADDRESS
+            {/* Row 1, Col 4: Alternate Number */}
+            <div style={{ paddingLeft: '24px' }}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                ALTERNATE NUMBER
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                </svg>
+                <span>{clinicInfo.alternateNumber}</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <rect x="2" y="4" width="20" height="16" rx="2" />
-                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-              </svg>
-              <span>{clinicInfo.email}</span>
-            </div>
-          </div>
 
-          {/* Row 2, Col 2: Address (Directly under Doctor Name!) */}
-          <div style={{ gridColumn: '2 / span 3', paddingLeft: '24px' }}>
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
-              ADDRESS
+            {/* Row 2, Col 1: Email Address (Directly under Clinic Name) */}
+            <div style={{ paddingRight: '20px', borderRight: '1px solid #f1f5f9' }}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                EMAIL ADDRESS
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+                <span>{clinicInfo.email}</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              <span>{clinicInfo.address}</span>
+
+            {/* Row 2, Col 2: Address (Directly under Doctor Name!) */}
+            <div style={{ gridColumn: '2 / span 3', paddingLeft: '24px' }}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                ADDRESS
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span>{clinicInfo.address}</span>
+              </div>
             </div>
           </div>
         </div>

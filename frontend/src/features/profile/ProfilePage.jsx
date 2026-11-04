@@ -7,6 +7,7 @@ import Navbar from '../../components/layout/Navbar';
 import useAuth from '../../hooks/useAuth';
 
 import appointmentApi from '../../api/appointmentApi';
+import userApi from '../../api/userApi';
 
 import PatientAuthModal from '../../components/auth/PatientAuthModal';
 
@@ -81,9 +82,97 @@ const ProfilePage = () => {
 
     address: user?.address || '',
 
+    profileImageUrl: user?.profile_image_url || null,
+
   });
 
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef(null);
+  const [uploadDropdownOpen, setUploadDropdownOpen] = useState(false);
+  const uploadDropdownRef = useRef(null);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (uploadDropdownRef.current && !uploadDropdownRef.current.contains(event.target)) {
+        setUploadDropdownOpen(false);
+      }
+    };
+    if (uploadDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [uploadDropdownOpen]);
+
+
+
+  // Profile Image Upload / Removal Handlers
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please select a valid image file (JPG, PNG, WEBP, or GIF).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image file size must be less than 5 MB.');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('profile_image', file);
+
+      const res = await userApi.uploadProfileImage(formData);
+      const newImageUrl = res?.profile_image_url || res?.user?.profile_image_url;
+
+      if (newImageUrl) {
+        setProfile((prev) => ({
+          ...prev,
+          profileImageUrl: newImageUrl,
+        }));
+        if (updateUser && user) {
+          updateUser({
+            ...user,
+            profile_image_url: newImageUrl,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to upload profile picture:', err);
+      const msg = err.response?.data?.error || 'Failed to upload profile picture. Please try again.';
+      alert(msg);
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveImage = async (e) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to remove your profile picture?')) return;
+    setIsUploadingImage(true);
+    try {
+      await userApi.removeProfileImage();
+      setProfile((prev) => ({ ...prev, profileImageUrl: null }));
+      if (updateUser && user) {
+        updateUser({
+          ...user,
+          profile_image_url: null,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to remove profile picture:', err);
+      alert(err.response?.data?.error || 'Failed to remove profile picture.');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   // Edit Modal State
 
@@ -118,6 +207,16 @@ const ProfilePage = () => {
   // Appointment Details Modal State
 
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+
+  const [viewingAppointmentPdf, setViewingAppointmentPdf] = useState(false);
+
+  const [downloadingAppointmentPdf, setDownloadingAppointmentPdf] = useState(false);
+
+  const [appointmentPdfModalOpen, setAppointmentPdfModalOpen] = useState(false);
+
+  const [appointmentPdfUrl, setAppointmentPdfUrl] = useState(null);
+
+  const [appointmentPdfFilename, setAppointmentPdfFilename] = useState('');
 
   const appointmentDialogRef = useRef(null);
 
@@ -187,7 +286,18 @@ const ProfilePage = () => {
 
           city: res.city || prev.city || '',
 
+          profileImageUrl: res.profile_image_url || prev.profileImageUrl || user?.profile_image_url || null,
+
         }));
+
+        if (res.profile_image_url && (!user?.profile_image_url || user.profile_image_url !== res.profile_image_url)) {
+          if (updateUser && user) {
+            updateUser({
+              ...user,
+              profile_image_url: res.profile_image_url,
+            });
+          }
+        }
 
 
 
@@ -233,7 +343,9 @@ const ProfilePage = () => {
 
               pdfDate: a.date,
 
-              reason: a.reason,
+              reason: a.reason || '',
+
+              hasPrescription: !!a.hasPrescription,
 
             };
 
@@ -909,10 +1021,63 @@ const ProfilePage = () => {
 
 
 
-  const handleViewPdf = (fileName) => {
+  const handleViewPdf = async (aptOrName) => {
+    const apt = (typeof aptOrName === 'object' && aptOrName !== null) ? aptOrName : (selectedAppointment || {});
+    const aptId = apt.appointmentId || apt.id || (typeof aptOrName === 'string' ? aptOrName.replace(/^Appointment_/i, '').replace(/\.pdf$/i, '') : '');
+    const filename = apt.pdfName || (aptId ? `Appointment_${aptId}.pdf` : 'Appointment_Document.pdf');
+    if (!aptId) {
+      alert('Could not identify appointment for PDF preview.');
+      return;
+    }
 
-    alert(`Opening preview for ${fileName}...`);
+    setViewingAppointmentPdf(true);
+    try {
+      const blob = await appointmentApi.downloadAppointmentPdfBlob(aptId);
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      setAppointmentPdfUrl(blobUrl);
+      setAppointmentPdfFilename(filename);
+      setAppointmentPdfModalOpen(true);
+      try {
+        window.open(blobUrl, '_blank');
+      } catch (e) {
+        console.warn('Popup blocked; viewing in in-app preview modal', e);
+      }
+    } catch (err) {
+      console.error('Failed to view appointment PDF:', err);
+      alert('Failed to view appointment PDF. Please try again.');
+    } finally {
+      setViewingAppointmentPdf(false);
+    }
+  };
 
+  const handleDownloadAppointmentPdf = async (aptOrName) => {
+    const apt = (typeof aptOrName === 'object' && aptOrName !== null) ? aptOrName : (selectedAppointment || {});
+    const aptId = apt.appointmentId || apt.id || (typeof aptOrName === 'string' ? aptOrName.replace(/^Appointment_/i, '').replace(/\.pdf$/i, '') : '');
+    const filename = apt.pdfName || (aptId ? `Appointment_${aptId}.pdf` : 'Appointment_Document.pdf');
+    if (!aptId) {
+      alert('Could not identify appointment for PDF download.');
+      return;
+    }
+
+    setDownloadingAppointmentPdf(true);
+    try {
+      const blob = await appointmentApi.downloadAppointmentPdfBlob(aptId);
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (err) {
+      console.error('Failed to download appointment PDF:', err);
+      alert('Failed to download appointment PDF. Please try again.');
+    } finally {
+      setDownloadingAppointmentPdf(false);
+    }
   };
 
 
@@ -1373,44 +1538,272 @@ const ProfilePage = () => {
 
           >
 
-            {/* Avatar Circle */}
-
+            {/* Avatar & Upload Option with Dropdown */}
             <div
-
+              ref={uploadDropdownRef}
               style={{
-
-                width: '92px',
-
-                height: '92px',
-
-                borderRadius: '50%',
-
-                backgroundColor: '#dcfce7',
-
-                color: '#15803d',
-
-                fontSize: '28px',
-
-                fontWeight: '800',
-
                 display: 'flex',
-
+                flexDirection: 'column',
                 alignItems: 'center',
-
-                justifyContent: 'center',
-
-                boxShadow: '0 2px 8px rgba(22, 101, 52, 0.12)',
-
-                fontFamily: "'Manrope', sans-serif",
-
+                gap: '8px',
+                width: '120px',
                 flexShrink: 0,
-
+                position: 'relative',
               }}
-
             >
+              {/* Avatar Circle */}
+              <div
+                onClick={() => !isUploadingImage && setUploadDropdownOpen((prev) => !prev)}
+                title="Click to manage profile picture"
+                style={{
+                  width: '92px',
+                  height: '92px',
+                  borderRadius: '50%',
+                  backgroundColor: profile.profileImageUrl ? '#f8fafc' : '#dcfce7',
+                  color: '#15803d',
+                  fontSize: '28px',
+                  fontWeight: '800',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 3px 12px rgba(22, 101, 52, 0.15)',
+                  fontFamily: "'Manrope', sans-serif",
+                  flexShrink: 0,
+                  position: 'relative',
+                  cursor: isUploadingImage ? 'wait' : 'pointer',
+                  overflow: 'hidden',
+                  border: '2px solid #ffffff',
+                  outline: '2.5px solid #86efac',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.03)')}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+              >
+                {profile.profileImageUrl ? (
+                  <img
+                    src={profile.profileImageUrl}
+                    alt={profile.fullName || 'Patient Profile'}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                      borderRadius: '50%',
+                    }}
+                    onError={() => {
+                      setProfile((prev) => ({ ...prev, profileImageUrl: null }));
+                    }}
+                  />
+                ) : (
+                  profile.initials
+                )}
 
-              {profile.initials}
+                {/* Upload Spinner Overlay */}
+                {isUploadingImage && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
+                      borderRadius: '50%',
+                    }}
+                  >
+                    <svg
+                      style={{ animation: 'spin 1s linear infinite' }}
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" />
+                    </svg>
+                  </div>
+                )}
+              </div>
 
+              {/* Upload Profile Dropdown Button */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => !isUploadingImage && setUploadDropdownOpen((prev) => !prev)}
+                  disabled={isUploadingImage}
+                  style={{
+                    backgroundColor: uploadDropdownOpen ? '#f0fdf4' : 'transparent',
+                    border: 'none',
+                    color: '#166534',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: isUploadingImage ? 'not-allowed' : 'pointer',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontFamily: "'Manrope', sans-serif",
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isUploadingImage) {
+                      e.currentTarget.style.backgroundColor = '#f0fdf4';
+                      e.currentTarget.style.color = '#15803d';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!uploadDropdownOpen) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#166534';
+                    }
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  <span>Upload Profile</span>
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{
+                      transform: uploadDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.15s ease',
+                    }}
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                {/* Dropdown Menu with Change Profile and Remove Profile */}
+                {uploadDropdownOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 4px)',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      backgroundColor: '#ffffff',
+                      borderRadius: '12px',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04)',
+                      padding: '6px',
+                      minWidth: '160px',
+                      zIndex: 60,
+                      animation: 'fadeIn 0.12s ease-out',
+                    }}
+                  >
+                    {/* Action 1: Change Profile */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadDropdownOpen(false);
+                        fileInputRef.current?.click();
+                      }}
+                      disabled={isUploadingImage}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 12px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        backgroundColor: 'transparent',
+                        color: '#1e293b',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        fontFamily: "'Manrope', sans-serif",
+                        transition: 'all 0.15s ease',
+                        boxSizing: 'border-box',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f0fdf4';
+                        e.currentTarget.style.color = '#15803d';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = '#1e293b';
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                        <circle cx="12" cy="13" r="4" />
+                      </svg>
+                      <span>Change Profile</span>
+                    </button>
+
+                    {/* Action 2: Remove Profile */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        setUploadDropdownOpen(false);
+                        handleRemoveImage(e);
+                      }}
+                      disabled={isUploadingImage || !profile.profileImageUrl}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 12px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        backgroundColor: 'transparent',
+                        color: profile.profileImageUrl ? '#dc2626' : '#94a3b8',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: profile.profileImageUrl ? 'pointer' : 'not-allowed',
+                        textAlign: 'left',
+                        fontFamily: "'Manrope', sans-serif",
+                        transition: 'all 0.15s ease',
+                        boxSizing: 'border-box',
+                        opacity: profile.profileImageUrl ? 1 : 0.6,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (profile.profileImageUrl) {
+                          e.currentTarget.style.backgroundColor = '#fef2f2';
+                          e.currentTarget.style.color = '#b91c1c';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (profile.profileImageUrl) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = '#dc2626';
+                        }
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                      <span>Remove Profile</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                onChange={handleImageUpload}
+                style={{ display: 'none' }}
+              />
             </div>
 
 
@@ -3039,13 +3432,44 @@ const ProfilePage = () => {
 
                 </div>
 
+                {/* Row 4: Reason for Visit */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', gridColumn: 'span 2', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '8px',
+                      backgroundColor: '#e8f5e9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
+                      Reason for Visit
+                    </span>
+                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif", wordBreak: 'break-word' }}>
+                      {selectedAppointment.reason || selectedAppointment.title || 'Consultation'}
+                    </strong>
+                  </div>
+                </div>
+
               </div>
 
             </div>
 
 
 
-            {/* Box 2: Consultation Summary */}
+            {/* Box 2: Consultation Summary / Appointment Notice */}
 
             <div
 
@@ -3115,13 +3539,17 @@ const ProfilePage = () => {
 
                 <h4 style={{ fontSize: '14px', fontWeight: '800', color: '#111827', margin: '0 0 3px 0', fontFamily: "'Manrope', sans-serif" }}>
 
-                  Consultation Summary
+                  {(selectedAppointment.status === 'Completed' || selectedAppointment.status === 'Complete')
+                    ? 'Consultation Summary'
+                    : 'Appointment Details'}
 
                 </h4>
 
                 <p style={{ fontSize: '12.5px', color: '#6b7280', margin: 0, lineHeight: '1.5', fontFamily: "'Manrope', sans-serif" }}>
 
-                  Your consultation was completed. Review the visit information and any documents shared by your doctor.
+                  {(selectedAppointment.status === 'Completed' || selectedAppointment.status === 'Complete')
+                    ? 'Your consultation was completed. Review the visit information and any documents shared by your doctor.'
+                    : `Your appointment is confirmed for ${selectedAppointment.fullDate} at ${selectedAppointment.time}. Please arrive 10 minutes prior to your consultation.`}
 
                 </p>
 
@@ -3131,7 +3559,9 @@ const ProfilePage = () => {
 
 
 
-            {/* Box 3: Attached Documents */}
+            {/* Box 3: Attached Documents - Removed for appointments without prescriptions, only rendered if consultation is complete with prescription */}
+
+            {Boolean((selectedAppointment.status === 'Completed' || selectedAppointment.status === 'Complete') && selectedAppointment.hasPrescription) && (
 
             <div>
 
@@ -3241,7 +3671,9 @@ const ProfilePage = () => {
 
                     type="button"
 
-                    onClick={() => handleViewPdf(selectedAppointment.pdfName)}
+                    disabled={viewingAppointmentPdf}
+
+                    onClick={() => handleViewPdf(selectedAppointment)}
 
                     style={{
 
@@ -3297,7 +3729,9 @@ const ProfilePage = () => {
 
                     type="button"
 
-                    onClick={() => handleDownloadPrescription(selectedAppointment.pdfName)}
+                    disabled={downloadingAppointmentPdf}
+
+                    onClick={() => handleDownloadAppointmentPdf(selectedAppointment)}
 
                     style={{
 
@@ -3354,6 +3788,8 @@ const ProfilePage = () => {
               </div>
 
             </div>
+
+            )}
 
           </div>
 
@@ -4012,6 +4448,170 @@ const ProfilePage = () => {
         prescription={selectedPrescription}
 
       />
+
+      {/* Appointment PDF Preview Modal */}
+      {appointmentPdfModalOpen && appointmentPdfUrl && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(15, 23, 42, 0.72)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setAppointmentPdfModalOpen(false);
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '960px',
+              height: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 20px',
+                borderBottom: '1px solid #e5e7eb',
+                backgroundColor: '#f9fafb',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span
+                  style={{
+                    backgroundColor: '#fee2e2',
+                    color: '#dc2626',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  PDF
+                </span>
+                <div>
+                  <h4
+                    style={{
+                      margin: 0,
+                      fontSize: '15px',
+                      fontWeight: '700',
+                      color: '#111827',
+                      fontFamily: "'Manrope', sans-serif",
+                    }}
+                  >
+                    {appointmentPdfFilename || 'Appointment Document'}
+                  </h4>
+                  <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                    Official Consultation & Prescription Document
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => window.open(appointmentPdfUrl, '_blank')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 14px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                  Open in New Tab
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDownloadAppointmentPdf(selectedAppointment)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 14px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: '#166534',
+                    backgroundColor: '#dcfce7',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAppointmentPdfModalOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#6b7280',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                  }}
+                  aria-label="Close PDF Preview"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Embedded PDF iframe */}
+            <div style={{ flex: 1, backgroundColor: '#525659', position: 'relative' }}>
+              <iframe
+                src={`${appointmentPdfUrl}#toolbar=1`}
+                title="Appointment PDF Viewer"
+                style={{ width: '100%', height: '100%', border: 'none' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
 
 
