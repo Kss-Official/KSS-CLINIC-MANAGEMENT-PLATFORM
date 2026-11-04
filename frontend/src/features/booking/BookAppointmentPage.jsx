@@ -1050,6 +1050,10 @@ const BookAppointmentPage = () => {
 
           width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
           height: 'clamp(220px, 18vw, 275px)',
 
           backgroundColor: '#143420',
@@ -1081,6 +1085,10 @@ const BookAppointmentPage = () => {
           style={{
 
             width: '100%',
+
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
 
             height: '100%',
 
@@ -1114,6 +1122,10 @@ const BookAppointmentPage = () => {
 
             width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
             height: '100%',
 
             background:
@@ -1143,6 +1155,10 @@ const BookAppointmentPage = () => {
             left: 0,
 
             width: '100%',
+
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
 
             height: '100%',
 
@@ -1678,6 +1694,10 @@ const BookAppointmentPage = () => {
 
                           width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
                           padding: '11px 14px 11px 40px',
 
                           borderRadius: '10px',
@@ -1760,6 +1780,10 @@ const BookAppointmentPage = () => {
 
                           width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
                           padding: '11px 14px 11px 40px',
 
                           borderRadius: '10px',
@@ -1835,6 +1859,10 @@ const BookAppointmentPage = () => {
                         style={{
 
                           width: '100%',
+
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
 
                           padding: '11px 14px 11px 40px',
 
@@ -1915,6 +1943,10 @@ const BookAppointmentPage = () => {
                         style={{
 
                           width: '100%',
+
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
 
                           padding: '11px 64px 11px 40px',
 
@@ -2014,6 +2046,10 @@ const BookAppointmentPage = () => {
 
                           width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
                           padding: '11px 36px 11px 40px',
 
                           borderRadius: '10px',
@@ -2112,6 +2148,10 @@ const BookAppointmentPage = () => {
 
                           width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
                           padding: '11px 14px 11px 40px',
 
                           borderRadius: '10px',
@@ -2186,6 +2226,10 @@ const BookAppointmentPage = () => {
 
                           width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
                           padding: '11px 14px 11px 40px',
 
                           borderRadius: '10px',
@@ -2257,6 +2301,10 @@ const BookAppointmentPage = () => {
                       style={{
 
                         width: '100%',
+
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
 
                         padding: '12px 14px 28px 40px',
 
@@ -4356,17 +4404,19 @@ const BookAppointmentPage = () => {
 
 
 
-      {/* Div 3: Bottom Footer Bar (Exact match to reference design) */}
+      {/* Div 3: Bottom Footer Bar (Clean, Professional & Fully Responsive) */}
 
       <footer
+
+        className="booking-footer"
 
         style={{
 
           backgroundColor: '#ffffff',
 
-          borderTop: '1px solid #e5e7eb',
+          borderTop: '1px solid #edf2ee',
 
-          padding: '28px 0',
+          padding: '24px 0',
 
           marginTop: 'auto',
 
@@ -4414,11 +4464,13 @@ const BookAppointmentPage = () => {
 
           <p
 
+            className="booking-footer-copyright"
+
             style={{
 
               margin: 0,
 
-              fontSize: '13.5px',
+              fontSize: '13px',
 
               color: '#6b7280',
 
@@ -4440,13 +4492,15 @@ const BookAppointmentPage = () => {
 
           <div
 
+            className="booking-footer-links"
+
             style={{
 
               display: 'flex',
 
               alignItems: 'center',
 
-              gap: '32px',
+              gap: '28px',
 
               flexWrap: 'wrap',
 
@@ -4458,13 +4512,15 @@ const BookAppointmentPage = () => {
 
               href="#privacy"
 
+              className="booking-footer-link"
+
               style={{
 
                 color: '#6b7280',
 
                 textDecoration: 'none',
 
-                fontSize: '13.5px',
+                fontSize: '13px',
 
                 fontFamily: "'Manrope', sans-serif",
 
@@ -4486,13 +4542,15 @@ const BookAppointmentPage = () => {
 
               href="#terms"
 
+              className="booking-footer-link"
+
               style={{
 
                 color: '#6b7280',
 
                 textDecoration: 'none',
 
-                fontSize: '13.5px',
+                fontSize: '13px',
 
                 fontFamily: "'Manrope', sans-serif",
 
@@ -4514,13 +4572,15 @@ const BookAppointmentPage = () => {
 
               href="#support"
 
+              className="booking-footer-link"
+
               style={{
 
                 color: '#6b7280',
 
                 textDecoration: 'none',
 
-                fontSize: '13.5px',
+                fontSize: '13px',
 
                 fontFamily: "'Manrope', sans-serif",
 
@@ -4696,11 +4756,45 @@ const BookAppointmentPage = () => {
             padding: 18px 16px !important;
             border-radius: 16px !important;
           }
+          .booking-footer {
+            padding: 22px 0 20px !important;
+            background-color: #ffffff !important;
+            border-top: 1px solid #edf2ee !important;
+          }
           .booking-footer-inner {
             padding: 0 16px !important;
             flex-direction: column !important;
-            align-items: flex-start !important;
-            gap: 12px !important;
+            align-items: center !important;
+            text-align: center !important;
+            gap: 14px !important;
+          }
+          .booking-footer-links {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            flex-wrap: wrap !important;
+            gap: 10px 20px !important;
+            order: 1 !important;
+          }
+          .booking-footer-link {
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            color: #475569 !important;
+            padding: 4px 6px !important;
+            border-radius: 6px !important;
+            transition: all 0.15s ease !important;
+          }
+          .booking-footer-link:hover {
+            color: #1b4332 !important;
+            background-color: #f1f5f9 !important;
+          }
+          .booking-footer-copyright {
+            font-size: 12px !important;
+            color: #94a3b8 !important;
+            text-align: center !important;
+            line-height: 1.55 !important;
+            order: 2 !important;
+            max-width: 320px !important;
           }
         }
 

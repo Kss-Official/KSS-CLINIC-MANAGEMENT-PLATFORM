@@ -4681,6 +4681,8 @@ const ProfilePage = () => {
 
       <footer
 
+        className="profile-footer"
+
         style={{
 
           backgroundColor: '#ffffff',
@@ -4706,6 +4708,8 @@ const ProfilePage = () => {
       >
 
         <div
+
+          className="profile-footer-inner"
 
           style={{
 
@@ -4733,19 +4737,19 @@ const ProfilePage = () => {
 
         >
 
-          <p style={{ margin: 0 }}>
+          <p className="profile-footer-copyright" style={{ margin: 0 }}>
 
             © 2026 Dr. Kumar Tripathi Ampeh (Pat.) Homeopathy Clinic. All rights reserved.
 
           </p>
 
-          <div style={{ display: 'flex', gap: '20px' }}>
+          <div className="profile-footer-links" style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
 
-            <a href="#privacy" style={{ color: '#6b7280', textDecoration: 'none' }}>Privacy Policy</a>
+            <a href="#privacy" className="profile-footer-link" style={{ color: '#6b7280', textDecoration: 'none' }}>Privacy Policy</a>
 
-            <a href="#terms" style={{ color: '#6b7280', textDecoration: 'none' }}>Terms of Consultation</a>
+            <a href="#terms" className="profile-footer-link" style={{ color: '#6b7280', textDecoration: 'none' }}>Terms of Consultation</a>
 
-            <a href="#support" style={{ color: '#6b7280', textDecoration: 'none' }}>Contact Support</a>
+            <a href="#support" className="profile-footer-link" style={{ color: '#6b7280', textDecoration: 'none' }}>Contact Support</a>
 
           </div>
 
@@ -4840,6 +4844,68 @@ const ProfilePage = () => {
           .profile-container {
 
             padding: 24px 16px 50px !important;
+
+          }
+
+          .profile-footer {
+
+            padding: 22px 0 20px !important;
+
+          }
+
+          .profile-footer-inner {
+
+            padding: 0 16px !important;
+
+            flex-direction: column !important;
+
+            align-items: center !important;
+
+            text-align: center !important;
+
+            gap: 14px !important;
+
+          }
+
+          .profile-footer-links {
+
+            display: flex !important;
+
+            justify-content: center !important;
+
+            align-items: center !important;
+
+            flex-wrap: wrap !important;
+
+            gap: 10px 18px !important;
+
+            order: 1 !important;
+
+          }
+
+          .profile-footer-link {
+
+            font-size: 13px !important;
+
+            font-weight: 600 !important;
+
+            color: #475569 !important;
+
+          }
+
+          .profile-footer-copyright {
+
+            font-size: 12px !important;
+
+            color: #94a3b8 !important;
+
+            text-align: center !important;
+
+            line-height: 1.55 !important;
+
+            order: 2 !important;
+
+            max-width: 320px !important;
 
           }
 
