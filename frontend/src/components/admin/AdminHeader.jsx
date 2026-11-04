@@ -13,6 +13,25 @@ const AdminHeader = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef(null);
   const profileRef = useRef(null);
+  const [clinicProfileImage, setClinicProfileImage] = useState(() => {
+    return localStorage.getItem('clinic_profile_image') || user?.profile_image_url || null;
+  });
+
+  const fetchClinicProfileImage = async () => {
+    try {
+      const data = await appointmentApi.getClinicSettings();
+      const imgUrl = data?.profile_image_url || data?.profileImageUrl || null;
+      if (imgUrl) {
+        setClinicProfileImage(imgUrl);
+        localStorage.setItem('clinic_profile_image', imgUrl);
+      } else {
+        setClinicProfileImage(null);
+        localStorage.removeItem('clinic_profile_image');
+      }
+    } catch (err) {
+      // Ignore network errors on initial header mount
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -28,6 +47,19 @@ const AdminHeader = () => {
 
   useEffect(() => {
     fetchNotifications();
+    fetchClinicProfileImage();
+
+    // Listen to custom event when clinic profile image is updated
+    const handleClinicImageUpdated = (e) => {
+      const newImg = e?.detail?.profile_image_url || null;
+      setClinicProfileImage(newImg);
+      if (newImg) {
+        localStorage.setItem('clinic_profile_image', newImg);
+      } else {
+        localStorage.removeItem('clinic_profile_image');
+      }
+    };
+    window.addEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
 
     // Poll every 5 seconds for real-time automatic notification updates
     const interval = setInterval(fetchNotifications, 5000);
@@ -51,6 +83,7 @@ const AdminHeader = () => {
 
     return () => {
       clearInterval(interval);
+      window.removeEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
       window.removeEventListener('appointment-booked', handleAppointmentBooked);
       document.removeEventListener('mousedown', handleOutsideClick);
     };
@@ -484,25 +517,44 @@ const AdminHeader = () => {
               if (!dropdownOpen) e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            {/* Circular Initials Avatar DT */}
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                backgroundColor: '#dcfce7',
-                color: '#166534',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '700',
-                fontSize: '14px',
-                letterSpacing: '0.5px',
-                flexShrink: 0,
-              }}
-            >
-              DT
-            </div>
+            {/* Circular Avatar (Clinic Profile Picture or Initials 'DT') */}
+            {clinicProfileImage ? (
+              <img
+                src={clinicProfileImage}
+                alt="Clinic Profile"
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  flexShrink: 0,
+                  border: '1.5px solid #22c55e',
+                }}
+                onError={() => {
+                  setClinicProfileImage(null);
+                  localStorage.removeItem('clinic_profile_image');
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  backgroundColor: '#dcfce7',
+                  color: '#166534',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                  letterSpacing: '0.5px',
+                  flexShrink: 0,
+                }}
+              >
+                DT
+              </div>
+            )}
 
             {/* Doctor Info */}
             <div style={{ textAlign: 'left', lineHeight: 1.25 }}>

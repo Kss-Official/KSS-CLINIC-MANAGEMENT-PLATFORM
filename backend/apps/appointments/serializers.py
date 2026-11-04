@@ -104,6 +104,8 @@ class ClinicSettingsSerializer(serializers.Serializer):
     alternateNumber = serializers.CharField(max_length=25, required=False, allow_blank=True)
     alternate_number = serializers.CharField(max_length=25, required=False, allow_blank=True)
     address = serializers.CharField(required=False, allow_blank=True)
+    profile_image_url = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    profileImageUrl = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate(self, attrs):
         import re
@@ -137,6 +139,8 @@ class ClinicSettingsSerializer(serializers.Serializer):
             'contactNumber': attrs.get('contactNumber') or attrs.get('contact_number') or '',
             'alternateNumber': attrs.get('alternateNumber') or attrs.get('alternate_number') or '',
             'address': (attrs.get('address') or '').strip(),
+            'profile_image_url': attrs.get('profile_image_url') or attrs.get('profileImageUrl') or None,
+            'profileImageUrl': attrs.get('profile_image_url') or attrs.get('profileImageUrl') or None,
         }
 
 class PrescriptionSerializer(serializers.ModelSerializer):

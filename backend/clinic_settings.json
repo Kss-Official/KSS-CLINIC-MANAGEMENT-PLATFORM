@@ -4,5 +4,7 @@
   "email": "clinic.tripathi@gmail.com",
   "contactNumber": "+91 98765 43210",
   "alternateNumber": "+91 99887 66554",
-  "address": "12, Green Park, Bangalore"
+  "address": "12, Green Park, Bangalore",
+  "profile_image_url": "http://localhost:8000/media/profiles/Modern_Navy_and_Teal_FC_Monogram.png",
+  "profileImageUrl": "http://localhost:8000/media/profiles/Modern_Navy_and_Teal_FC_Monogram.png"
 }

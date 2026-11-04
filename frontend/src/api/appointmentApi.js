@@ -126,10 +126,36 @@ export const appointmentApi = {
     return response.data;
   },
 
+  uploadClinicProfileImage: async (formData) => {
+    const response = await axiosClient.post('/settings/clinic/profile-image/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  removeClinicProfileImage: async () => {
+    const response = await axiosClient.delete('/settings/clinic/profile-image/');
+    return response.data;
+  },
+
   // WhatsApp Cloud API Prescription Sender
   sendPrescriptionWhatsApp: async (rxId, data = {}) => {
     const target = rxId ? `/prescriptions/${encodeURIComponent(rxId)}/send-whatsapp/` : '/prescriptions/send-whatsapp/';
     const response = await axiosClient.post(target, data);
+    return response.data;
+  },
+
+  // Appointment PDF
+  getAppointmentPdfUrl: (appointmentId) => {
+    return `/api/appointments/${encodeURIComponent(appointmentId)}/pdf/`;
+  },
+
+  downloadAppointmentPdfBlob: async (appointmentId) => {
+    const response = await axiosClient.get(`/appointments/${encodeURIComponent(appointmentId)}/pdf/`, {
+      responseType: 'blob',
+    });
     return response.data;
   },
 };

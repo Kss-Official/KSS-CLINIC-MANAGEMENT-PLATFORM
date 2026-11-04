@@ -911,7 +911,8 @@ DEFAULT_CLINIC_SETTINGS = {
     'contactNumber': '+91 98765 43210',
     'alternateNumber': '+91 99887 66554',
     'email': 'clinic.tripathi@gmail.com',
-    'address': '12, Green Park, Bangalore'
+    'address': '12, Green Park, Bangalore',
+    'profile_image_url': None,
 }
 
 def load_clinic_settings():
@@ -1023,11 +1024,23 @@ class PatientMyProfileView(APIView):
         )
         city_val = patient.address or (getattr(request.user, 'address', '') if request.user.is_authenticated else '') or ''
 
+        profile_image_url = None
+        if request.user.is_authenticated and getattr(request.user, 'profile_image', None):
+            try:
+                url = request.user.profile_image.url
+                if url.startswith('http://') or url.startswith('https://'):
+                    profile_image_url = url
+                else:
+                    profile_image_url = request.build_absolute_uri(url)
+            except Exception:
+                profile_image_url = None
+
         return Response({
             'id': patient.patient_id,
             'database_id': patient.id,
             'name': patient.name,
             'initials': initials,
+            'profile_image_url': profile_image_url,
             'gender': gender_val,
             'dateOfBirth': dob_val,
             'date_of_birth': dob_val,
@@ -1052,6 +1065,7 @@ class PatientMyProfileView(APIView):
                 'reason': a.reason_for_visit,
                 'status': a.status,
                 'consultationType': a.consultation_type,
+                'hasPrescription': a.prescriptions.exists(),
             } for a in p_apts],
             'prescriptions': [{
                 'id': r.prescription_id,
@@ -1194,7 +1208,7 @@ class PatientMyProfileView(APIView):
             'date_of_birth': patient.date_of_birth,
             'city': patient.address,
             'address': patient.address,
-            'user': UserSerializer(request.user).data if request.user.is_authenticated else None,
+            'user': UserSerializer(request.user, context={'request': request}).data if request.user.is_authenticated else None,
         })
 
 
@@ -1205,7 +1219,18 @@ class ClinicSettingsView(APIView):
         return [IsAuthenticated(), IsStaffOrAdmin()]
 
     def get(self, request):
-        return Response(load_clinic_settings())
+        settings_data = load_clinic_settings()
+        # If user has profile image and not yet in clinic settings, reflect it
+        if request.user.is_authenticated and getattr(request.user, 'profile_image', None):
+            try:
+                url = request.user.profile_image.url
+                if not (url.startswith('http://') or url.startswith('https://')):
+                    url = request.build_absolute_uri(url)
+                settings_data['profile_image_url'] = url
+                settings_data['profileImageUrl'] = url
+            except Exception:
+                pass
+        return Response(settings_data)
 
     def post(self, request):
         serializer = ClinicSettingsSerializer(data=request.data)
@@ -1217,6 +1242,84 @@ class ClinicSettingsView(APIView):
 
     def put(self, request):
         return self.post(request)
+
+
+class ClinicProfileImageView(APIView):
+    """
+    Dedicated endpoint for Admin to upload/update and remove the Clinic Profile picture.
+    POST /api/settings/clinic/profile-image/
+    DELETE /api/settings/clinic/profile-image/
+    """
+    permission_classes = [IsAuthenticated, IsStaffOrAdmin]
+
+    def post(self, request):
+        image_file = request.FILES.get('profile_image')
+        if not image_file:
+            return Response(
+                {'error': 'No image file provided. Please upload a valid image file.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+        if image_file.content_type not in allowed_types:
+            return Response(
+                {'error': 'Invalid file type. Please upload a JPG, PNG, WEBP, or GIF image.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        max_size = 5 * 1024 * 1024  # 5 MB
+        if image_file.size > max_size:
+            return Response(
+                {'error': 'Image file is too large. Maximum allowed size is 5 MB.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Update logged in admin user's profile image
+        user = request.user
+        if user.profile_image:
+            try:
+                user.profile_image.delete(save=False)
+            except Exception:
+                pass
+        user.profile_image = image_file
+        user.save(update_fields=['profile_image'])
+
+        profile_image_url = user.profile_image.url
+        if not (profile_image_url.startswith('http://') or profile_image_url.startswith('https://')):
+            profile_image_url = request.build_absolute_uri(profile_image_url)
+
+        # Update clinic_settings.json
+        settings_data = load_clinic_settings()
+        settings_data['profile_image_url'] = profile_image_url
+        settings_data['profileImageUrl'] = profile_image_url
+        save_clinic_settings(settings_data)
+
+        return Response({
+            'message': 'Clinic profile picture updated successfully.',
+            'profile_image_url': profile_image_url,
+            'profileImageUrl': profile_image_url,
+        }, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        user = request.user
+        if user.profile_image:
+            try:
+                user.profile_image.delete(save=False)
+            except Exception:
+                pass
+            user.profile_image = None
+            user.save(update_fields=['profile_image'])
+
+        settings_data = load_clinic_settings()
+        settings_data['profile_image_url'] = None
+        settings_data['profileImageUrl'] = None
+        save_clinic_settings(settings_data)
+
+        return Response({
+            'message': 'Clinic profile picture removed successfully.',
+            'profile_image_url': None,
+            'profileImageUrl': None,
+        }, status=status.HTTP_200_OK)
 
 
 class SendPrescriptionWhatsAppView(APIView):
@@ -1350,5 +1453,77 @@ class PrescriptionPdfDownloadView(APIView):
             return response
         except Exception as e:
             logger.error(f"Failed to generate prescription PDF for {rx_id}: {e}")
+            return Response({'error': 'Failed to generate PDF.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AppointmentPdfDownloadView(APIView):
+    """
+    Publicly serves / streams official appointment & prescription PDF with clinic letterhead.
+    Supports viewing (inline) and downloading for any appointment.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, appointment_id):
+        cleaned_id = str(appointment_id).strip()
+        lookup_q = models.Q(appointment_id__iexact=cleaned_id)
+        if cleaned_id.isdigit():
+            lookup_q |= models.Q(id=int(cleaned_id))
+        apt = Appointment.objects.filter(lookup_q).first()
+
+        if not apt:
+            return Response({'error': f'Appointment {appointment_id} not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if appointment has an associated prescription
+        rx = apt.prescriptions.first()
+        if not rx and apt.patient_record:
+            rx = Prescription.objects.filter(patient_record=apt.patient_record, date=apt.appointment_date).first()
+
+        if rx:
+            rx_data = {
+                'rxId': rx.prescription_id,
+                'patientName': rx.patient_name or apt.patient_name,
+                'patientId': rx.patient_id_ref or (apt.patient_record.patient_id if apt.patient_record else 'PAT-1001'),
+                'mobile': rx.patient_phone or apt.patient_phone or '',
+                'ageGender': rx.age_gender or (f"{apt.patient_gender}" if apt.patient_gender else 'Adult'),
+                'date': rx.date or apt.appointment_date,
+                'consultationType': apt.consultation_type or 'In-clinic Visit',
+                'diagnosis': rx.diagnosis or rx.complaint or apt.reason_for_visit or 'Clinical Consultation',
+                'symptoms': rx.symptoms or '',
+                'medicines': rx.medicines or [],
+                'additionalInstructions': rx.additional_instructions or f"Appointment ID: {apt.appointment_id} • Time: {apt.time_slot}",
+            }
+        else:
+            p_id = apt.patient_record.patient_id if apt.patient_record else 'PAT-1001'
+            rx_data = {
+                'rxId': apt.appointment_id,
+                'patientName': apt.patient_name or 'Patient',
+                'patientId': p_id,
+                'mobile': apt.patient_phone or '',
+                'ageGender': f"{apt.patient_gender}" if apt.patient_gender else 'Adult',
+                'date': apt.appointment_date,
+                'consultationType': apt.consultation_type or 'In-clinic Visit',
+                'diagnosis': apt.reason_for_visit or 'Clinical Consultation',
+                'symptoms': f"Status: {apt.status}",
+                'medicines': [
+                    {
+                        'name': 'Clinical Consultation Record',
+                        'potency': 'Standard',
+                        'dosage': 'Visit Completed',
+                        'duration': apt.appointment_date,
+                        'instructions': f"Slot: {apt.time_slot}",
+                    }
+                ] if apt.status == 'Complete' else [],
+                'additionalInstructions': f"Appointment ID: {apt.appointment_id}\nScheduled Time: {apt.time_slot}\nStatus: {apt.status}\nConsultation Type: {apt.consultation_type}",
+            }
+
+        try:
+            pdf_bytes = generate_prescription_pdf_bytes(rx_data)
+            from django.http import HttpResponse
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            safe_name = (apt.patient_name or 'Patient').replace(' ', '_')
+            filename = f"Appointment_{apt.appointment_id}.pdf"
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
+            return response
+        except Exception as e:
+            logger.error(f"Failed to generate appointment PDF for {appointment_id}: {e}")
             return Response({'error': 'Failed to generate PDF.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
