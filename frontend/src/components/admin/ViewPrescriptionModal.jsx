@@ -245,25 +245,21 @@ const ViewPrescriptionModal = ({
             diagnosis={rx.diagnosis || rx.complaint || 'Skin allergy due to seasonal change.'}
             medicines={medicines}
             additionalInstructions={rx.notes || rx.additionalInstructions || 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'}
-            onSendWhatsApp={async () => {
-              try {
-                const text = encodeURIComponent(
-                  `Prescription for ${patientObj.name} (${rx.id || 'RX-2026-1016'}): Diagnosis: ${rx.diagnosis || rx.complaint}. Please follow the prescribed homeopathic treatment.`
-                );
-                const phoneDigits = (patientObj.phone || patientObj.contact || '').replace(/\D/g, '');
-                if (phoneDigits) {
-                  window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
-                }
-                const rxIdentifier = rx.id || rx.rxId || rx.prescription_id;
-                if (rxIdentifier) {
-                  await appointmentApi.updatePrescriptionStatus(rxIdentifier, 'Delivered');
-                  setActiveRx((prev) => (prev ? { ...prev, status: 'Delivered' } : prev));
-                }
-                alert(`Prescription successfully sent via WhatsApp to ${patientObj.name}! Status updated to Delivered.`);
-              } catch (err) {
-                console.error('Failed to update WhatsApp delivery status:', err);
-                alert(`WhatsApp delivery was triggered, but status could not be updated.`);
-              }
+            onSendWhatsApp={async (extraData = {}) => {
+              const rxIdentifier = rx.id || rx.rxId || rx.prescription_id;
+              const res = await appointmentApi.sendPrescriptionWhatsApp(rxIdentifier, {
+                phone: patientObj.phone || patientObj.contact || patientObj.mobile,
+                patientName: patientObj.name,
+                patientId: patientObj.id || patientObj.patientId,
+                date: rx.date,
+                consultationType: rx.consultationType,
+                diagnosis: rx.diagnosis || rx.complaint,
+                medicines: medicines,
+                additionalInstructions: rx.notes || rx.additionalInstructions,
+                pdf_base64: extraData.pdf_base64,
+              });
+              setActiveRx((prev) => (prev ? { ...prev, status: 'Delivered' } : prev));
+              return res;
             }}
           />
         </div>

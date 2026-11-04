@@ -34,12 +34,14 @@ export const extractErrorMessage = (error) => {
     if (typeof data.non_field_errors === 'string') {
       return data.non_field_errors;
     }
-    // Check first field error if dictionary of errors
-    const firstKey = Object.keys(data)[0];
-    if (firstKey) {
-      const val = data[firstKey];
-      if (Array.isArray(val) && val.length > 0) return `${val[0]}`;
-      if (typeof val === 'string') return val;
+    // Check for any field-level error messages (e.g. { username: ['...'] })
+    if (typeof data === 'object') {
+      const values = Object.values(data);
+      if (values.length > 0) {
+        const first = values[0];
+        if (Array.isArray(first) && first.length > 0) return `${first[0]}`;
+        if (typeof first === 'string') return first;
+      }
     }
   }
   return error.message || 'An unexpected error occurred';

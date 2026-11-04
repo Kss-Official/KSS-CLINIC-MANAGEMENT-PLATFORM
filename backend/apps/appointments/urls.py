@@ -12,6 +12,8 @@ from .views import (
     PrescriptionListView,
     PrescriptionDetailView,
     ClinicSettingsView,
+    SendPrescriptionWhatsAppView,
+    PrescriptionPdfDownloadView,
 )
 
 urlpatterns = [
@@ -24,6 +26,9 @@ urlpatterns = [
     path('patients/', PatientHistoryListView.as_view(), name='patient-history-list'),
     path('patients/me/', PatientMyProfileView.as_view(), name='patient-my-profile'),
     path('patients/<str:patient_id>/', PatientDetailUpdateView.as_view(), name='patient-detail-update'),
+    path('prescriptions/<str:rx_id>/pdf/', PrescriptionPdfDownloadView.as_view(), name='prescription-pdf-download'),
+    path('prescriptions/send-whatsapp/', SendPrescriptionWhatsAppView.as_view(), name='prescription-send-whatsapp-direct'),
+    path('prescriptions/<str:rx_id>/send-whatsapp/', SendPrescriptionWhatsAppView.as_view(), name='prescription-send-whatsapp'),
     path('prescriptions/', PrescriptionListView.as_view(), name='prescription-list'),
     path('prescriptions/<str:pk_or_id>/', PrescriptionDetailView.as_view(), name='prescription-detail'),
     path('settings/clinic/', ClinicSettingsView.as_view(), name='clinic-settings'),

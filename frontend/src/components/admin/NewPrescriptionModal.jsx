@@ -468,20 +468,48 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                 additionalInstructions ||
                 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'
               }
-              onSendWhatsApp={async () => {
+              onSendWhatsApp={async (extraData = {}) => {
+                const payload = {
+                  patient: selectedPatient,
+                  patient_name: selectedPatient?.name || 'Patient',
+                  patient_phone: selectedPatient?.phone,
+                  patient_id_ref: selectedPatient?.id,
+                  appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+                  appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+                  age_gender: selectedPatient?.ageGender || `${selectedPatient?.age} / ${selectedPatient?.gender}`,
+                  date: formatDateForDisplay(appointmentDate),
+                  appointmentDate,
+                  consultationType,
+                  mainComplaint,
+                  symptoms,
+                  diagnosis: diagnosis || mainComplaint || 'Skin allergy due to seasonal change.',
+                  medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
+                  additionalInstructions: additionalInstructions || 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.',
+                  status: 'Pending',
+                };
+                const savedRx = await appointmentApi.createPrescription(payload);
                 try {
-                  const phoneDigits = (selectedPatient?.phone || '').replace(/\D/g, '');
-                  const text = encodeURIComponent(
-                    `Prescription for ${selectedPatient?.name || 'Patient'}: Diagnosis: ${diagnosis || 'Homeopathic Consultation'}. Please follow the prescribed medicines.`
-                  );
-                  if (phoneDigits) {
-                    window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
+                  const res = await appointmentApi.sendPrescriptionWhatsApp(savedRx.id, {
+                    phone: selectedPatient?.phone,
+                    patientName: selectedPatient?.name,
+                    patientId: selectedPatient?.id,
+                    ageGender: selectedPatient?.ageGender,
+                    date: formatDateForDisplay(appointmentDate),
+                    consultationType,
+                    diagnosis: payload.diagnosis,
+                    medicines: payload.medicines,
+                    additionalInstructions: payload.additionalInstructions,
+                    pdf_base64: extraData.pdf_base64,
+                  });
+                  if (onSave) {
+                    onSave({ ...savedRx, status: 'Delivered' });
                   }
-                  await handleFinalSave('WhatsApp');
-                  alert(`Prescription successfully sent via WhatsApp to ${selectedPatient?.name}! Status updated to Delivered.`);
-                } catch (err) {
-                  console.error('WhatsApp delivery failed:', err);
-                  await handleFinalSave('PDF');
+                  return res;
+                } catch (sendErr) {
+                  if (onSave) {
+                    onSave({ ...savedRx, status: 'Pending' });
+                  }
+                  throw sendErr;
                 }
               }}
               onDownloadPdf={() => {
