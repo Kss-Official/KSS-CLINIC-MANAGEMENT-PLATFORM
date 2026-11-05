@@ -72,27 +72,29 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
     }
   };
 
-  // Periodic smooth animation: emerges from behind notification icon for 4.5s, then hides for 7.5s (12s repeating cycle)
+  // Optimized periodic smooth animation: emerges smoothly, stays clearly visible, and disappears within 4–5s (faster 8s cycle)
   useEffect(() => {
     if (!appointmentReminderEnabled || confirmedReminders.length === 0) {
       setIsReminderPillVisible(false);
       return;
     }
 
-    // Initially show for 4.5s
+    const VISIBLE_DURATION = 3800; // Remains visible for 3.8s, smoothly retracting by ~4.2s (within 4-5 seconds)
+    const CYCLE_INTERVAL = 8000;   // Repeats faster (every 8 seconds)
+
+    // Initially show
     setIsReminderPillVisible(true);
 
-    let hideTimeout;
+    let hideTimeout = setTimeout(() => {
+      setIsReminderPillVisible(false);
+    }, VISIBLE_DURATION);
+
     const interval = setInterval(() => {
       setIsReminderPillVisible(true);
       hideTimeout = setTimeout(() => {
         setIsReminderPillVisible(false);
-      }, 4500);
-    }, 12000);
-
-    hideTimeout = setTimeout(() => {
-      setIsReminderPillVisible(false);
-    }, 4500);
+      }, VISIBLE_DURATION);
+    }, CYCLE_INTERVAL);
 
     return () => {
       clearInterval(interval);
@@ -354,7 +356,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
                 transform: (isReminderPillVisible || isPillHovered) ? 'translateX(0) scale(1)' : 'translateX(35px) scale(0.9)',
                 pointerEvents: (isReminderPillVisible || isPillHovered) ? 'auto' : 'none',
                 overflow: 'hidden',
-                transition: 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease, max-width 0.65s cubic-bezier(0.16, 1, 0.3, 1), padding 0.5s ease, margin 0.5s ease',
+                transition: 'transform 0.38s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, max-width 0.38s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s ease, margin 0.3s ease',
                 boxShadow: (isReminderPillVisible || isPillHovered) ? '0 2px 8px rgba(6, 95, 70, 0.12)' : 'none',
                 zIndex: 1,
               }}
