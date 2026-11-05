@@ -30,6 +30,76 @@ const AppointmentModal = ({ isOpen, onClose }) => {
     notes: '',
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [workingDays, setWorkingDays] = useState(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+  const [dateRestrictions, setDateRestrictions] = useState([]);
+  const [customWorkingHours, setCustomWorkingHours] = useState([]);
+
+  useEffect(() => {
+    appointmentApi.getClinicSettings().then((data) => {
+      const days = data?.workingDays || data?.working_days;
+      if (Array.isArray(days) && days.length > 0) setWorkingDays(days);
+      const restrs = data?.dateRestrictions || data?.date_restrictions;
+      if (Array.isArray(restrs)) setDateRestrictions(restrs);
+      const cwh = data?.customWorkingHours || data?.custom_working_hours;
+      if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
+    }).catch(() => {});
+
+    const handleSettingsUpdated = (e) => {
+      const days = e?.detail?.workingDays || e?.detail?.working_days;
+      if (Array.isArray(days)) setWorkingDays(days);
+      const restrs = e?.detail?.dateRestrictions || e?.detail?.date_restrictions;
+      if (Array.isArray(restrs)) setDateRestrictions(restrs);
+      const cwh = e?.detail?.customWorkingHours || e?.detail?.custom_working_hours;
+      if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
+    };
+    window.addEventListener('appointment-settings-updated', handleSettingsUpdated);
+    return () => window.removeEventListener('appointment-settings-updated', handleSettingsUpdated);
+  }, []);
+
+  const checkDateRestriction = (dateStr) => {
+    if (!dateStr || !dateRestrictions || dateRestrictions.length === 0) return { isRestricted: false, reason: '' };
+    for (const r of dateRestrictions) {
+      if (r && r.startDate && r.endDate) {
+        if (r.startDate <= dateStr && dateStr <= r.endDate) {
+          return {
+            isRestricted: true,
+            reason: r.reason || (r.type === 'month' ? 'Entire month closed' : 'Clinic closed on this date'),
+          };
+        }
+      }
+    }
+    return { isRestricted: false, reason: '' };
+  };
+
+  const parseTimeStrToMinutes = (tStr) => {
+    if (!tStr) return null;
+    const cleaned = String(tStr).trim().toUpperCase();
+    const match = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+    if (!match) return null;
+    let [_, h, m, p] = match;
+    let hours = parseInt(h, 10);
+    const mins = parseInt(m, 10);
+    if (p === 'PM' && hours !== 12) hours += 12;
+    if (p === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + mins;
+  };
+
+  const getEffectiveHoursForDate = (dateStr) => {
+    if (!dateStr || !customWorkingHours || customWorkingHours.length === 0) {
+      return { startTime: '09:00 AM', endTime: '06:00 PM', isCustom: false, reason: '' };
+    }
+    for (const ch of customWorkingHours) {
+      if (ch && ch.startDate && ch.endDate && ch.startDate <= dateStr && dateStr <= ch.endDate) {
+        return {
+          startTime: ch.startTime || '09:00 AM',
+          endTime: ch.endTime || '06:00 PM',
+          isCustom: true,
+          reason: ch.reason || 'Custom working hours',
+        };
+      }
+    }
+    return { startTime: '09:00 AM', endTime: '06:00 PM', isCustom: false, reason: '' };
+  };
   const [isBookingLoading, setIsBookingLoading] = useState(false);
   const [serverError, setServerError] = useState('');
 
@@ -129,7 +199,30 @@ const AppointmentModal = ({ isOpen, onClose }) => {
       ...prev,
       [name]: value,
     }));
-    if (modalErrors[name]) {
+    if (name === 'date' && value) {
+      const dObj = new Date(value);
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayName = dayNames[dObj.getDay()];
+      const { isRestricted, reason } = checkDateRestriction(value);
+
+      if (!workingDays.includes(dayName)) {
+        setModalErrors((prev) => ({
+          ...prev,
+          date: `The clinic is closed on ${dayName}s. Please select an open working day (${workingDays.join(', ')}).`,
+        }));
+      } else if (isRestricted) {
+        setModalErrors((prev) => ({
+          ...prev,
+          date: `Appointments are disabled on this date (${reason}). Please select another date.`,
+        }));
+      } else {
+        setModalErrors((prev) => {
+          const next = { ...prev };
+          delete next.date;
+          return next;
+        });
+      }
+    } else if (modalErrors[name]) {
       setModalErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
@@ -154,6 +247,18 @@ const AppointmentModal = ({ isOpen, onClose }) => {
       errors.phone = 'Phone number must be exactly 10 digits';
     } else if (!/^[6-9]/.test(digits)) {
       errors.phone = 'Mobile number must start with 6, 7, 8, or 9';
+    }
+
+    if (formData.date) {
+      const dObj = new Date(formData.date);
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayName = dayNames[dObj.getDay()];
+      const { isRestricted, reason } = checkDateRestriction(formData.date);
+      if (!workingDays.includes(dayName)) {
+        errors.date = `The clinic is closed on ${dayName}s. Please select an open working day.`;
+      } else if (isRestricted) {
+        errors.date = `Appointments are disabled on this date (${reason}). Please select another date.`;
+      }
     }
 
     const emailVal = (formData.email || '').trim();
@@ -462,34 +567,77 @@ const AppointmentModal = ({ isOpen, onClose }) => {
                         width: '100%',
                         padding: '10px 14px',
                         borderRadius: '8px',
-                        border: '1px solid #d1d5db',
+                        border: modalErrors.date ? '1.5px solid #dc2626' : '1px solid #d1d5db',
                         fontSize: '14px',
                         outline: 'none',
                       }}
                     />
+                    {modalErrors.date && (
+                      <p style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px', margin: '4px 0 0 0' }}>
+                        {modalErrors.date}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '5px' }}>
                       Time Slot
                     </label>
-                    <select
-                      name="time"
-                      value={formData.time}
-                      onChange={handleChange}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        border: '1px solid #d1d5db',
-                        fontSize: '14px',
-                        outline: 'none',
-                        backgroundColor: '#ffffff',
-                      }}
-                    >
-                      <option value="10:00 AM">Morning (10:00 AM - 12:00 PM)</option>
-                      <option value="12:30 PM">Afternoon (12:30 PM - 03:00 PM)</option>
-                      <option value="04:30 PM">Evening (04:30 PM - 07:00 PM)</option>
-                    </select>
+                    {(() => {
+                      const eff = getEffectiveHoursForDate(formData.date);
+                      const sMins = parseTimeStrToMinutes(eff.startTime);
+                      const eMins = parseTimeStrToMinutes(eff.endTime);
+                      const standardSlots = [
+                        { value: '09:00 AM', label: '09:00 AM - 09:30 AM', mins: 9 * 60 },
+                        { value: '09:30 AM', label: '09:30 AM - 10:00 AM', mins: 9 * 60 + 30 },
+                        { value: '10:00 AM', label: 'Morning (10:00 AM - 12:00 PM)', mins: 10 * 60 },
+                        { value: '11:00 AM', label: '11:00 AM - 11:30 AM', mins: 11 * 60 },
+                        { value: '11:30 AM', label: '11:30 AM - 12:00 PM', mins: 11 * 60 + 30 },
+                        { value: '12:00 PM', label: '12:00 PM - 12:30 PM', mins: 12 * 60 },
+                        { value: '12:30 PM', label: 'Afternoon (12:30 PM - 03:00 PM)', mins: 12 * 60 + 30 },
+                        { value: '01:00 PM', label: '01:00 PM - 01:30 PM', mins: 13 * 60 },
+                        { value: '02:00 PM', label: '02:00 PM - 02:30 PM', mins: 14 * 60 },
+                        { value: '03:00 PM', label: '03:00 PM - 03:30 PM', mins: 15 * 60 },
+                        { value: '04:00 PM', label: '04:00 PM - 04:30 PM', mins: 16 * 60 },
+                        { value: '04:30 PM', label: 'Evening (04:30 PM - 07:00 PM)', mins: 16 * 60 + 30 },
+                        { value: '05:00 PM', label: '05:00 PM - 05:30 PM', mins: 17 * 60 },
+                        { value: '05:30 PM', label: '05:30 PM - 06:00 PM', mins: 17 * 60 + 30 },
+                      ];
+                      const availableSlots = standardSlots.filter((slot) => {
+                        if (sMins !== null && eMins !== null) {
+                          return slot.mins >= sMins && slot.mins < eMins;
+                        }
+                        return true;
+                      });
+                      const slotsToRender = availableSlots.length > 0 ? availableSlots : standardSlots.slice(2, 5);
+
+                      return (
+                        <div>
+                          <select
+                            name="time"
+                            value={formData.time}
+                            onChange={handleChange}
+                            style={{
+                              width: '100%',
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              border: '1px solid #d1d5db',
+                              fontSize: '14px',
+                              outline: 'none',
+                              backgroundColor: '#ffffff',
+                            }}
+                          >
+                            {slotsToRender.map((s) => (
+                              <option key={s.value} value={s.value}>{s.label}</option>
+                            ))}
+                          </select>
+                          {eff.isCustom && (
+                            <span style={{ fontSize: '11px', color: '#0369a1', display: 'block', marginTop: '3px' }}>
+                              Special hours ({eff.startTime} - {eff.endTime}): {eff.reason}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 

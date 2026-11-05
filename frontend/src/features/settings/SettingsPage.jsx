@@ -126,6 +126,44 @@ const SettingsPage = () => {
             setClinicProfileImage(null);
             localStorage.removeItem('clinic_profile_image');
           }
+
+          const days = data.workingDays || data.working_days;
+          if (Array.isArray(days) && days.length > 0) {
+            setWorkingDays(days);
+            setDraftWorkingDays([...days]);
+            try {
+              localStorage.setItem('clinic_appointment_settings', JSON.stringify({
+                workingDays: days,
+                consultationHours: data.consultationHours || data.consultation_hours || '09:00 AM - 06:00 PM',
+                slotDuration: data.slotDuration || data.slot_duration || '30 Minutes',
+              }));
+            } catch {}
+          }
+          if (data.consultationHours || data.consultation_hours) {
+            setConsultationHours(data.consultationHours || data.consultation_hours);
+          }
+          if (data.slotDuration || data.slot_duration) {
+            setSlotDuration(data.slotDuration || data.slot_duration);
+          }
+          const loadedRestrictions = data.dateRestrictions || data.date_restrictions || [];
+          if (Array.isArray(loadedRestrictions)) {
+            setDateRestrictions(loadedRestrictions);
+          }
+          const loadedCustomHours = data.customWorkingHours || data.custom_working_hours || [];
+          if (Array.isArray(loadedCustomHours)) {
+            setCustomWorkingHours(loadedCustomHours);
+          }
+          if (data.notifications && typeof data.notifications === 'object') {
+            setNotifications(data.notifications);
+            setDraftNotifications(data.notifications);
+            try {
+              localStorage.setItem('clinic_notification_settings', JSON.stringify(data.notifications));
+            } catch {}
+          }
+          if (data.notificationChannels && typeof data.notificationChannels === 'object') {
+            setNotificationChannels(data.notificationChannels);
+            setDraftChannels(data.notificationChannels);
+          }
         }
       } catch (err) {
         // Fall back gracefully to localStorage or defaults
@@ -227,12 +265,40 @@ const SettingsPage = () => {
   const [workingDays, setWorkingDays] = useState(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
   const [consultationHours, setConsultationHours] = useState('09:00 AM - 06:00 PM');
   const [slotDuration, setSlotDuration] = useState('30 Minutes');
+  const [dateRestrictions, setDateRestrictions] = useState([]);
+  const [customWorkingHours, setCustomWorkingHours] = useState([]);
+
+  // Draft States for editing appointment modal
+  const [appointmentModalTab, setAppointmentModalTab] = useState('general'); // 'general' | 'restrictions' | 'custom_hours'
+  const [draftDateRestrictions, setDraftDateRestrictions] = useState([]);
+  const [draftCustomWorkingHours, setDraftCustomWorkingHours] = useState([]);
+
+  // Form states for adding a new date restriction
+  const [newRestrMode, setNewRestrMode] = useState('range'); // 'range' | 'month'
+  const [newRestrStartDate, setNewRestrStartDate] = useState('');
+  const [newRestrEndDate, setNewRestrEndDate] = useState('');
+  const [newRestrMonth, setNewRestrMonth] = useState(new Date().getMonth());
+  const [newRestrYear, setNewRestrYear] = useState(new Date().getFullYear());
+  const [newRestrReason, setNewRestrReason] = useState('');
+
+  // Form states for adding date-specific working hours
+  const [newCustomStartDate, setNewCustomStartDate] = useState('');
+  const [newCustomEndDate, setNewCustomEndDate] = useState('');
+  const [newCustomStartTime, setNewCustomStartTime] = useState('09:00 AM');
+  const [newCustomEndTime, setNewCustomEndTime] = useState('02:00 PM');
+  const [newCustomReason, setNewCustomReason] = useState('');
 
   // 3. Notification Settings State
-  const [notifications, setNotifications] = useState({
-    newAppointment: true,
-    appointmentReminder: true,
-    prescriptionUpdates: true,
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem('clinic_notification_settings');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      newAppointment: true,
+      appointmentReminder: true,
+      prescriptionUpdates: true,
+    };
   });
   const [notificationChannels, setNotificationChannels] = useState({
     whatsapp: true,
@@ -446,6 +512,27 @@ const SettingsPage = () => {
     showToast('Clinic Information updated successfully!');
   };
 
+  // Format helper for display
+  const formatDateBadge = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      const [y, m, d] = parts;
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${parseInt(d, 10)} ${monthNames[parseInt(m, 10) - 1]} ${y}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const timeSlotOptions = [
+    '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
+    '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM',
+    '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM',
+    '05:00 PM', '05:30 PM', '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM'
+  ];
+
   // Handlers for Appointment Settings
   const handleOpenAppointmentModal = () => {
     setDraftWorkingDays([...workingDays]);
@@ -453,6 +540,20 @@ const SettingsPage = () => {
     setDraftStartHour(parts[0] || '09:00 AM');
     setDraftEndHour(parts[1] || '06:00 PM');
     setDraftSlotDuration(slotDuration);
+    setDraftDateRestrictions([...dateRestrictions]);
+    setDraftCustomWorkingHours([...customWorkingHours]);
+    setAppointmentModalTab('general');
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    setNewRestrStartDate(todayStr);
+    setNewRestrEndDate(todayStr);
+    setNewRestrReason('');
+    setNewCustomStartDate(todayStr);
+    setNewCustomEndDate(todayStr);
+    setNewCustomStartTime('09:00 AM');
+    setNewCustomEndTime('02:00 PM');
+    setNewCustomReason('');
+
     setEditAppointmentModalOpen(true);
   };
 
@@ -464,13 +565,118 @@ const SettingsPage = () => {
     }
   };
 
-  const handleSaveAppointmentSettings = (e) => {
-    e.preventDefault();
-    setWorkingDays([...draftWorkingDays]);
-    setConsultationHours(`${draftStartHour} - ${draftEndHour}`);
-    setSlotDuration(draftSlotDuration);
+  const handleAddRestriction = (e) => {
+    if (e) e.preventDefault();
+    if (newRestrMode === 'range') {
+      if (!newRestrStartDate) {
+        showToast('Please select a start date.');
+        return;
+      }
+      const end = newRestrEndDate || newRestrStartDate;
+      if (end < newRestrStartDate) {
+        showToast('End date cannot be earlier than start date.');
+        return;
+      }
+      const item = {
+        id: `restr_${Date.now()}`,
+        type: 'range',
+        startDate: newRestrStartDate,
+        endDate: end,
+        reason: newRestrReason.trim() || 'Clinic closed',
+      };
+      setDraftDateRestrictions([...draftDateRestrictions, item]);
+      setNewRestrReason('');
+      showToast('Date restriction added.');
+    } else {
+      const y = parseInt(newRestrYear, 10);
+      const m = parseInt(newRestrMonth, 10);
+      const startStr = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(y, m + 1, 0).getDate();
+      const endStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const item = {
+        id: `restr_${Date.now()}`,
+        type: 'month',
+        month: `${y}-${String(m + 1).padStart(2, '0')}`,
+        startDate: startStr,
+        endDate: endStr,
+        reason: newRestrReason.trim() || `Closed for ${monthNames[m]} ${y}`,
+      };
+      setDraftDateRestrictions([...draftDateRestrictions, item]);
+      setNewRestrReason('');
+      showToast(`Entire month restriction (${monthNames[m]} ${y}) added.`);
+    }
+  };
+
+  const handleRemoveRestriction = (id) => {
+    setDraftDateRestrictions(draftDateRestrictions.filter((r) => r.id !== id));
+  };
+
+  const handleAddCustomWorkingHours = (e) => {
+    if (e) e.preventDefault();
+    if (!newCustomStartDate) {
+      showToast('Please select a date.');
+      return;
+    }
+    const end = newCustomEndDate || newCustomStartDate;
+    if (end < newCustomStartDate) {
+      showToast('End date cannot be earlier than start date.');
+      return;
+    }
+    const item = {
+      id: `cwh_${Date.now()}`,
+      startDate: newCustomStartDate,
+      endDate: end,
+      startTime: newCustomStartTime,
+      endTime: newCustomEndTime,
+      reason: newCustomReason.trim() || 'Custom working hours',
+    };
+    setDraftCustomWorkingHours([...draftCustomWorkingHours, item]);
+    setNewCustomReason('');
+    showToast('Custom working hours added.');
+  };
+
+  const handleRemoveCustomWorkingHours = (id) => {
+    setDraftCustomWorkingHours(draftCustomWorkingHours.filter((c) => c.id !== id));
+  };
+
+  const handleSaveAppointmentSettings = async (e) => {
+    if (e) e.preventDefault();
+    const updatedDays = [...draftWorkingDays];
+    const updatedHours = `${draftStartHour} - ${draftEndHour}`;
+    const updatedSlot = draftSlotDuration;
+    const updatedRestrictions = [...draftDateRestrictions];
+    const updatedCustomHours = [...draftCustomWorkingHours];
+
+    setWorkingDays(updatedDays);
+    setConsultationHours(updatedHours);
+    setSlotDuration(updatedSlot);
+    setDateRestrictions(updatedRestrictions);
+    setCustomWorkingHours(updatedCustomHours);
     setEditAppointmentModalOpen(false);
-    showToast('Appointment settings saved successfully!');
+
+    const payload = {
+      workingDays: updatedDays,
+      working_days: updatedDays,
+      consultationHours: updatedHours,
+      consultation_hours: updatedHours,
+      slotDuration: updatedSlot,
+      slot_duration: updatedSlot,
+      dateRestrictions: updatedRestrictions,
+      date_restrictions: updatedRestrictions,
+      customWorkingHours: updatedCustomHours,
+      custom_working_hours: updatedCustomHours,
+    };
+
+    try {
+      localStorage.setItem('clinic_appointment_settings', JSON.stringify(payload));
+      window.dispatchEvent(new CustomEvent('appointment-settings-updated', { detail: payload }));
+      await appointmentApi.updateAppointmentSettings(payload);
+      showToast('Appointment settings saved successfully!');
+    } catch (err) {
+      console.warn('Backend appointment settings sync notice:', err);
+      showToast('Appointment settings saved successfully!');
+    }
   };
 
   // Handlers for Notification Settings
@@ -480,27 +686,81 @@ const SettingsPage = () => {
     setEditNotificationModalOpen(true);
   };
 
-  const handleSaveNotificationSettings = (e) => {
+  const handleSaveNotificationSettings = async (e) => {
     e.preventDefault();
-    setNotifications({ ...draftNotifications });
-    setNotificationChannels({ ...draftChannels });
+    const updatedNotifs = { ...draftNotifications };
+    const updatedChannels = { ...draftChannels };
+    setNotifications(updatedNotifs);
+    setNotificationChannels(updatedChannels);
     setEditNotificationModalOpen(false);
+    try {
+      localStorage.setItem('clinic_notification_settings', JSON.stringify(updatedNotifs));
+    } catch {}
+    window.dispatchEvent(new CustomEvent('notification-settings-updated', { detail: updatedNotifs }));
     showToast('Notification settings saved successfully!');
-  };
-
-  const toggleDay = (day) => {
-    if (workingDays.includes(day)) {
-      setWorkingDays(workingDays.filter((d) => d !== day));
-    } else {
-      setWorkingDays([...workingDays, day]);
+    try {
+      await appointmentApi.updateNotificationSettings({
+        notifications: updatedNotifs,
+        notificationChannels: updatedChannels,
+      });
+    } catch (err) {
+      console.warn('Backend notification settings sync notice:', err);
     }
   };
 
-  const toggleNotification = (key) => {
-    setNotifications((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+  const toggleDay = async (day) => {
+    const isCurrentlyActive = workingDays.includes(day);
+    const newDays = isCurrentlyActive
+      ? workingDays.filter((d) => d !== day)
+      : [...workingDays, day];
+
+    setWorkingDays(newDays);
+
+    const payload = {
+      workingDays: newDays,
+      working_days: newDays,
+      consultationHours,
+      consultation_hours: consultationHours,
+      slotDuration,
+      slot_duration: slotDuration,
+      dateRestrictions,
+      date_restrictions: dateRestrictions,
+      customWorkingHours,
+      custom_working_hours: customWorkingHours,
+    };
+
+    try {
+      localStorage.setItem('clinic_appointment_settings', JSON.stringify(payload));
+      window.dispatchEvent(new CustomEvent('appointment-settings-updated', { detail: payload }));
+      await appointmentApi.updateAppointmentSettings(payload);
+      showToast(`Working day ${isCurrentlyActive ? 'disabled' : 'enabled'}: ${day}`);
+    } catch (err) {
+      console.warn('Backend appointment settings sync notice:', err);
+      showToast(`Working day ${isCurrentlyActive ? 'disabled' : 'enabled'}: ${day}`);
+    }
+  };
+
+  const toggleNotification = async (key) => {
+    const updated = {
+      ...notifications,
+      [key]: !notifications[key],
+    };
+    setNotifications(updated);
+    setDraftNotifications(updated);
+    try {
+      localStorage.setItem('clinic_notification_settings', JSON.stringify(updated));
+    } catch {}
+    window.dispatchEvent(new CustomEvent('notification-settings-updated', { detail: updated }));
+    const label = key === 'appointmentReminder' ? 'Appointment Reminder' : (key === 'newAppointment' ? 'New Appointment' : 'Prescription Updates');
+    showToast(`${label} ${updated[key] ? 'enabled' : 'disabled'}`);
+    try {
+      await appointmentApi.updateNotificationSettings({
+        notifications: updated,
+        notificationChannels,
+      });
+    } catch (err) {
+      console.warn('Backend notification settings sync notice:', err);
+    }
   };
 
   return (
@@ -1155,6 +1415,76 @@ const SettingsPage = () => {
             </div>
           </div>
         </div>
+
+        {(dateRestrictions.length > 0 || customWorkingHours.length > 0) && (
+          <div style={{ marginTop: '18px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+            {dateRestrictions.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Restricted Dates:
+                </span>
+                {dateRestrictions.map((r) => (
+                  <span
+                    key={r.id}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '3px 9px',
+                      borderRadius: '6px',
+                      backgroundColor: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      color: '#b91c1c',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                    }}
+                  >
+                    <span>🚫</span>
+                    <span>
+                      {r.startDate === r.endDate
+                        ? formatDateBadge(r.startDate)
+                        : `${formatDateBadge(r.startDate)} - ${formatDateBadge(r.endDate)}`}
+                    </span>
+                    {r.reason && <span style={{ color: '#64748b', fontWeight: '400' }}>({r.reason})</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+            {customWorkingHours.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Special Working Hours:
+                </span>
+                {customWorkingHours.map((c) => (
+                  <span
+                    key={c.id}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '3px 9px',
+                      borderRadius: '6px',
+                      backgroundColor: '#f0f9ff',
+                      border: '1px solid #bae6fd',
+                      color: '#0369a1',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                    }}
+                  >
+                    <span>⏱</span>
+                    <span>
+                      {c.startDate === c.endDate
+                        ? formatDateBadge(c.startDate)
+                        : `${formatDateBadge(c.startDate)} - ${formatDateBadge(c.endDate)}`}
+                      : {c.startTime} - {c.endTime}
+                    </span>
+                    {c.reason && <span style={{ color: '#64748b', fontWeight: '400' }}>({c.reason})</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Card 3: Notification Settings */}
@@ -1670,7 +2000,7 @@ const SettingsPage = () => {
               backgroundColor: '#ffffff',
               borderRadius: '20px',
               width: '100%',
-              maxWidth: '560px',
+              maxWidth: '680px',
               maxHeight: '90vh',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               display: 'flex',
@@ -1688,13 +2018,13 @@ const SettingsPage = () => {
                 boxSizing: 'border-box',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <div>
                   <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
                     Edit Appointment Settings
                   </h2>
                   <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-                    Configure working days, hours and slot duration.
+                    Configure working days, hours, slot duration, and scheduling restrictions.
                   </p>
                 </div>
                 <button
@@ -1718,9 +2048,9 @@ const SettingsPage = () => {
               </div>
 
               <form onSubmit={handleSaveAppointmentSettings}>
-                {/* Working Days */}
+                {/* SECTION 1: Working Days */}
                 <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
                     Working Days (Click to toggle)
                   </label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -1750,10 +2080,10 @@ const SettingsPage = () => {
                   </div>
                 </div>
 
-                {/* Consultation Hours */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                {/* SECTION 2: General Hours & Duration */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                       Start Time
                     </label>
                     <select
@@ -1771,15 +2101,13 @@ const SettingsPage = () => {
                         boxSizing: 'border-box',
                       }}
                     >
-                      <option value="08:00 AM">08:00 AM</option>
-                      <option value="08:30 AM">08:30 AM</option>
-                      <option value="09:00 AM">09:00 AM</option>
-                      <option value="09:30 AM">09:30 AM</option>
-                      <option value="10:00 AM">10:00 AM</option>
+                      {timeSlotOptions.slice(0, 10).map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                       End Time
                     </label>
                     <select
@@ -1797,18 +2125,16 @@ const SettingsPage = () => {
                         boxSizing: 'border-box',
                       }}
                     >
-                      <option value="04:00 PM">04:00 PM</option>
-                      <option value="05:00 PM">05:00 PM</option>
-                      <option value="06:00 PM">06:00 PM</option>
-                      <option value="07:00 PM">07:00 PM</option>
-                      <option value="08:00 PM">08:00 PM</option>
+                      {timeSlotOptions.slice(12).map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
                 {/* Slot Duration */}
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                <div style={{ marginBottom: '22px' }}>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                     Slot Duration
                   </label>
                   <select
@@ -1834,7 +2160,474 @@ const SettingsPage = () => {
                   </select>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
+                {/* DIVIDER */}
+                <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '22px 0' }} />
+
+                {/* SECTION 3: Disable Specific Dates or Months */}
+                <div style={{ marginBottom: '22px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
+                      Disable Specific Dates or Months
+                    </div>
+                    {draftDateRestrictions.length > 0 && (
+                      <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', fontSize: '11px', borderRadius: '10px', padding: '1px 8px', fontWeight: '700' }}>
+                        {draftDateRestrictions.length} active
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 12px 0' }}>
+                    Block appointment booking on holidays, planned clinic leaves, or an entire month.
+                  </p>
+
+                  <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    {/* Restriction Mode Selector */}
+                    <div style={{ display: 'flex', gap: '20px', marginBottom: '14px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="formRestrMode"
+                          checked={newRestrMode === 'range'}
+                          onChange={() => setNewRestrMode('range')}
+                        />
+                        Specific Date / Date Range
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="formRestrMode"
+                          checked={newRestrMode === 'month'}
+                          onChange={() => setNewRestrMode('month')}
+                        />
+                        Entire Month
+                      </label>
+                    </div>
+
+                    {newRestrMode === 'range' ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                            Select Date (or Start Date)
+                          </label>
+                          <input
+                            type="date"
+                            value={newRestrStartDate}
+                            onChange={(e) => {
+                              setNewRestrStartDate(e.target.value);
+                              if (!newRestrEndDate || newRestrEndDate < e.target.value) {
+                                setNewRestrEndDate(e.target.value);
+                              }
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '13px',
+                              backgroundColor: '#ffffff',
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                            End Date (Optional Range)
+                          </label>
+                          <input
+                            type="date"
+                            value={newRestrEndDate}
+                            min={newRestrStartDate}
+                            onChange={(e) => setNewRestrEndDate(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '13px',
+                              backgroundColor: '#ffffff',
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '8px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                              Select Month
+                            </label>
+                            <select
+                              value={newRestrMonth}
+                              onChange={(e) => setNewRestrMonth(parseInt(e.target.value, 10))}
+                              style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '13px',
+                                backgroundColor: '#ffffff',
+                                boxSizing: 'border-box',
+                              }}
+                            >
+                              {[
+                                'January', 'February', 'March', 'April', 'May', 'June',
+                                'July', 'August', 'September', 'October', 'November', 'December'
+                              ].map((mName, idx) => (
+                                <option key={idx} value={idx}>{mName}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                              Select Year
+                            </label>
+                            <select
+                              value={newRestrYear}
+                              onChange={(e) => setNewRestrYear(parseInt(e.target.value, 10))}
+                              style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '13px',
+                                backgroundColor: '#ffffff',
+                                boxSizing: 'border-box',
+                              }}
+                            >
+                              {[new Date().getFullYear(), new Date().getFullYear() + 1, new Date().getFullYear() + 2].map((yr) => (
+                                <option key={yr} value={yr}>{yr}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: '#0369a1', marginBottom: '12px' }}>
+                          Appointments will be disabled for the whole month: 01 to {new Date(newRestrYear, newRestrMonth + 1, 0).getDate()} {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][newRestrMonth]} {newRestrYear}.
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                          Reason / Description (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={newRestrMode === 'range' ? 'e.g. Clinic Closed, Public Holiday' : 'e.g. Annual Winter Break'}
+                          value={newRestrReason}
+                          onChange={(e) => setNewRestrReason(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '13px',
+                            backgroundColor: '#ffffff',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddRestriction}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          backgroundColor: '#dc2626',
+                          color: '#ffffff',
+                          fontSize: '12.5px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          height: '37px',
+                        }}
+                      >
+                        + Disable Date / Month
+                      </button>
+                    </div>
+
+                    {/* Configured Restrictions List */}
+                    {draftDateRestrictions.length > 0 && (
+                      <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                          Active Restrictions ({draftDateRestrictions.length})
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
+                          {draftDateRestrictions.map((r) => (
+                            <div
+                              key={r.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                backgroundColor: '#fef2f2',
+                                border: '1px solid #fecaca',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#fee2e2', color: '#991b1b', textTransform: 'uppercase' }}>
+                                  {r.type === 'month' ? 'Entire Month' : 'Date'}
+                                </span>
+                                <div>
+                                  <div style={{ fontSize: '12.5px', fontWeight: '700', color: '#991b1b' }}>
+                                    {r.startDate === r.endDate
+                                      ? formatDateBadge(r.startDate)
+                                      : `${formatDateBadge(r.startDate)} - ${formatDateBadge(r.endDate)}`}
+                                  </div>
+                                  {r.reason && (
+                                    <div style={{ fontSize: '11px', color: '#7f1d1d' }}>
+                                      {r.reason}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveRestriction(r.id)}
+                                style={{
+                                  padding: '4px 8px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #fca5a5',
+                                  backgroundColor: '#ffffff',
+                                  color: '#dc2626',
+                                  fontSize: '11.5px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* DIVIDER */}
+                <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '22px 0' }} />
+
+                {/* SECTION 4: Date-Based Working Hours */}
+                <div style={{ marginBottom: '22px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
+                      Date-Based Working Hours
+                    </div>
+                    {draftCustomWorkingHours.length > 0 && (
+                      <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', fontSize: '11px', borderRadius: '10px', padding: '1px 8px', fontWeight: '700' }}>
+                        {draftCustomWorkingHours.length} active
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 12px 0' }}>
+                    Assign custom Start Time and End Time to a particular date (e.g., Saturday half-day or evening clinic).
+                  </p>
+
+                  <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    {/* Date Selection */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                          Select Date (or Start Date)
+                        </label>
+                        <input
+                          type="date"
+                          value={newCustomStartDate}
+                          onChange={(e) => {
+                            setNewCustomStartDate(e.target.value);
+                            if (!newCustomEndDate || newCustomEndDate < e.target.value) {
+                              setNewCustomEndDate(e.target.value);
+                            }
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '13px',
+                            backgroundColor: '#ffffff',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                          End Date (Optional Range)
+                        </label>
+                        <input
+                          type="date"
+                          value={newCustomEndDate}
+                          min={newCustomStartDate}
+                          onChange={(e) => setNewCustomEndDate(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '13px',
+                            backgroundColor: '#ffffff',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Custom Hours */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                          Start Time
+                        </label>
+                        <select
+                          value={newCustomStartTime}
+                          onChange={(e) => setNewCustomStartTime(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '13px',
+                            backgroundColor: '#ffffff',
+                            boxSizing: 'border-box',
+                          }}
+                        >
+                          {timeSlotOptions.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                          End Time
+                        </label>
+                        <select
+                          value={newCustomEndTime}
+                          onChange={(e) => setNewCustomEndTime(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '13px',
+                            backgroundColor: '#ffffff',
+                            boxSizing: 'border-box',
+                          }}
+                        >
+                          {timeSlotOptions.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Note & Add button */}
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                          Description / Shift Name (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Saturday Half Day, Extended Evening Clinic"
+                          value={newCustomReason}
+                          onChange={(e) => setNewCustomReason(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '13px',
+                            backgroundColor: '#ffffff',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddCustomWorkingHours}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          backgroundColor: '#0284c7',
+                          color: '#ffffff',
+                          fontSize: '12.5px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          height: '37px',
+                        }}
+                      >
+                        + Set Date Hours
+                      </button>
+                    </div>
+
+                    {/* Configured Custom Hours List */}
+                    {draftCustomWorkingHours.length > 0 && (
+                      <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                          Active Date-Specific Hours ({draftCustomWorkingHours.length})
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
+                          {draftCustomWorkingHours.map((c) => (
+                            <div
+                              key={c.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                backgroundColor: '#f0f9ff',
+                                border: '1px solid #bae6fd',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#e0f2fe', color: '#0369a1', textTransform: 'uppercase' }}>
+                                  {c.startTime} - {c.endTime}
+                                </span>
+                                <div>
+                                  <div style={{ fontSize: '12.5px', fontWeight: '700', color: '#0369a1' }}>
+                                    {c.startDate === c.endDate
+                                      ? formatDateBadge(c.startDate)
+                                      : `${formatDateBadge(c.startDate)} - ${formatDateBadge(c.endDate)}`}
+                                  </div>
+                                  {c.reason && (
+                                    <div style={{ fontSize: '11px', color: '#0284c7' }}>
+                                      {c.reason}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCustomWorkingHours(c.id)}
+                                style={{
+                                  padding: '4px 8px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #93c5fd',
+                                  backgroundColor: '#ffffff',
+                                  color: '#0284c7',
+                                  fontSize: '11.5px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', marginTop: '20px' }}>
                   <button
                     type="button"
                     onClick={() => setEditAppointmentModalOpen(false)}
