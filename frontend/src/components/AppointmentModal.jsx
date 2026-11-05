@@ -33,6 +33,11 @@ const AppointmentModal = ({ isOpen, onClose }) => {
   const [workingDays, setWorkingDays] = useState(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
   const [dateRestrictions, setDateRestrictions] = useState([]);
   const [customWorkingHours, setCustomWorkingHours] = useState([]);
+  const [closedDatePopup, setClosedDatePopup] = useState({
+    isOpen: false,
+    dateFormatted: '',
+    reason: '',
+  });
 
   useEffect(() => {
     appointmentApi.getClinicSettings().then((data) => {
@@ -57,13 +62,29 @@ const AppointmentModal = ({ isOpen, onClose }) => {
   }, []);
 
   const checkDateRestriction = (dateStr) => {
-    if (!dateStr || !dateRestrictions || dateRestrictions.length === 0) return { isRestricted: false, reason: '' };
+    if (!dateStr || !dateRestrictions || !Array.isArray(dateRestrictions) || dateRestrictions.length === 0) {
+      return { isRestricted: false, reason: '' };
+    }
+    const dateNorm = String(dateStr).trim();
+    const monthNorm = dateNorm.substring(0, 7);
     for (const r of dateRestrictions) {
-      if (r && r.startDate && r.endDate) {
-        if (r.startDate <= dateStr && dateStr <= r.endDate) {
+      if (!r || typeof r !== 'object') continue;
+      const start = r.startDate || r.start_date || r.date;
+      const end = r.endDate || r.end_date || start;
+      const rMonth = r.month || (r.type === 'month' ? (start ? String(start).substring(0, 7) : null) : null);
+      if (r.type === 'month' || rMonth) {
+        if (rMonth === monthNorm || (start && end && start <= dateNorm && dateNorm <= end)) {
           return {
             isRestricted: true,
-            reason: r.reason || (r.type === 'month' ? 'Entire month closed' : 'Clinic closed on this date'),
+            reason: r.reason || 'Entire month closed',
+          };
+        }
+      }
+      if (start && end) {
+        if (start <= dateNorm && dateNorm <= end) {
+          return {
+            isRestricted: true,
+            reason: r.reason || 'Clinic closed on this date',
           };
         }
       }
@@ -206,14 +227,26 @@ const AppointmentModal = ({ isOpen, onClose }) => {
       const { isRestricted, reason } = checkDateRestriction(value);
 
       if (!workingDays.includes(dayName)) {
+        const msg = `The clinic is closed on ${dayName}s. Please select an open working day (${workingDays.join(', ')}).`;
+        setClosedDatePopup({
+          isOpen: true,
+          dateFormatted: value,
+          reason: msg,
+        });
         setModalErrors((prev) => ({
           ...prev,
-          date: `The clinic is closed on ${dayName}s. Please select an open working day (${workingDays.join(', ')}).`,
+          date: `Clinic is closed on this date. ${msg}`,
         }));
       } else if (isRestricted) {
+        const msg = reason || 'Clinic closed on this date';
+        setClosedDatePopup({
+          isOpen: true,
+          dateFormatted: value,
+          reason: msg,
+        });
         setModalErrors((prev) => ({
           ...prev,
-          date: `Appointments are disabled on this date (${reason}). Please select another date.`,
+          date: `Clinic is closed on this date (${msg}). Please select another date.`,
         }));
       } else {
         setModalErrors((prev) => {
@@ -675,6 +708,126 @@ const AppointmentModal = ({ isOpen, onClose }) => {
           </div>
         )}
       </div>
+
+      {/* Closed Date Pop-up Modal */}
+      {closedDatePopup.isOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10001,
+            padding: '16px',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+          onClick={() => setClosedDatePopup({ isOpen: false, dateFormatted: '', reason: '' })}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              padding: '28px 24px 22px',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.06)',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+
+            <h3
+              style={{
+                fontSize: '19px',
+                fontWeight: '700',
+                color: '#0f172a',
+                margin: '0 0 8px',
+                letterSpacing: '-0.2px',
+              }}
+            >
+              Clinic is closed on this date.
+            </h3>
+
+            {closedDatePopup.dateFormatted && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  marginBottom: '12px',
+                }}
+              >
+                📅 {closedDatePopup.dateFormatted}
+              </div>
+            )}
+
+            <p
+              style={{
+                fontSize: '13.5px',
+                color: '#64748b',
+                lineHeight: '1.5',
+                margin: '0 0 20px',
+              }}
+            >
+              {closedDatePopup.reason
+                ? closedDatePopup.reason
+                : 'Appointments cannot be booked for this date as the clinic is closed. Please choose another date.'}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setClosedDatePopup({ isOpen: false, dateFormatted: '', reason: '' })}
+              style={{
+                width: '100%',
+                padding: '11px 20px',
+                backgroundColor: '#1b4332',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#143326')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b4332')}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </dialog>
   );
 };

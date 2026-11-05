@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import appointmentApi from '../../api/appointmentApi';
 import { useAdmin } from '../../components/admin/AdminLayout';
 import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
@@ -15,8 +16,93 @@ const AppointmentsPage = () => {
   const [isPickingDate, setIsPickingDate] = useState(false);
   const dateInputRef = useRef(null);
 
+  const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState('All');
   const [prescriptionFilter, setPrescriptionFilter] = useState('All');
+  const [unreadAptIds, setUnreadAptIds] = useState(new Set());
+
+  // Listen for direct custom event filter changes
+  useEffect(() => {
+    const handleFilterEvent = (e) => {
+      const status = e?.detail;
+      if (status) {
+        const norm = String(status).trim().toLowerCase();
+        if (norm === 'confirmed') setStatusFilter('Confirmed');
+        else if (norm === 'new' || norm === 'pending') setStatusFilter('New');
+        else if (norm === 'complete' || norm === 'completed') setStatusFilter('Complete');
+        else if (norm === 'cancelled') setStatusFilter('Cancelled');
+        else if (norm === 'all') setStatusFilter('All');
+        setCurrentPage(1);
+      }
+    };
+    window.addEventListener('filter-appointments-status', handleFilterEvent);
+    return () => window.removeEventListener('filter-appointments-status', handleFilterEvent);
+  }, []);
+
+  // Automatically sync statusFilter when navigated with ?status=... or ?filter=...
+  useEffect(() => {
+    const statusParam = searchParams.get('status') || searchParams.get('filter');
+    if (statusParam) {
+      const norm = statusParam.trim().toLowerCase();
+      if (norm === 'confirmed') {
+        setStatusFilter('Confirmed');
+      } else if (norm === 'new' || norm === 'pending') {
+        setStatusFilter('New');
+      } else if (norm === 'complete' || norm === 'completed') {
+        setStatusFilter('Complete');
+      } else if (norm === 'cancelled') {
+        setStatusFilter('Cancelled');
+      } else if (norm === 'all') {
+        setStatusFilter('All');
+      }
+      setCurrentPage(1);
+    }
+  }, [searchParams]);
+
+  // Load unread appointment IDs for accurate "New" filtering
+  useEffect(() => {
+    const loadUnreadApts = async () => {
+      try {
+        const notifData = await appointmentApi.getNotifications();
+        if (notifData && Array.isArray(notifData.notifications)) {
+          const ids = new Set();
+          notifData.notifications.forEach((n) => {
+            if (!n.is_read || (n.title && n.title.toLowerCase().includes('new'))) {
+              if (n.appointment) {
+                ids.add(n.appointment);
+                ids.add(String(n.appointment));
+                ids.add(Number(n.appointment));
+              }
+              if (n.raw_id) {
+                ids.add(n.raw_id);
+                ids.add(String(n.raw_id));
+              }
+              if (n.appointment_id) {
+                ids.add(n.appointment_id);
+                ids.add(String(n.appointment_id).toLowerCase());
+              }
+              if (n.appointment_details?.appointment_id) {
+                ids.add(n.appointment_details.appointment_id);
+                ids.add(String(n.appointment_details.appointment_id).toLowerCase());
+              }
+              if (n.appointment_details?.id) {
+                ids.add(n.appointment_details.id);
+                ids.add(String(n.appointment_details.id));
+              }
+            }
+          });
+          setUnreadAptIds(ids);
+        }
+      } catch (e) {}
+    };
+    loadUnreadApts();
+    window.addEventListener('appointment-updated', loadUnreadApts);
+    window.addEventListener('appointment-booked', loadUnreadApts);
+    return () => {
+      window.removeEventListener('appointment-updated', loadUnreadApts);
+      window.removeEventListener('appointment-booked', loadUnreadApts);
+    };
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
@@ -195,8 +281,12 @@ const AppointmentsPage = () => {
       if (targetStatus === 'complete' || targetStatus === 'completed') {
         return aptStatus === 'complete' || aptStatus === 'completed';
       }
-      if (targetStatus === 'pending' || targetStatus === 'confirmed') {
-        return aptStatus === 'pending' || aptStatus === 'confirmed';
+      if (targetStatus === 'confirmed') {
+        return aptStatus === 'confirmed';
+      }
+      if (targetStatus === 'new' || targetStatus === 'pending') {
+        // Include all records so New appears at the top, and other categories appear below it
+        return true;
       }
       return aptStatus === targetStatus;
     })();
@@ -225,10 +315,36 @@ const AppointmentsPage = () => {
   const pendingCount = appointmentsList.filter((a) => ['pending', 'confirmed'].includes((a.status || '').toLowerCase())).length;
   const cancelledCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'cancelled').length;
 
+  const isItemNew = useCallback((item) => {
+    if (!item) return false;
+    const aptStatus = String(item.status || '').trim().toLowerCase();
+    if (aptStatus === 'pending' || aptStatus === 'new') return true;
+    if (unreadAptIds.has(item.rawId) || unreadAptIds.has(String(item.rawId)) || unreadAptIds.has(Number(item.rawId))) return true;
+    if (unreadAptIds.has(item.id) || unreadAptIds.has(String(item.id).toLowerCase())) return true;
+    return false;
+  }, [unreadAptIds]);
+
+  // Sort appointments so when statusFilter is 'New', New appointments appear at the top and other categories below
+  const sortedAppointments = useMemo(() => {
+    if (statusFilter === 'New') {
+      return [...filteredAppointments].sort((a, b) => {
+        const aNew = isItemNew(a);
+        const bNew = isItemNew(b);
+        if (aNew && !bNew) return -1;
+        if (!aNew && bNew) return 1;
+        const statusOrder = { confirmed: 1, complete: 2, completed: 2, cancelled: 3 };
+        const aOrder = statusOrder[String(a.status || '').toLowerCase()] || 4;
+        const bOrder = statusOrder[String(b.status || '').toLowerCase()] || 4;
+        return aOrder - bOrder;
+      });
+    }
+    return filteredAppointments;
+  }, [filteredAppointments, statusFilter, isItemNew]);
+
   const limit = parseInt(pageSize, 10) || 10;
-  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / limit));
+  const totalPages = Math.max(1, Math.ceil(sortedAppointments.length / limit));
   const validPage = Math.min(Math.max(1, currentPage), totalPages);
-  const paginatedAppointments = filteredAppointments.slice((validPage - 1) * limit, validPage * limit);
+  const paginatedAppointments = sortedAppointments.slice((validPage - 1) * limit, validPage * limit);
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
@@ -643,6 +759,7 @@ const AppointmentsPage = () => {
               }}
             >
               <option value="All">All Status</option>
+              <option value="New">New / Pending</option>
               <option value="Confirmed">Confirmed</option>
               <option value="Complete">Complete</option>
               <option value="Cancelled">Cancelled</option>
@@ -809,19 +926,86 @@ const AppointmentsPage = () => {
                   </td>
                 </tr>
               ) : (
-                paginatedAppointments.map((row, idx) => {
+                <>
+                  {statusFilter === 'New' && sortedAppointments.filter(isItemNew).length === 0 && (
+                    <tr key="sec-hdr-empty-new" style={{ backgroundColor: '#f0fdf4', borderBottom: '1px solid #bbf7d0' }}>
+                      <td colSpan={8} style={{ padding: '12px 18px', borderLeft: '5px solid #16a34a' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '14px' }}>✨</span>
+                            <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#166534', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                              New Appointments Section
+                            </span>
+                            <span style={{ fontSize: '11.5px', color: '#15803d', fontWeight: '500', marginLeft: '6px' }}>
+                              (0 new pending appointments — all other appointment categories listed below)
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#15803d', backgroundColor: '#dcfce7', border: '1px solid #86efac', padding: '2px 10px', borderRadius: '9999px' }}>
+                            0 New
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {paginatedAppointments.map((row, idx) => {
                   const badge = getStatusBadge(row.status);
                   const rxBadge = getPrescriptionBadge(row.prescriptionStatus);
+                  const isNew = isItemNew(row);
+                  const showNewSectionHdr = statusFilter === 'New' && isNew && idx === 0;
+                  const showOtherSectionHdr = statusFilter === 'New' && !isNew && (idx === 0 || isItemNew(paginatedAppointments[idx - 1]));
+
                   return (
-                    <tr
-                      key={idx}
-                      style={{
-                        borderBottom: '1px solid #f8fafc',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fafafa')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
+                    <React.Fragment key={row.rawId || row.id || idx}>
+                      {showNewSectionHdr && (
+                        <tr key="sec-hdr-new" style={{ backgroundColor: '#f0fdf4', borderBottom: '1px solid #bbf7d0' }}>
+                          <td colSpan={8} style={{ padding: '11px 18px', borderLeft: '5px solid #16a34a' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '14px' }}>✨</span>
+                                <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#166534', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                                  New Appointments Section
+                                </span>
+                                <span style={{ fontSize: '11.5px', color: '#15803d', fontWeight: '600' }}>
+                                  (Prioritized at Top)
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#15803d', backgroundColor: '#dcfce7', border: '1px solid #86efac', padding: '2px 10px', borderRadius: '9999px' }}>
+                                {sortedAppointments.filter(isItemNew).length} New Appointments
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      {showOtherSectionHdr && (
+                        <tr key="sec-hdr-other" style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                          <td colSpan={8} style={{ padding: '11px 18px', borderLeft: '5px solid #64748b', borderTop: '2px solid #e2e8f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '14px' }}>📋</span>
+                                <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#334155', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                                  Other Appointment Categories
+                                </span>
+                                <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '500' }}>
+                                  (Confirmed, Complete, Cancelled)
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569', backgroundColor: '#e2e8f0', padding: '2px 10px', borderRadius: '9999px' }}>
+                                {sortedAppointments.filter((it) => !isItemNew(it)).length} Appointments
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      <tr
+                        style={{
+                          borderBottom: '1px solid #f8fafc',
+                          transition: 'background-color 0.15s ease',
+                          backgroundColor: (statusFilter === 'New' && isNew) ? '#fbfdfc' : 'transparent',
+                          borderLeft: (statusFilter === 'New' && isNew) ? '3px solid #16a34a' : '3px solid transparent',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = (statusFilter === 'New' && isNew) ? '#f0fdf4' : '#fafafa')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = (statusFilter === 'New' && isNew) ? '#fbfdfc' : 'transparent')}
+                      >
                       <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
                         {row.id}
                       </td>
@@ -933,8 +1117,10 @@ const AppointmentsPage = () => {
                         </div>
                       </td>
                     </tr>
+                    </React.Fragment>
                   );
-                })
+                })}
+                </>
               )}
             </tbody>
           </table>
@@ -943,7 +1129,7 @@ const AppointmentsPage = () => {
         {/* Dynamic Pagination Footer */}
         <AdminPagination
           currentPage={validPage}
-          totalRecords={filteredAppointments.length}
+          totalRecords={sortedAppointments.length}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
           onPageSizeChange={(newPageSize) => {

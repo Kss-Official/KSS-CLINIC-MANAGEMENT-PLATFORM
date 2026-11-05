@@ -8,15 +8,19 @@
   "profile_image_url": "http://localhost:8000/media/profiles/Smiling_Homeopathy_Clinic_Portrait_nlGUeCj.png",
   "working_days": [
     "Mon",
+    "Tue",
     "Wed",
-    "Thu",
-    "Tue"
+    "Fri",
+    "Sat",
+    "Thu"
   ],
   "workingDays": [
     "Mon",
+    "Tue",
     "Wed",
-    "Thu",
-    "Tue"
+    "Fri",
+    "Sat",
+    "Thu"
   ],
   "consultation_hours": "09:00 AM - 06:00 PM",
   "consultationHours": "09:00 AM - 06:00 PM",
@@ -24,19 +28,19 @@
   "slotDuration": "30 Minutes",
   "date_restrictions": [
     {
-      "id": "restr_1793863442527",
+      "id": "restr_1793870335372",
       "type": "range",
-      "startDate": "2026-11-06",
-      "endDate": "2026-11-07",
+      "startDate": "2026-11-13",
+      "endDate": "2026-11-13",
       "reason": "Clinic closed"
     }
   ],
   "dateRestrictions": [
     {
-      "id": "restr_1793863442527",
+      "id": "restr_1793870335372",
       "type": "range",
-      "startDate": "2026-11-06",
-      "endDate": "2026-11-07",
+      "startDate": "2026-11-13",
+      "endDate": "2026-11-13",
       "reason": "Clinic closed"
     }
   ],

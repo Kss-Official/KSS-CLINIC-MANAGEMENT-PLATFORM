@@ -10,6 +10,12 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [confirmedReminders, setConfirmedReminders] = useState([]);
+  const [confirmedPatientsCount, setConfirmedPatientsCount] = useState(0);
+  const [isRemindersExpanded, setIsRemindersExpanded] = useState(true);
+  const [dropdownFilter, setDropdownFilter] = useState('all'); // 'all' | 'new' | 'confirmed'
+  const [isReminderPillVisible, setIsReminderPillVisible] = useState(true);
+  const [isPillHovered, setIsPillHovered] = useState(false);
   const [pendingReminders, setPendingReminders] = useState([]);
   const [pendingPatientsCount, setPendingPatientsCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -53,6 +59,8 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
       if (data) {
         setNotifications(data.notifications || []);
         setUnreadCount(data.unread_count || 0);
+        setConfirmedReminders(data.confirmed_reminders || []);
+        setConfirmedPatientsCount(typeof data.confirmed_patients_count === 'number' ? data.confirmed_patients_count : 0);
         setPendingReminders(data.pending_reminders || []);
         setPendingPatientsCount(typeof data.pending_patients_count === 'number' ? data.pending_patients_count : 0);
         if (typeof data.appointment_reminder_enabled === 'boolean') {
@@ -63,6 +71,34 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
       console.error('Error fetching notifications:', err);
     }
   };
+
+  // Periodic smooth animation: emerges from behind notification icon for 4.5s, then hides for 7.5s (12s repeating cycle)
+  useEffect(() => {
+    if (!appointmentReminderEnabled || confirmedReminders.length === 0) {
+      setIsReminderPillVisible(false);
+      return;
+    }
+
+    // Initially show for 4.5s
+    setIsReminderPillVisible(true);
+
+    let hideTimeout;
+    const interval = setInterval(() => {
+      setIsReminderPillVisible(true);
+      hideTimeout = setTimeout(() => {
+        setIsReminderPillVisible(false);
+      }, 4500);
+    }, 12000);
+
+    hideTimeout = setTimeout(() => {
+      setIsReminderPillVisible(false);
+    }, 4500);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(hideTimeout);
+    };
+  }, [appointmentReminderEnabled, confirmedReminders.length]);
 
   useEffect(() => {
     fetchNotifications();
@@ -148,6 +184,12 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
     } catch (err) {
       console.error('Error marking notification as read:', err);
     }
+  };
+
+  const navigateToFilteredAppointments = (status) => {
+    setNotificationsOpen(false);
+    navigate(`/appointments?status=${status}`);
+    window.dispatchEvent(new CustomEvent('filter-appointments-status', { detail: status }));
   };
 
   const handleNotificationClick = (notif) => {
@@ -278,11 +320,60 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '24px',
+          gap: '16px',
         }}
       >
-        {/* Notification Bell with dynamic unread count & dropdown */}
-        <div ref={notifRef} style={{ position: 'relative' }}>
+        {/* Animated Confirmed Appointment Reminders Pill emerging from behind notification icon */}
+        <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+          {appointmentReminderEnabled && confirmedReminders.length > 0 && (
+            <button
+              type="button"
+              id="admin-header-confirmed-reminders-pill"
+              onClick={() => {
+                navigateToFilteredAppointments('Confirmed');
+              }}
+              onMouseEnter={() => setIsPillHovered(true)}
+              onMouseLeave={() => setIsPillHovered(false)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+                borderRadius: '20px',
+                backgroundColor: '#ecfdf5',
+                color: '#065f46',
+                border: (isReminderPillVisible || isPillHovered) ? '1px solid #a7f3d0' : 'none',
+                fontSize: '12.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                outline: 'none',
+                marginRight: (isReminderPillVisible || isPillHovered) ? '8px' : '0px',
+                padding: (isReminderPillVisible || isPillHovered) ? '6px 14px' : '0px',
+                maxWidth: (isReminderPillVisible || isPillHovered) ? '260px' : '0px',
+                opacity: (isReminderPillVisible || isPillHovered) ? 1 : 0,
+                transform: (isReminderPillVisible || isPillHovered) ? 'translateX(0) scale(1)' : 'translateX(35px) scale(0.9)',
+                pointerEvents: (isReminderPillVisible || isPillHovered) ? 'auto' : 'none',
+                overflow: 'hidden',
+                transition: 'transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease, max-width 0.65s cubic-bezier(0.16, 1, 0.3, 1), padding 0.5s ease, margin 0.5s ease',
+                boxShadow: (isReminderPillVisible || isPillHovered) ? '0 2px 8px rgba(6, 95, 70, 0.12)' : 'none',
+                zIndex: 1,
+              }}
+              title={`${confirmedReminders.length} confirmed appointment reminders - Click to view`}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              <span>
+                <strong style={{ fontWeight: '700' }}>{confirmedReminders.length}</strong> Confirmed {confirmedReminders.length === 1 ? 'Reminder' : 'Reminders'}
+              </span>
+            </button>
+          )}
+
+          {/* Notification Bell with dynamic unread count & dropdown */}
+          <div ref={notifRef} style={{ position: 'relative', zIndex: 10 }}>
           <button
             type="button"
             className="admin-header-notif-btn"
@@ -314,11 +405,12 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
-            {/* Unread & pending reminders indicator badge with count */}
+            {/* Unread & confirmed/pending reminders indicator badge with count */}
             {(() => {
-              const activePendingCount = appointmentReminderEnabled ? (pendingReminders.length || pendingPatientsCount) : 0;
-              const displayBadgeCount = unreadCount > 0 ? unreadCount : activePendingCount;
+              const activeReminderCount = appointmentReminderEnabled ? (confirmedReminders.length || pendingReminders.length) : 0;
+              const displayBadgeCount = unreadCount > 0 ? unreadCount : activeReminderCount;
               if (displayBadgeCount <= 0) return null;
+              const isUnread = unreadCount > 0;
               return (
                 <span
                   id="admin-header-bell-badge"
@@ -328,7 +420,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
                     right: '2px',
                     minWidth: '17px',
                     height: '17px',
-                    backgroundColor: unreadCount > 0 ? '#ef4444' : '#d97706',
+                    backgroundColor: isUnread ? '#ef4444' : (confirmedReminders.length > 0 ? '#059669' : '#d97706'),
                     color: '#ffffff',
                     borderRadius: '9999px',
                     border: '2px solid #ffffff',
@@ -384,28 +476,89 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
                     Notifications
                   </h3>
                   {unreadCount > 0 && (
-                    <span
+                    <button
+                      type="button"
+                      id="notifications-new-count-badge"
+                      onClick={() => {
+                        setNotificationsOpen(false);
+                        navigateToFilteredAppointments('New');
+                      }}
                       style={{
                         fontSize: '11.5px',
                         fontWeight: '600',
-                        color: '#1e4620',
-                        backgroundColor: '#e8f5ec',
+                        color: dropdownFilter === 'new' ? '#ffffff' : '#1e4620',
+                        backgroundColor: dropdownFilter === 'new' ? '#166534' : '#e8f5ec',
+                        border: '1px solid #bbf7d0',
                         padding: '2px 8px',
                         borderRadius: '9999px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        outline: 'none',
                       }}
+                      onMouseEnter={(e) => {
+                        if (dropdownFilter !== 'new') e.currentTarget.style.backgroundColor = '#dcfce7';
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (dropdownFilter !== 'new') e.currentTarget.style.backgroundColor = '#e8f5ec';
+                        e.currentTarget.style.transform = 'scale(1)';
+                      }}
+                      title="Click to show New appointments section at the top"
                     >
                       {unreadCount} new
-                    </span>
+                    </button>
                   )}
-                  {appointmentReminderEnabled && (
+                  {appointmentReminderEnabled && confirmedReminders.length > 0 && (
+                    <button
+                      type="button"
+                      id="confirmed-appointments-reminder-badge"
+                      onClick={() => {
+                        setNotificationsOpen(false);
+                        navigateToFilteredAppointments('Confirmed');
+                      }}
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: '600',
+                        color: dropdownFilter === 'confirmed' ? '#ffffff' : '#065f46',
+                        backgroundColor: dropdownFilter === 'confirmed' ? '#059669' : '#ecfdf5',
+                        border: '1px solid #a7f3d0',
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        outline: 'none',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#d1fae5';
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#ecfdf5';
+                        e.currentTarget.style.transform = 'scale(1)';
+                      }}
+                      title="Click to view all confirmed appointments"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      <span>{confirmedReminders.length} confirmed</span>
+                    </button>
+                  )}
+                  {appointmentReminderEnabled && pendingPatientsCount > 0 && (
                     <span
                       id="pending-appointments-reminder-badge"
                       style={{
                         fontSize: '11.5px',
                         fontWeight: '600',
-                        color: pendingPatientsCount > 0 ? '#b45309' : '#64748b',
-                        backgroundColor: pendingPatientsCount > 0 ? '#fef3c7' : '#f1f5f9',
-                        border: `1px solid ${pendingPatientsCount > 0 ? '#fde68a' : '#e2e8f0'}`,
+                        color: '#b45309',
+                        backgroundColor: '#fef3c7',
+                        border: '1px solid #fde68a',
                         padding: '2px 8px',
                         borderRadius: '9999px',
                         display: 'inline-flex',
@@ -415,7 +568,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
                       title={`Total patients with pending appointments: ${pendingPatientsCount}`}
                     >
                       <span>⏳</span>
-                      <span>{pendingPatientsCount} {pendingPatientsCount === 1 ? 'patient' : 'patients'} pending</span>
+                      <span>{pendingPatientsCount} pending</span>
                     </span>
                   )}
                 </div>
@@ -441,178 +594,377 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
                 )}
               </div>
 
-              {/* Notification List */}
-              <div
-                style={{
-                  maxHeight: '380px',
-                  overflowY: 'auto',
-                }}
-              >
-                {/* Pending Appointment Reminders Section */}
-                {appointmentReminderEnabled && pendingReminders.length > 0 && (
-                  <div id="pending-reminders-section" style={{ borderBottom: '1px solid #fef3c7' }}>
-                    <div
-                      style={{
-                        padding: '8px 18px',
-                        backgroundColor: '#fffbeb',
-                        borderBottom: '1px solid #fef3c7',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '12px' }}>🔔</span>
-                        <span
+              {/* Notification List (Structured with New Appointments at TOP, Confirmed Reminders & others below) */}
+              {(() => {
+                const newAppointmentsList = notifications.filter(
+                  (n) => !n.is_read || (n.title && n.title.toLowerCase().includes('new'))
+                );
+                const otherNotifsList = notifications.filter(
+                  (n) => n.is_read && !(n.title && n.title.toLowerCase().includes('new'))
+                );
+
+                return (
+                  <div
+                    style={{
+                      maxHeight: '380px',
+                      overflowY: 'auto',
+                    }}
+                  >
+                    {/* 1. NEW APPOINTMENTS SECTION (ALWAYS APPEARS AT THE TOP) */}
+                    {newAppointmentsList.length > 0 && (
+                      <div id="new-appointments-section" style={{ borderBottom: '1px solid #dcfce7' }}>
+                        <div
                           style={{
+                            padding: '9px 18px',
+                            backgroundColor: '#f0fdf4',
+                            borderBottom: '1px solid #dcfce7',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                            <span style={{ fontSize: '13px' }}>✨</span>
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                color: '#166534',
+                                letterSpacing: '0.4px',
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              New Appointments
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            id="new-appointments-section-count-badge"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNotificationsOpen(false);
+                              navigateToFilteredAppointments('New');
+                            }}
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              color: '#15803d',
+                              backgroundColor: '#dcfce7',
+                              border: '1px solid #86efac',
+                              padding: '1px 8px',
+                              borderRadius: '9999px',
+                              cursor: 'pointer',
+                              outline: 'none',
+                            }}
+                            title="View all new appointments in table"
+                          >
+                            {newAppointmentsList.length} new
+                          </button>
+                        </div>
+
+                        <div className="new-appointments-list">
+                          {newAppointmentsList.map((notif) => (
+                            <div
+                              key={notif.id}
+                              onClick={() => handleNotificationClick(notif)}
+                              className="new-appointment-item"
+                              style={{
+                                padding: '13px 18px',
+                                borderBottom: '1px solid #f1f5f9',
+                                backgroundColor: '#f8fdf9',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.15s ease',
+                                display: 'flex',
+                                gap: '12px',
+                                alignItems: 'flex-start',
+                                position: 'relative',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#ecfdf5')}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f8fdf9')}
+                            >
+                              {/* Green Calendar Icon Badge */}
+                              <div
+                                style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  borderRadius: '10px',
+                                  backgroundColor: '#dcfce7',
+                                  color: '#166534',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                  marginTop: '2px',
+                                }}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                  <line x1="16" y1="2" x2="16" y2="6" />
+                                  <line x1="8" y1="2" x2="8" y2="6" />
+                                  <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg>
+                              </div>
+
+                              {/* Content */}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                  <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                                    {notif.patient_name || 'Patient'}
+                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {notif.created_at_formatted && (
+                                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                                        {notif.created_at_formatted}
+                                      </span>
+                                    )}
+                                    <span
+                                      style={{
+                                        width: '7px',
+                                        height: '7px',
+                                        borderRadius: '50%',
+                                        backgroundColor: '#16a34a',
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px', lineHeight: 1.35, fontWeight: '500' }}>
+                                  {notif.message || notif.title || 'New appointment booked'}
+                                </div>
+
+                                {/* Details Tag */}
+                                {(notif.appointment_date || notif.booking_time) && (
+                                  <div
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      marginTop: '6px',
+                                      padding: '3px 8px',
+                                      borderRadius: '6px',
+                                      backgroundColor: '#ffffff',
+                                      border: '1px solid #bbf7d0',
+                                      fontSize: '11.5px',
+                                      color: '#166534',
+                                      fontWeight: '600',
+                                    }}
+                                  >
+                                    {notif.appointment_date && <span>📅 {notif.appointment_date}</span>}
+                                    {notif.appointment_date && notif.booking_time && <span>•</span>}
+                                    {notif.booking_time && <span>⏰ {notif.booking_time}</span>}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. CONFIRMED APPOINTMENT REMINDERS SECTION (LISTED BELOW NEW) */}
+                    {appointmentReminderEnabled && confirmedReminders.length > 0 && (
+                      <div id="confirmed-reminders-section" style={{ borderBottom: '1px solid #d1fae5' }}>
+                        <div
+                          id="confirmed-reminders-toggle-header"
+                          onClick={() => setIsRemindersExpanded((prev) => !prev)}
+                          style={{
+                            padding: '9px 18px',
+                            backgroundColor: '#f0fdf4',
+                            borderBottom: isRemindersExpanded ? '1px solid #d1fae5' : 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            transition: 'background-color 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#dcfce7')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f0fdf4')}
+                          title={isRemindersExpanded ? 'Click to collapse reminder details' : 'Click to expand reminder details'}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                              <line x1="16" y1="2" x2="16" y2="6" />
+                              <line x1="8" y1="2" x2="8" y2="6" />
+                              <line x1="3" y1="10" x2="21" y2="10" />
+                            </svg>
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                color: '#166534',
+                                letterSpacing: '0.4px',
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              Confirmed Appointment Reminders
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              id="confirmed-reminders-section-count-badge"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNotificationsOpen(false);
+                                navigateToFilteredAppointments('Confirmed');
+                              }}
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                color: '#15803d',
+                                backgroundColor: '#dcfce7',
+                                border: '1px solid #86efac',
+                                padding: '1px 8px',
+                                borderRadius: '9999px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                outline: 'none',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#bbf7d0')}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dcfce7')}
+                              title="Click to view all confirmed appointments"
+                            >
+                              {confirmedReminders.length}
+                            </button>
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                color: '#166534',
+                                fontWeight: '700',
+                                display: 'inline-block',
+                                transition: 'transform 0.2s ease',
+                                transform: isRemindersExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                              }}
+                            >
+                              ▼
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Collapsible Reminder Details */}
+                        {isRemindersExpanded && (
+                          <div className="confirmed-reminders-list" style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                            {confirmedReminders.map((rem) => (
+                              <div
+                                key={rem.id}
+                                onClick={() => handleNotificationClick(rem)}
+                                className="confirmed-reminder-item"
+                                style={{
+                                  padding: '12px 18px',
+                                  borderBottom: '1px solid #e2e8f0',
+                                  backgroundColor: '#fbfdfc',
+                                  cursor: 'pointer',
+                                  transition: 'background-color 0.15s ease',
+                                  display: 'flex',
+                                  gap: '12px',
+                                  alignItems: 'flex-start',
+                                  position: 'relative',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#ecfdf5';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#fbfdfc';
+                                }}
+                              >
+                                {/* Green Calendar Icon Badge */}
+                                <div
+                                  style={{
+                                    width: '34px',
+                                    height: '34px',
+                                    borderRadius: '10px',
+                                    backgroundColor: '#e8f5ec',
+                                    color: '#1e4620',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    marginTop: '2px',
+                                  }}
+                                >
+                                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                    <line x1="16" y1="2" x2="16" y2="6" />
+                                    <line x1="8" y1="2" x2="8" y2="6" />
+                                    <line x1="3" y1="10" x2="21" y2="10" />
+                                  </svg>
+                                </div>
+
+                                {/* Content */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>
+                                      {rem.patient_name}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: '10.5px',
+                                        fontWeight: '700',
+                                        color: '#166534',
+                                        backgroundColor: '#dcfce7',
+                                        border: '1px solid #bbf7d0',
+                                        padding: '1px 6px',
+                                        borderRadius: '4px',
+                                      }}
+                                    >
+                                      Confirmed
+                                    </span>
+                                  </div>
+
+                                  <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px', lineHeight: 1.35, fontWeight: '500' }}>
+                                    Confirmed appointment reminder
+                                  </div>
+
+                                  {/* Details Tag */}
+                                  <div
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      marginTop: '6px',
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      backgroundColor: '#ffffff',
+                                      border: '1px solid #cbd5e1',
+                                      fontSize: '11px',
+                                      color: '#334155',
+                                      fontWeight: '600',
+                                    }}
+                                  >
+                                    <span>📅 {rem.appointment_date}</span>
+                                    <span>•</span>
+                                    <span>⏰ {rem.booking_time}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 3. OTHER / PAST NOTIFICATIONS */}
+                    {otherNotifsList.length > 0 && (
+                      <div className="other-notifications-list">
+                        <div
+                          style={{
+                            padding: '7px 18px',
+                            backgroundColor: '#f8fafc',
+                            borderBottom: '1px solid #e2e8f0',
                             fontSize: '11px',
                             fontWeight: '700',
-                            color: '#92400e',
+                            color: '#64748b',
                             letterSpacing: '0.4px',
                             textTransform: 'uppercase',
                           }}
                         >
-                          Pending Appointment Reminders
-                        </span>
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          color: '#b45309',
-                          backgroundColor: '#fde68a',
-                          padding: '1px 8px',
-                          borderRadius: '9999px',
-                        }}
-                      >
-                        {pendingReminders.length}
-                      </span>
-                    </div>
-
-                    {pendingReminders.map((rem) => (
-                      <div
-                        key={rem.id}
-                        onClick={() => handleNotificationClick(rem)}
-                        className="pending-reminder-item"
-                        style={{
-                          padding: '14px 18px',
-                          borderBottom: '1px solid #fef3c7',
-                          backgroundColor: '#fffdfa',
-                          cursor: 'pointer',
-                          transition: 'background-color 0.15s ease',
-                          display: 'flex',
-                          gap: '12px',
-                          alignItems: 'flex-start',
-                          position: 'relative',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#fef3c750';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#fffdfa';
-                        }}
-                      >
-                        {/* Amber Icon Badge */}
-                        <div
-                          style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '10px',
-                            backgroundColor: '#fef3c7',
-                            color: '#b45309',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                            marginTop: '2px',
-                          }}
-                        >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                          </svg>
+                          Earlier Notifications
                         </div>
-
-                        {/* Content */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
-                              {rem.patient_name}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: '10.5px',
-                                fontWeight: '700',
-                                color: '#b45309',
-                                backgroundColor: '#fef3c7',
-                                border: '1px solid #fde68a',
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                              }}
-                            >
-                              Pending
-                            </span>
-                          </div>
-
-                          <div style={{ fontSize: '12.5px', color: '#78350f', marginTop: '2px', lineHeight: 1.35, fontWeight: '500' }}>
-                            Pending appointment reminder
-                          </div>
-
-                          {/* Details Tag */}
-                          <div
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              marginTop: '6px',
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              backgroundColor: '#ffffff',
-                              border: '1px solid #fed7aa',
-                              fontSize: '11.5px',
-                              color: '#92400e',
-                              fontWeight: '600',
-                            }}
-                          >
-                            <span>📅 {rem.appointment_date}</span>
-                            <span>•</span>
-                            <span>⏰ {rem.booking_time}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {notifications.length === 0 && (!appointmentReminderEnabled || pendingReminders.length === 0) ? (
-                  <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
-                    <div
-                      style={{
-                        width: '44px',
-                        height: '44px',
-                        borderRadius: '50%',
-                        backgroundColor: '#f1f5f9',
-                        color: '#94a3b8',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: '0 auto 10px',
-                      }}
-                    >
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                      </svg>
-                    </div>
-                    <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#334155' }}>
-                      No notifications yet
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>
-                      New appointment bookings will appear here automatically.
-                    </div>
-                  </div>
-                ) : (
-                  notifications.map((notif) => {
+                        {otherNotifsList.map((notif) => {
                     const isUnread = !notif.is_read;
                     return (
                       <div
@@ -727,10 +1079,42 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
                           </button>
                         )}
                       </div>
-                    );
-                  })
-                )}
-              </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {newAppointmentsList.length === 0 && confirmedReminders.length === 0 && otherNotifsList.length === 0 && (
+                      <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
+                        <div
+                          style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '50%',
+                            backgroundColor: '#f1f5f9',
+                            color: '#94a3b8',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 10px',
+                          }}
+                        >
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                          </svg>
+                        </div>
+                        <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#334155' }}>
+                          No notifications yet
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>
+                          New appointment bookings will appear here automatically.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Dropdown Footer */}
               <div
@@ -765,6 +1149,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* Doctor Profile Pill */}

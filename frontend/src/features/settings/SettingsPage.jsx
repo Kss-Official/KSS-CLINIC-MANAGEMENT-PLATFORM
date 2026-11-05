@@ -145,12 +145,20 @@ const SettingsPage = () => {
           if (data.slotDuration || data.slot_duration) {
             setSlotDuration(data.slotDuration || data.slot_duration);
           }
-          const loadedRestrictions = data.dateRestrictions || data.date_restrictions || [];
-          if (Array.isArray(loadedRestrictions)) {
+          const rawRestrictions = data.dateRestrictions || data.date_restrictions || [];
+          if (Array.isArray(rawRestrictions)) {
+            const loadedRestrictions = rawRestrictions.map((r, i) => ({
+              ...r,
+              id: r.id || `restr_${i}_${Date.now()}`
+            }));
             setDateRestrictions(loadedRestrictions);
           }
-          const loadedCustomHours = data.customWorkingHours || data.custom_working_hours || [];
-          if (Array.isArray(loadedCustomHours)) {
+          const rawCustomHours = data.customWorkingHours || data.custom_working_hours || [];
+          if (Array.isArray(rawCustomHours)) {
+            const loadedCustomHours = rawCustomHours.map((c, i) => ({
+              ...c,
+              id: c.id || `cwh_${i}_${Date.now()}`
+            }));
             setCustomWorkingHours(loadedCustomHours);
           }
           if (data.notifications && typeof data.notifications === 'object') {
@@ -544,12 +552,11 @@ const SettingsPage = () => {
     setDraftCustomWorkingHours([...customWorkingHours]);
     setAppointmentModalTab('general');
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    setNewRestrStartDate(todayStr);
-    setNewRestrEndDate(todayStr);
+    setNewRestrStartDate('');
+    setNewRestrEndDate('');
     setNewRestrReason('');
-    setNewCustomStartDate(todayStr);
-    setNewCustomEndDate(todayStr);
+    setNewCustomStartDate('');
+    setNewCustomEndDate('');
     setNewCustomStartTime('09:00 AM');
     setNewCustomEndTime('02:00 PM');
     setNewCustomReason('');
@@ -608,8 +615,10 @@ const SettingsPage = () => {
     }
   };
 
-  const handleRemoveRestriction = (id) => {
-    setDraftDateRestrictions(draftDateRestrictions.filter((r) => r.id !== id));
+  const handleRemoveRestriction = (id, index) => {
+    setDraftDateRestrictions((prev) =>
+      prev.filter((r, idx) => (r.id ? r.id !== id : idx !== index && idx !== id))
+    );
   };
 
   const handleAddCustomWorkingHours = (e) => {
@@ -636,8 +645,10 @@ const SettingsPage = () => {
     showToast('Custom working hours added.');
   };
 
-  const handleRemoveCustomWorkingHours = (id) => {
-    setDraftCustomWorkingHours(draftCustomWorkingHours.filter((c) => c.id !== id));
+  const handleRemoveCustomWorkingHours = (id, index) => {
+    setDraftCustomWorkingHours((prev) =>
+      prev.filter((c, idx) => (c.id ? c.id !== id : idx !== index && idx !== id))
+    );
   };
 
   const handleSaveAppointmentSettings = async (e) => {
@@ -2354,9 +2365,11 @@ const SettingsPage = () => {
                           Active Restrictions ({draftDateRestrictions.length})
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                          {draftDateRestrictions.map((r) => (
+                          {draftDateRestrictions.map((r, idx) => (
                             <div
                               key={r.id}
+                              className="active-restriction-item"
+                              data-restr-id={r.id}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -2386,7 +2399,7 @@ const SettingsPage = () => {
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleRemoveRestriction(r.id)}
+                                onClick={() => handleRemoveRestriction(r.id, idx)}
                                 style={{
                                   padding: '4px 8px',
                                   borderRadius: '6px',
@@ -2573,9 +2586,11 @@ const SettingsPage = () => {
                           Active Date-Specific Hours ({draftCustomWorkingHours.length})
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                          {draftCustomWorkingHours.map((c) => (
+                          {draftCustomWorkingHours.map((c, idx) => (
                             <div
                               key={c.id}
+                              className="active-custom-hours-item"
+                              data-cwh-id={c.id}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -2605,7 +2620,7 @@ const SettingsPage = () => {
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleRemoveCustomWorkingHours(c.id)}
+                                onClick={() => handleRemoveCustomWorkingHours(c.id, idx)}
                                 style={{
                                   padding: '4px 8px',
                                   borderRadius: '6px',

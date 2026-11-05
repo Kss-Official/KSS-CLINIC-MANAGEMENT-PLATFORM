@@ -531,6 +531,43 @@ class NotificationListView(APIView):
         serializer = NotificationSerializer(notifications, many=True)
         unread_count = Notification.objects.filter(is_read=False).count()
 
+        # Query all appointments that are Confirmed
+        confirmed_apts = Appointment.objects.filter(status__iexact='Confirmed').order_by('appointment_date', 'time_slot', '-created_at')
+
+        # Count total distinct patients with confirmed appointments
+        confirmed_patient_keys = set()
+        for apt in confirmed_apts:
+            p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
+            if apt.patient_record_id:
+                p_key = f"rec_{apt.patient_record_id}"
+            confirmed_patient_keys.add(p_key)
+
+        confirmed_patients_count = len(confirmed_patient_keys)
+        confirmed_appointments_count = len(confirmed_apts)
+
+        # Build confirmed reminders list
+        confirmed_reminders = []
+        if reminder_enabled:
+            for apt in confirmed_apts:
+                confirmed_reminders.append({
+                    'id': f"confirmed-reminder-{apt.id}",
+                    'raw_id': apt.id,
+                    'appointment': apt.id,
+                    'appointment_id': apt.appointment_id or f"APT-{apt.id}",
+                    'title': 'Confirmed Appointment Reminder',
+                    'message': f"Confirmed appointment for {apt.patient_name} on {apt.appointment_date} at {apt.time_slot}.",
+                    'patient_name': apt.patient_name,
+                    'patient_phone': apt.patient_phone,
+                    'patient_email': apt.patient_email or '',
+                    'appointment_date': apt.appointment_date,
+                    'booking_time': apt.time_slot,
+                    'status': 'Confirmed',
+                    'is_reminder': True,
+                    'is_read': False,
+                    'created_at_formatted': 'Confirmed Appointment',
+                    'appointment_details': AppointmentSerializer(apt).data,
+                })
+
         # Query all upcoming appointments that are still Pending
         pending_apts = Appointment.objects.filter(status__iexact='Pending').order_by('created_at')
         upcoming_pending = [apt for apt in pending_apts if is_upcoming_or_today(apt.appointment_date)]
@@ -572,6 +609,9 @@ class NotificationListView(APIView):
         return Response({
             'notifications': serializer.data,
             'unread_count': unread_count,
+            'confirmed_patients_count': confirmed_patients_count if reminder_enabled else 0,
+            'confirmed_appointments_count': confirmed_appointments_count if reminder_enabled else 0,
+            'confirmed_reminders': confirmed_reminders if reminder_enabled else [],
             'pending_patients_count': pending_patients_count if reminder_enabled else 0,
             'pending_appointments_count': pending_appointments_count if reminder_enabled else 0,
             'appointment_reminder_enabled': reminder_enabled,
@@ -584,7 +624,7 @@ class NotificationMarkReadView(APIView):
 
     def post(self, request, pk):
         try:
-            if isinstance(pk, str) and pk.startswith('pending-reminder-'):
+            if isinstance(pk, str) and (pk.startswith('confirmed-reminder-') or pk.startswith('pending-reminder-')):
                 return Response({'status': 'success', 'id': pk})
             notification = Notification.objects.get(pk=pk)
             notification.is_read = True
