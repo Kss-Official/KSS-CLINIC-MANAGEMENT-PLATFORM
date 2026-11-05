@@ -761,9 +761,6 @@ const SettingsPage = () => {
     try {
       localStorage.setItem('clinic_notification_settings', JSON.stringify(updated));
     } catch {}
-    window.dispatchEvent(new CustomEvent('notification-settings-updated', { detail: updated }));
-    const label = key === 'appointmentReminder' ? 'Appointment Reminder' : (key === 'newAppointment' ? 'New Appointment' : 'Prescription Updates');
-    showToast(`${label} ${updated[key] ? 'enabled' : 'disabled'}`);
     try {
       await appointmentApi.updateNotificationSettings({
         notifications: updated,
@@ -772,6 +769,9 @@ const SettingsPage = () => {
     } catch (err) {
       console.warn('Backend notification settings sync notice:', err);
     }
+    window.dispatchEvent(new CustomEvent('notification-settings-updated', { detail: updated }));
+    const label = key === 'appointmentReminder' ? 'Appointment Reminder' : (key === 'newAppointment' ? 'New Appointment' : 'Prescription Updates');
+    showToast(`${label} ${updated[key] ? 'enabled' : 'disabled'}`);
   };
 
   return (

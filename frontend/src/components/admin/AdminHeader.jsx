@@ -19,6 +19,18 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
   const [pendingReminders, setPendingReminders] = useState([]);
   const [pendingPatientsCount, setPendingPatientsCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [newAppointmentEnabled, setNewAppointmentEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('clinic_notification_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.newAppointment === 'boolean') {
+          return parsed.newAppointment;
+        }
+      }
+    } catch {}
+    return true;
+  });
   const [appointmentReminderEnabled, setAppointmentReminderEnabled] = useState(() => {
     try {
       const saved = localStorage.getItem('clinic_notification_settings');
@@ -26,6 +38,18 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
         const parsed = JSON.parse(saved);
         if (typeof parsed.appointmentReminder === 'boolean') {
           return parsed.appointmentReminder;
+        }
+      }
+    } catch {}
+    return true;
+  });
+  const [prescriptionUpdatesEnabled, setPrescriptionUpdatesEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('clinic_notification_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.prescriptionUpdates === 'boolean') {
+          return parsed.prescriptionUpdates;
         }
       }
     } catch {}
@@ -63,8 +87,14 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
         setConfirmedPatientsCount(typeof data.confirmed_patients_count === 'number' ? data.confirmed_patients_count : 0);
         setPendingReminders(data.pending_reminders || []);
         setPendingPatientsCount(typeof data.pending_patients_count === 'number' ? data.pending_patients_count : 0);
+        if (typeof data.new_appointment_enabled === 'boolean') {
+          setNewAppointmentEnabled(data.new_appointment_enabled);
+        }
         if (typeof data.appointment_reminder_enabled === 'boolean') {
           setAppointmentReminderEnabled(data.appointment_reminder_enabled);
+        }
+        if (typeof data.prescription_updates_enabled === 'boolean') {
+          setPrescriptionUpdatesEnabled(data.prescription_updates_enabled);
         }
       }
     } catch (err) {
@@ -121,8 +151,16 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     // Listen to custom event when notification settings are updated
     const handleNotificationSettingsUpdated = (e) => {
       const updated = e?.detail;
-      if (updated && typeof updated.appointmentReminder === 'boolean') {
-        setAppointmentReminderEnabled(updated.appointmentReminder);
+      if (updated) {
+        if (typeof updated.newAppointment === 'boolean') {
+          setNewAppointmentEnabled(updated.newAppointment);
+        }
+        if (typeof updated.appointmentReminder === 'boolean') {
+          setAppointmentReminderEnabled(updated.appointmentReminder);
+        }
+        if (typeof updated.prescriptionUpdates === 'boolean') {
+          setPrescriptionUpdatesEnabled(updated.prescriptionUpdates);
+        }
       }
       fetchNotifications();
     };
@@ -251,6 +289,33 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       onViewAppointment(aptToOpen);
     }
   };
+
+  const isNewAptNotif = (n) =>
+    ((n.title && (n.title.toLowerCase().includes('new') || n.title.toLowerCase().includes('appointment'))) ||
+     (n.message && (n.message.toLowerCase().includes('new') || n.message.toLowerCase().includes('appointment')))) &&
+    !(n.title && n.title.toLowerCase().includes('prescription'));
+
+  const isRxNotif = (n) =>
+    (n.title && n.title.toLowerCase().includes('prescription')) ||
+    (n.message && n.message.toLowerCase().includes('prescription'));
+
+  const newAppointmentsList = notifications.filter(
+    (n) => !n.is_read && isNewAptNotif(n)
+  );
+  const rxRemainingList = notifications.filter(
+    (n) => (n.title && n.title.toLowerCase().includes('prescription remaining')) ||
+           (n.message && n.message.toLowerCase().includes('prescription remaining'))
+  ).sort((a, b) => {
+    if (!a.is_read && b.is_read) return -1;
+    if (a.is_read && !b.is_read) return 1;
+    return 0;
+  });
+  const otherNotifsList = notifications.filter((n) => {
+    if (!n.is_read) return false;
+    if (!newAppointmentEnabled && isNewAptNotif(n)) return false;
+    if (!prescriptionUpdatesEnabled && isRxNotif(n)) return false;
+    return true;
+  });
 
   const handleLogout = async () => {
     await logout();
@@ -423,10 +488,13 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
             </svg>
             {/* Unread & confirmed/pending reminders indicator badge with count */}
             {(() => {
+              const unreadNewCount = newAppointmentEnabled ? newAppointmentsList.length : 0;
+              const unreadRxCount = prescriptionUpdatesEnabled ? rxRemainingList.filter((n) => !n.is_read).length : 0;
               const activeReminderCount = appointmentReminderEnabled ? (confirmedReminders.length || pendingReminders.length) : 0;
-              const displayBadgeCount = unreadCount > 0 ? unreadCount : activeReminderCount;
+              const effectiveUnread = unreadNewCount + unreadRxCount;
+              const displayBadgeCount = effectiveUnread > 0 ? effectiveUnread : activeReminderCount;
               if (displayBadgeCount <= 0) return null;
-              const isUnread = unreadCount > 0;
+              const isUnread = effectiveUnread > 0;
               return (
                 <span
                   id="admin-header-bell-badge"
@@ -491,7 +559,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                   <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
                     Notifications
                   </h3>
-                  {unreadCount > 0 && (
+                  {newAppointmentEnabled && newAppointmentsList.length > 0 && (
                     <button
                       type="button"
                       id="notifications-new-count-badge"
@@ -522,6 +590,43 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                       title="Click to show New appointments section at the top"
                     >
                       {unreadCount} new
+                    </button>
+                  )}
+                  {prescriptionUpdatesEnabled && rxRemainingList.length > 0 && (
+                    <button
+                      type="button"
+                      id="prescription-remaining-count-header-badge"
+                      onClick={() => {
+                        setNotificationsOpen(false);
+                        navigate('/prescriptions');
+                      }}
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: '600',
+                        color: '#9a3412',
+                        backgroundColor: '#ffedd5',
+                        border: '1px solid #fed7aa',
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        outline: 'none',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#fed7aa';
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#ffedd5';
+                        e.currentTarget.style.transform = 'scale(1)';
+                      }}
+                      title="Click to view prescriptions"
+                    >
+                      <span>📝</span>
+                      <span>{rxRemainingList.length} rx remaining</span>
                     </button>
                   )}
                   {appointmentReminderEnabled && confirmedReminders.length > 0 && (
@@ -611,34 +716,14 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
               </div>
 
               {/* Notification List (Structured with New Appointments, Prescription Remaining, Confirmed Reminders & others) */}
-              {(() => {
-                const newAppointmentsList = notifications.filter(
-                  (n) => !n.is_read &&
-                         ((n.title && n.title.toLowerCase().includes('new')) || (n.message && n.message.toLowerCase().includes('new appointment'))) &&
-                         !(n.title && n.title.toLowerCase().includes('prescription remaining'))
-                );
-                const rxRemainingList = notifications.filter(
-                  (n) => (n.title && n.title.toLowerCase().includes('prescription remaining')) ||
-                         (n.message && n.message.toLowerCase().includes('prescription remaining'))
-                ).sort((a, b) => {
-                  if (!a.is_read && b.is_read) return -1;
-                  if (a.is_read && !b.is_read) return 1;
-                  return 0;
-                });
-                const otherNotifsList = notifications.filter(
-                  (n) => n.is_read &&
-                         !(n.title && n.title.toLowerCase().includes('prescription remaining'))
-                );
-
-                return (
-                  <div
-                    style={{
-                      maxHeight: '380px',
-                      overflowY: 'auto',
-                    }}
-                  >
+              <div
+                style={{
+                  maxHeight: '380px',
+                  overflowY: 'auto',
+                }}
+              >
                     {/* 1. NEW APPOINTMENTS SECTION (ALWAYS APPEARS AT THE TOP) */}
-                    {newAppointmentsList.length > 0 && (
+                    {newAppointmentEnabled && newAppointmentsList.length > 0 && (
                       <div id="new-appointments-section" style={{ borderBottom: '1px solid #dcfce7' }}>
                         <div
                           style={{
@@ -790,7 +875,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                     )}
 
                     {/* 2. PRESCRIPTION REMAINING SECTION */}
-                    {rxRemainingList.length > 0 && (
+                    {prescriptionUpdatesEnabled && rxRemainingList.length > 0 && (
                       <div id="prescription-remaining-section" style={{ borderBottom: '1px solid #fed7aa' }}>
                         <div
                           style={{
@@ -1258,7 +1343,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                           </div>
 
                           <div style={{ fontSize: '12.5px', color: '#475569', marginTop: '2px', lineHeight: 1.35 }}>
-                            New appointment booked
+                            {notif.message || notif.title || 'Notification'}
                           </div>
 
                           {/* Details Tag */}
@@ -1319,7 +1404,10 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                       </div>
                     )}
 
-                    {newAppointmentsList.length === 0 && rxRemainingList.length === 0 && confirmedReminders.length === 0 && otherNotifsList.length === 0 && (
+                    {(!newAppointmentEnabled || newAppointmentsList.length === 0) &&
+                     (!prescriptionUpdatesEnabled || rxRemainingList.length === 0) &&
+                     (!appointmentReminderEnabled || confirmedReminders.length === 0) &&
+                     otherNotifsList.length === 0 && (
                       <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
                         <div
                           style={{
@@ -1348,8 +1436,6 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                       </div>
                     )}
                   </div>
-                );
-              })()}
 
               {/* Dropdown Footer */}
               <div

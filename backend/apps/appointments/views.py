@@ -428,20 +428,25 @@ class AppointmentListCreateView(APIView):
             appointment.patient_record = patient
             appointment.save(update_fields=['patient_record'])
 
-            # Automatically create notification for the Admin Portal
-            notification = Notification.objects.create(
-                appointment=appointment,
-                title='New Appointment Booked',
-                patient_name=appointment.patient_name,
-                appointment_date=appointment.appointment_date,
-                booking_time=appointment.time_slot,
-                message=f"New appointment booked by {appointment.patient_name} for {appointment.appointment_date} at {appointment.time_slot}.",
-                is_read=False
-            )
+            # Automatically create notification for the Admin Portal if newAppointment is enabled
+            clinic_settings = load_clinic_settings()
+            notif_settings = clinic_settings.get('notifications') or {}
+            new_apt_enabled = bool(notif_settings.get('newAppointment', True))
+            notification = None
+            if new_apt_enabled:
+                notification = Notification.objects.create(
+                    appointment=appointment,
+                    title='New Appointment Booked',
+                    patient_name=appointment.patient_name,
+                    appointment_date=appointment.appointment_date,
+                    booking_time=appointment.time_slot,
+                    message=f"New appointment booked by {appointment.patient_name} for {appointment.appointment_date} at {appointment.time_slot}.",
+                    is_read=False
+                )
 
             return Response({
                 'appointment': AppointmentSerializer(appointment).data,
-                'notification': NotificationSerializer(notification).data
+                'notification': NotificationSerializer(notification).data if notification else None
             }, status=status.HTTP_201_CREATED)
 
         first_err = None
@@ -502,11 +507,15 @@ class AppointmentDetailView(APIView):
                     title__in=['New Appointment Booked', 'Confirmed Appointment Reminder']
                 ).update(is_read=True)
 
+                clinic_settings = load_clinic_settings()
+                notif_settings = clinic_settings.get('notifications') or {}
+                rx_updates_enabled = bool(notif_settings.get('prescriptionUpdates', True))
+
                 has_rx = (
                     Prescription.objects.filter(appointment=apt).exists() or
                     (apt.prescription_status and str(apt.prescription_status).strip().lower() in ['complete', 'completed'])
                 )
-                if not has_rx:
+                if rx_updates_enabled and not has_rx:
                     rx_notif, created = Notification.objects.get_or_create(
                         appointment=apt,
                         title='Prescription Remaining',
@@ -548,38 +557,53 @@ class NotificationListView(APIView):
     def get(self, request):
         clinic_settings = load_clinic_settings()
         notif_settings = clinic_settings.get('notifications') or {}
-        # appointmentReminder is True by default unless explicitly disabled
+        new_appointment_enabled = bool(notif_settings.get('newAppointment', True))
         reminder_enabled = bool(notif_settings.get('appointmentReminder', True))
+        prescription_updates_enabled = bool(notif_settings.get('prescriptionUpdates', True))
 
-        # Ensure completed appointments without prescriptions have Prescription Remaining notification
-        completed_apts = Appointment.objects.filter(models.Q(status__iexact='Complete') | models.Q(status__iexact='Completed'))
-        for c_apt in completed_apts:
-            has_rx = (
-                Prescription.objects.filter(appointment=c_apt).exists() or
-                (c_apt.prescription_status and str(c_apt.prescription_status).strip().lower() in ['complete', 'completed'])
-            )
-            if not has_rx:
-                Notification.objects.get_or_create(
-                    appointment=c_apt,
-                    title='Prescription Remaining',
-                    defaults={
-                        'patient_name': c_apt.patient_name,
-                        'appointment_date': c_apt.appointment_date,
-                        'booking_time': c_apt.time_slot,
-                        'message': f"Appointment {c_apt.appointment_id} for {c_apt.patient_name} marked as Completed. Prescription remaining to be created.",
-                        'is_read': False,
-                    }
+        if prescription_updates_enabled:
+            # Ensure completed appointments without prescriptions have Prescription Remaining notification
+            completed_apts = Appointment.objects.filter(models.Q(status__iexact='Complete') | models.Q(status__iexact='Completed'))
+            for c_apt in completed_apts:
+                has_rx = (
+                    Prescription.objects.filter(appointment=c_apt).exists() or
+                    (c_apt.prescription_status and str(c_apt.prescription_status).strip().lower() in ['complete', 'completed'])
                 )
-            else:
-                Notification.objects.filter(
-                    appointment=c_apt,
-                    title__icontains='Prescription Remaining',
-                    is_read=False
-                ).update(is_read=True)
+                if not has_rx:
+                    Notification.objects.get_or_create(
+                        appointment=c_apt,
+                        title='Prescription Remaining',
+                        defaults={
+                            'patient_name': c_apt.patient_name,
+                            'appointment_date': c_apt.appointment_date,
+                            'booking_time': c_apt.time_slot,
+                            'message': f"Appointment {c_apt.appointment_id} for {c_apt.patient_name} marked as Completed. Prescription remaining to be created.",
+                            'is_read': False,
+                        }
+                    )
+                else:
+                    Notification.objects.filter(
+                        appointment=c_apt,
+                        title__icontains='Prescription Remaining',
+                        is_read=False
+                    ).update(is_read=True)
 
-        notifications = Notification.objects.all().order_by('-created_at')
+        notifications_qs = Notification.objects.all()
+
+        if not new_appointment_enabled:
+            notifications_qs = notifications_qs.exclude(
+                (models.Q(title__icontains='New') | models.Q(message__icontains='New') | models.Q(title__icontains='Appointment'))
+                & ~models.Q(title__icontains='Prescription')
+            )
+
+        if not prescription_updates_enabled:
+            notifications_qs = notifications_qs.exclude(
+                models.Q(title__icontains='Prescription') | models.Q(message__icontains='Prescription')
+            )
+
+        unread_count = notifications_qs.filter(is_read=False).count()
+        notifications = notifications_qs.order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
-        unread_count = Notification.objects.filter(is_read=False).count()
 
         # Query all appointments that are Confirmed
         confirmed_apts = Appointment.objects.filter(status__iexact='Confirmed').order_by('appointment_date', 'time_slot', '-created_at')
@@ -659,12 +683,14 @@ class NotificationListView(APIView):
         return Response({
             'notifications': serializer.data,
             'unread_count': unread_count,
+            'new_appointment_enabled': new_appointment_enabled,
+            'appointment_reminder_enabled': reminder_enabled,
+            'prescription_updates_enabled': prescription_updates_enabled,
             'confirmed_patients_count': confirmed_patients_count if reminder_enabled else 0,
             'confirmed_appointments_count': confirmed_appointments_count if reminder_enabled else 0,
             'confirmed_reminders': confirmed_reminders if reminder_enabled else [],
             'pending_patients_count': pending_patients_count if reminder_enabled else 0,
             'pending_appointments_count': pending_appointments_count if reminder_enabled else 0,
-            'appointment_reminder_enabled': reminder_enabled,
             'pending_reminders': pending_reminders if reminder_enabled else [],
         })
 
