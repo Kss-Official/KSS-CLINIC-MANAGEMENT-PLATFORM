@@ -988,6 +988,10 @@ const BookAppointmentPage = () => {
 
         width: '100%',
 
+        maxWidth: '100vw',
+
+        overflowX: 'hidden',
+
         margin: 0,
 
         padding: 0,
@@ -1052,6 +1056,10 @@ const BookAppointmentPage = () => {
 
           width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
           height: 'clamp(220px, 18vw, 275px)',
 
           backgroundColor: '#143420',
@@ -1083,6 +1091,10 @@ const BookAppointmentPage = () => {
           style={{
 
             width: '100%',
+
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
 
             height: '100%',
 
@@ -1116,6 +1128,10 @@ const BookAppointmentPage = () => {
 
             width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
             height: '100%',
 
             background:
@@ -1146,6 +1162,10 @@ const BookAppointmentPage = () => {
 
             width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
             height: '100%',
 
             display: 'flex',
@@ -1161,6 +1181,8 @@ const BookAppointmentPage = () => {
         >
 
           <div
+
+            className="booking-banner-inner"
 
             style={{
 
@@ -1306,6 +1328,8 @@ const BookAppointmentPage = () => {
 
           <div
 
+            className="booking-card"
+
             style={{
 
               backgroundColor: '#ffffff',
@@ -1328,6 +1352,8 @@ const BookAppointmentPage = () => {
 
               <div
 
+                className="booking-stepper-wrap"
+
                 style={{
 
                   display: 'flex',
@@ -1348,9 +1374,11 @@ const BookAppointmentPage = () => {
 
                 {/* Step 1 */}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="booking-step-item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
 
                   <div
+
+                    className="booking-step-circle"
 
                     style={{
 
@@ -1374,6 +1402,8 @@ const BookAppointmentPage = () => {
 
                       fontWeight: '700',
 
+                      flexShrink: 0,
+
                     }}
 
                   >
@@ -1383,6 +1413,8 @@ const BookAppointmentPage = () => {
                   </div>
 
                   <span
+
+                    className="booking-step-label"
 
                     style={{
 
@@ -1396,7 +1428,9 @@ const BookAppointmentPage = () => {
 
                   >
 
-                    Patient Details
+                    <span className="booking-step-label-full">Patient Details</span>
+
+                    <span className="booking-step-label-short">Details</span>
 
                   </span>
 
@@ -1407,6 +1441,8 @@ const BookAppointmentPage = () => {
                 {/* Line 1 */}
 
                 <div
+
+                  className="booking-step-divider"
 
                   style={{
 
@@ -1426,9 +1462,11 @@ const BookAppointmentPage = () => {
 
                 {/* Step 2 */}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="booking-step-item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
 
                   <div
+
+                    className="booking-step-circle"
 
                     style={{
 
@@ -1454,6 +1492,8 @@ const BookAppointmentPage = () => {
 
                       fontWeight: '700',
 
+                      flexShrink: 0,
+
                     }}
 
                   >
@@ -1463,6 +1503,8 @@ const BookAppointmentPage = () => {
                   </div>
 
                   <span
+
+                    className="booking-step-label"
 
                     style={{
 
@@ -1476,7 +1518,9 @@ const BookAppointmentPage = () => {
 
                   >
 
-                    Select Date & Time
+                    <span className="booking-step-label-full">Select Date & Time</span>
+
+                    <span className="booking-step-label-short">Date & Time</span>
 
                   </span>
 
@@ -1487,6 +1531,8 @@ const BookAppointmentPage = () => {
                 {/* Line 2 */}
 
                 <div
+
+                  className="booking-step-divider"
 
                   style={{
 
@@ -1506,9 +1552,11 @@ const BookAppointmentPage = () => {
 
                 {/* Step 3 */}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="booking-step-item" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
 
                   <div
+
+                    className="booking-step-circle"
 
                     style={{
 
@@ -1534,6 +1582,8 @@ const BookAppointmentPage = () => {
 
                       fontWeight: '700',
 
+                      flexShrink: 0,
+
                     }}
 
                   >
@@ -1543,6 +1593,8 @@ const BookAppointmentPage = () => {
                   </div>
 
                   <span
+
+                    className="booking-step-label"
 
                     style={{
 
@@ -1556,7 +1608,9 @@ const BookAppointmentPage = () => {
 
                   >
 
-                    Confirm Appointment
+                    <span className="booking-step-label-full">Confirm Appointment</span>
+
+                    <span className="booking-step-label-short">Confirm</span>
 
                   </span>
 
@@ -1576,13 +1630,13 @@ const BookAppointmentPage = () => {
 
                 <div style={{ marginBottom: '28px' }}>
 
-                  <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#111827', margin: '0 0 6px 0' }}>
+                  <h2 className="booking-step-heading" style={{ fontSize: '24px', fontWeight: '800', color: '#111827', margin: '0 0 6px 0' }}>
 
                     Patient Information
 
                   </h2>
 
-                  <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
+                  <p className="booking-step-subheading" style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
 
                     Please enter your basic details to book an appointment.
 
@@ -1592,7 +1646,7 @@ const BookAppointmentPage = () => {
 
 
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div className="booking-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
 
                   {/* Full Name */}
 
@@ -1645,6 +1699,10 @@ const BookAppointmentPage = () => {
                         style={{
 
                           width: '100%',
+
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
 
                           padding: '11px 14px 11px 40px',
 
@@ -1728,6 +1786,10 @@ const BookAppointmentPage = () => {
 
                           width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
                           padding: '11px 14px 11px 40px',
 
                           borderRadius: '10px',
@@ -1762,7 +1824,7 @@ const BookAppointmentPage = () => {
 
 
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div className="booking-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
 
                   {/* Email Address */}
 
@@ -1803,6 +1865,10 @@ const BookAppointmentPage = () => {
                         style={{
 
                           width: '100%',
+
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
 
                           padding: '11px 14px 11px 40px',
 
@@ -1884,6 +1950,10 @@ const BookAppointmentPage = () => {
 
                           width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
                           padding: '11px 64px 11px 40px',
 
                           borderRadius: '10px',
@@ -1944,7 +2014,7 @@ const BookAppointmentPage = () => {
 
 
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div className="booking-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
 
                   {/* Gender */}
 
@@ -1981,6 +2051,10 @@ const BookAppointmentPage = () => {
                         style={{
 
                           width: '100%',
+
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
 
                           padding: '11px 36px 11px 40px',
 
@@ -2080,6 +2154,10 @@ const BookAppointmentPage = () => {
 
                           width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
                           padding: '11px 14px 11px 40px',
 
                           borderRadius: '10px',
@@ -2112,7 +2190,7 @@ const BookAppointmentPage = () => {
 
 
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div className="booking-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
 
                   {/* City */}
 
@@ -2153,6 +2231,10 @@ const BookAppointmentPage = () => {
                         style={{
 
                           width: '100%',
+
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
 
                           padding: '11px 14px 11px 40px',
 
@@ -2226,6 +2308,10 @@ const BookAppointmentPage = () => {
 
                         width: '100%',
 
+        overflowX: 'hidden',
+
+        maxWidth: '100vw',
+
                         padding: '12px 14px 28px 40px',
 
                         borderRadius: '10px',
@@ -2286,6 +2372,8 @@ const BookAppointmentPage = () => {
 
                 <div
 
+                  className="booking-step-bottom-bar"
+
                   style={{
 
                     display: 'flex',
@@ -2307,6 +2395,8 @@ const BookAppointmentPage = () => {
                 >
 
                   <div
+
+                    className="booking-security-box"
 
                     style={{
 
@@ -2404,6 +2494,8 @@ const BookAppointmentPage = () => {
 
                     type="submit"
 
+                    className="booking-submit-btn"
+
                     style={{
 
                       backgroundColor: '#265e38',
@@ -2460,13 +2552,13 @@ const BookAppointmentPage = () => {
 
                 <div style={{ marginBottom: '28px' }}>
 
-                  <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#111827', margin: '0 0 6px 0' }}>
+                  <h2 className="booking-step-heading" style={{ fontSize: '24px', fontWeight: '800', color: '#111827', margin: '0 0 6px 0' }}>
 
                     Select Date & Time
 
                   </h2>
 
-                  <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
+                  <p className="booking-step-subheading" style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
 
                     Choose a convenient date and time for your consultation.
 
@@ -2499,6 +2591,8 @@ const BookAppointmentPage = () => {
                   {/* Left Box: Calendar Widget */}
 
                   <div
+
+                    className="booking-calendar-card"
 
                     style={{
 
@@ -2838,6 +2932,8 @@ const BookAppointmentPage = () => {
 
                   <div
 
+                    className="booking-slots-card"
+
                     style={{
 
                       border: '1px solid #eef2ef',
@@ -2901,6 +2997,8 @@ const BookAppointmentPage = () => {
                       {/* 3 Columns Time Slots Grid */}
 
                       <div
+
+                        className="booking-slots-grid"
 
                         style={{
 
@@ -3094,6 +3192,8 @@ const BookAppointmentPage = () => {
 
                 <div
 
+                  className="booking-step2-bottom"
+
                   style={{
 
                     display: 'flex',
@@ -3113,6 +3213,8 @@ const BookAppointmentPage = () => {
                   <button
 
                     type="button"
+
+                    className="booking-back-btn"
 
                     onClick={() => setCurrentStep(1)}
 
@@ -3153,6 +3255,8 @@ const BookAppointmentPage = () => {
                   <button
 
                     type="button"
+
+                    className="booking-step-btn"
 
                     onClick={handleNextStep}
 
@@ -3214,6 +3318,8 @@ const BookAppointmentPage = () => {
 
                     alt="Appointment Confirmed"
 
+                    className="booking-confirm-img"
+
                     style={{
 
                       maxWidth: '240px',
@@ -3237,6 +3343,8 @@ const BookAppointmentPage = () => {
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
 
                   <h2
+
+                    className="booking-confirm-title"
 
                     style={{
 
@@ -3397,6 +3505,8 @@ const BookAppointmentPage = () => {
                   {/* 2-Columns Details Grid */}
 
                   <div
+
+                    className="booking-confirm-grid"
 
                     style={{
 
@@ -3630,6 +3740,8 @@ const BookAppointmentPage = () => {
 
                 <div
 
+                  className="booking-confirm-actions"
+
                   style={{
 
                     display: 'flex',
@@ -3649,6 +3761,8 @@ const BookAppointmentPage = () => {
                   <button
 
                     type="button"
+
+                    className="booking-action-btn"
 
                     onClick={handleDownloadPdf}
 
@@ -3700,6 +3814,8 @@ const BookAppointmentPage = () => {
 
                     type="button"
 
+                    className="booking-action-btn"
+
                     onClick={handleWhatsappSend}
 
                     style={{
@@ -3749,6 +3865,8 @@ const BookAppointmentPage = () => {
                   <button
 
                     type="button"
+
+                    className="booking-action-btn booking-home-btn"
 
                     onClick={() => navigate('/')}
 
@@ -3813,6 +3931,8 @@ const BookAppointmentPage = () => {
             {/* Card 1: Homeopathy Consultation */}
 
             <div
+
+              className="booking-sidebar-card"
 
               style={{
 
@@ -3960,6 +4080,8 @@ const BookAppointmentPage = () => {
 
             <div
 
+              className="booking-sidebar-card"
+
               style={{
 
                 backgroundColor: '#ffffff',
@@ -4051,6 +4173,8 @@ const BookAppointmentPage = () => {
             {/* Card 3: Clinic Address */}
 
             <div
+
+              className="booking-sidebar-card"
 
               style={{
 
@@ -4178,6 +4302,8 @@ const BookAppointmentPage = () => {
 
             <div
 
+              className="booking-sidebar-card"
+
               style={{
 
                 backgroundColor: '#ffffff',
@@ -4284,17 +4410,19 @@ const BookAppointmentPage = () => {
 
 
 
-      {/* Div 3: Bottom Footer Bar (Exact match to reference design) */}
+      {/* Div 3: Bottom Footer Bar (Clean, Professional & Fully Responsive) */}
 
       <footer
+
+        className="booking-footer"
 
         style={{
 
           backgroundColor: '#ffffff',
 
-          borderTop: '1px solid #e5e7eb',
+          borderTop: '1px solid #edf2ee',
 
-          padding: '28px 0',
+          padding: '24px 0',
 
           marginTop: 'auto',
 
@@ -4342,11 +4470,13 @@ const BookAppointmentPage = () => {
 
           <p
 
+            className="booking-footer-copyright"
+
             style={{
 
               margin: 0,
 
-              fontSize: '13.5px',
+              fontSize: '13px',
 
               color: '#6b7280',
 
@@ -4368,13 +4498,15 @@ const BookAppointmentPage = () => {
 
           <div
 
+            className="booking-footer-links"
+
             style={{
 
               display: 'flex',
 
               alignItems: 'center',
 
-              gap: '32px',
+              gap: '28px',
 
               flexWrap: 'wrap',
 
@@ -4386,13 +4518,15 @@ const BookAppointmentPage = () => {
 
               href="#privacy"
 
+              className="booking-footer-link"
+
               style={{
 
                 color: '#6b7280',
 
                 textDecoration: 'none',
 
-                fontSize: '13.5px',
+                fontSize: '13px',
 
                 fontFamily: "'Manrope', sans-serif",
 
@@ -4414,13 +4548,15 @@ const BookAppointmentPage = () => {
 
               href="#terms"
 
+              className="booking-footer-link"
+
               style={{
 
                 color: '#6b7280',
 
                 textDecoration: 'none',
 
-                fontSize: '13.5px',
+                fontSize: '13px',
 
                 fontFamily: "'Manrope', sans-serif",
 
@@ -4442,13 +4578,15 @@ const BookAppointmentPage = () => {
 
               href="#support"
 
+              className="booking-footer-link"
+
               style={{
 
                 color: '#6b7280',
 
                 textDecoration: 'none',
 
-                fontSize: '13.5px',
+                fontSize: '13px',
 
                 fontFamily: "'Manrope', sans-serif",
 
@@ -4475,77 +4613,217 @@ const BookAppointmentPage = () => {
 
 
       <style>{`
+        /* Desktop defaults for step labels */
+        .booking-step-label-short {
+          display: none;
+        }
+        .booking-step-label-full {
+          display: inline;
+        }
 
         @media (max-width: 1024px) {
-
           .booking-main-content {
-
-            padding: 36px 24px 60px !important;
-
+            padding: 32px 20px 60px !important;
           }
-
         }
 
         @media (max-width: 900px) {
-
           .booking-grid {
-
             grid-template-columns: 1fr !important;
-
+            gap: 24px !important;
           }
-
           .step2-split-grid {
-
             grid-template-columns: 1fr !important;
-
+            gap: 20px !important;
           }
-
         }
 
         @media (max-width: 640px) {
-
-          .booking-main-content {
-
-            padding: 24px 16px 50px !important;
-
+          .booking-page-wrapper {
+            overflow-x: hidden !important;
+            max-width: 100vw !important;
           }
-
+          .booking-hero-banner {
+            height: 180px !important;
+          }
+          .booking-banner-inner {
+            padding: 0 16px !important;
+          }
           .booking-hero-banner-image {
-
-            min-height: 160px !important;
-
+            min-height: 180px !important;
             object-fit: cover !important;
-
-            object-position: 70% center !important;
-
+            object-position: center !important;
           }
-
           .booking-banner-title {
-
-            font-size: 24px !important;
-
+            font-size: 21px !important;
+            margin-bottom: 4px !important;
           }
-
           .booking-banner-subtitle {
-
-            font-size: 13px !important;
-
+            font-size: 12px !important;
+            line-height: 1.4 !important;
           }
-
-          .booking-footer-inner {
-
-            padding: 0 20px !important;
-
+          .booking-main-content {
+            padding: 16px 12px 40px !important;
+          }
+          .booking-card {
+            padding: 20px 14px !important;
+            border-radius: 16px !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+          }
+          .booking-stepper-wrap {
+            margin-bottom: 22px !important;
+            padding-bottom: 16px !important;
+          }
+          .booking-step-item {
+            gap: 6px !important;
+            min-width: 0 !important;
+          }
+          .booking-step-circle {
+            width: 24px !important;
+            height: 24px !important;
+            font-size: 11px !important;
+          }
+          .booking-step-label {
+            font-size: 12px !important;
+          }
+          .booking-step-divider {
+            margin: 0 8px !important;
+            min-width: 12px !important;
+          }
+          .booking-step-heading {
+            font-size: 19px !important;
+            margin-bottom: 4px !important;
+          }
+          .booking-step-subheading {
+            font-size: 12.5px !important;
+          }
+          .booking-form-row {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+            margin-bottom: 16px !important;
+          }
+          .booking-step-bottom-bar {
             flex-direction: column !important;
-
-            align-items: flex-start !important;
-
+            align-items: stretch !important;
             gap: 12px !important;
-
+            padding-top: 16px !important;
           }
-
+          .booking-security-box {
+            width: 100% !important;
+            box-sizing: border-box !important;
+            padding: 10px 14px !important;
+          }
+          .booking-submit-btn,
+          .booking-step-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 12px 20px !important;
+            font-size: 14px !important;
+          }
+          .booking-step2-bottom {
+            flex-direction: column-reverse !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+            padding-top: 16px !important;
+          }
+          .booking-back-btn {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .booking-calendar-card,
+          .booking-slots-card {
+            padding: 14px 12px !important;
+            border-radius: 14px !important;
+          }
+          .booking-confirm-img {
+            max-width: 180px !important;
+          }
+          .booking-confirm-title {
+            font-size: 21px !important;
+          }
+          .booking-confirm-subtitle {
+            font-size: 13px !important;
+          }
+          .booking-confirm-grid {
+            grid-template-columns: 1fr !important;
+            row-gap: 12px !important;
+          }
+          .booking-confirm-actions {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .booking-action-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            margin-left: 0 !important;
+          }
+          .booking-sidebar-card {
+            padding: 18px 16px !important;
+            border-radius: 16px !important;
+          }
+          .booking-footer {
+            padding: 22px 0 20px !important;
+            background-color: #ffffff !important;
+            border-top: 1px solid #edf2ee !important;
+          }
+          .booking-footer-inner {
+            padding: 0 16px !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            gap: 14px !important;
+          }
+          .booking-footer-links {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            flex-wrap: wrap !important;
+            gap: 10px 20px !important;
+            order: 1 !important;
+          }
+          .booking-footer-link {
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            color: #475569 !important;
+            padding: 4px 6px !important;
+            border-radius: 6px !important;
+            transition: all 0.15s ease !important;
+          }
+          .booking-footer-link:hover {
+            color: #1b4332 !important;
+            background-color: #f1f5f9 !important;
+          }
+          .booking-footer-copyright {
+            font-size: 12px !important;
+            color: #94a3b8 !important;
+            text-align: center !important;
+            line-height: 1.55 !important;
+            order: 2 !important;
+            max-width: 320px !important;
+          }
         }
 
+        @media (max-width: 520px) {
+          .booking-step-label-full {
+            display: none !important;
+          }
+          .booking-step-label-short {
+            display: inline !important;
+            font-size: 11.5px !important;
+            font-weight: 600 !important;
+          }
+          .booking-step-divider {
+            margin: 0 6px !important;
+          }
+        }
+
+        @media (max-width: 440px) {
+          .booking-slots-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 8px !important;
+          }
+        }
       `}</style>
 
     </div>

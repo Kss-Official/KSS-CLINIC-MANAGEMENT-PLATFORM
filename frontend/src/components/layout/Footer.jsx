@@ -329,6 +329,14 @@ const Footer = () => {
             grid-template-columns: 1fr !important;
             gap: 26px !important;
           }
+          .footer-bottom-row {
+            align-items: center !important;
+            text-align: center !important;
+            gap: 14px !important;
+          }
+          .footer-legal-links {
+            justify-content: center !important;
+          }
         }
       `}</style>
     </footer>
