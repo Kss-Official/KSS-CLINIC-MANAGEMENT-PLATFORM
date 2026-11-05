@@ -85,6 +85,16 @@ const AdminLayout = ({ children }) => {
     setIsAppointmentModalOpen(false);
   };
 
+  // Global event listener to open Create Prescription modal with prefilled patient
+  useEffect(() => {
+    const handleOpenRxEvent = (e) => {
+      const patient = e?.detail || null;
+      openNewPrescription(patient);
+    };
+    window.addEventListener('open-create-prescription', handleOpenRxEvent);
+    return () => window.removeEventListener('open-create-prescription', handleOpenRxEvent);
+  }, []);
+
   const openNewPrescription = (patient = null) => {
     setSelectedPatientForPrescription(patient);
     setIsPrescriptionModalOpen(true);
@@ -184,7 +194,7 @@ const AdminLayout = ({ children }) => {
         }}
       >
         {/* Fixed Top Header (70px height) */}
-        <AdminHeader onToggleSidebar={() => setMobileSidebarOpen((prev) => !prev)} onViewAppointment={openViewAppointment} />
+        <AdminHeader onToggleSidebar={() => setMobileSidebarOpen((prev) => !prev)} onViewAppointment={openViewAppointment} onNewPrescription={openNewPrescription} />
 
         {/* Portal Body: Flex container occupying remaining viewport height */}
         <div
@@ -272,8 +282,10 @@ const AdminLayout = ({ children }) => {
         <NewPrescriptionModal
           isOpen={isPrescriptionModalOpen}
           onClose={closeNewPrescription}
+          initialPatient={selectedPatientForPrescription}
           onSave={(data) => {
             closeNewPrescription();
+            window.dispatchEvent(new CustomEvent('prescription-created', { detail: data }));
           }}
         />
 

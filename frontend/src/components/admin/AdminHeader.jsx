@@ -4,7 +4,7 @@ import brandLogoImg from '../../assets/brand-logo.png';
 import useAuth from '../../hooks/useAuth';
 import appointmentApi from '../../api/appointmentApi';
 
-const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
+const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -200,6 +200,11 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
     }
     setNotificationsOpen(false);
 
+    const isPrescriptionRemaining = Boolean(
+      (notif.title && notif.title.toLowerCase().includes('prescription remaining')) ||
+      (notif.message && notif.message.toLowerCase().includes('prescription remaining'))
+    );
+
     const item = notif.appointment_details || {};
     const rxStatus = item.prescription_status || item.prescriptionStatus || 'Pending';
     const isRxComplete = ['complete', 'completed'].includes(String(rxStatus).trim().toLowerCase());
@@ -214,6 +219,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
       id: formattedAptId,
       rawId: item.id || notif.appointment,
       appointment_id: formattedAptId,
+      patient_id_ref: item.patient_record?.patient_id || (item.patient_record_id ? `PAT-${item.patient_record_id}` : null) || 'PAT-1010',
       name: item.patient_name || notif.patient_name || 'Patient',
       patient_name: item.patient_name || notif.patient_name || 'Patient',
       contact: item.patient_phone || notif.patient_phone || '',
@@ -229,9 +235,20 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
       status: aptStatus,
       prescriptionStatus: rxStatus,
       ageGender: item.age_gender || item.ageGender || 'Adult',
+      age: item.patient_age || (item.age_gender ? item.age_gender.split('/')[0].trim() : '30'),
+      gender: item.patient_gender || (item.age_gender ? item.age_gender.split('/')[1]?.trim() : 'Adult'),
       notes: item.notes || item.reason_for_visit || 'Homeopathic Consultation',
       doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
     };
+
+    if (isPrescriptionRemaining) {
+      if (typeof onNewPrescription === 'function') {
+        onNewPrescription(aptToOpen);
+      } else {
+        window.dispatchEvent(new CustomEvent('open-create-prescription', { detail: aptToOpen }));
+      }
+      return;
+    }
 
     if (typeof onViewAppointment === 'function') {
       onViewAppointment(aptToOpen);
@@ -596,13 +613,20 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
                 )}
               </div>
 
-              {/* Notification List (Structured with New Appointments at TOP, Confirmed Reminders & others below) */}
+              {/* Notification List (Structured with New Appointments, Prescription Remaining, Confirmed Reminders & others) */}
               {(() => {
                 const newAppointmentsList = notifications.filter(
-                  (n) => !n.is_read || (n.title && n.title.toLowerCase().includes('new'))
+                  (n) => (!n.is_read || (n.title && n.title.toLowerCase().includes('new'))) &&
+                         !(n.title && n.title.toLowerCase().includes('prescription remaining'))
+                );
+                const rxRemainingList = notifications.filter(
+                  (n) => (n.title && n.title.toLowerCase().includes('prescription remaining')) ||
+                         (n.message && n.message.toLowerCase().includes('prescription remaining'))
                 );
                 const otherNotifsList = notifications.filter(
-                  (n) => n.is_read && !(n.title && n.title.toLowerCase().includes('new'))
+                  (n) => n.is_read &&
+                         !(n.title && n.title.toLowerCase().includes('new')) &&
+                         !(n.title && n.title.toLowerCase().includes('prescription remaining'))
                 );
 
                 return (
@@ -764,7 +788,157 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
                       </div>
                     )}
 
-                    {/* 2. CONFIRMED APPOINTMENT REMINDERS SECTION (LISTED BELOW NEW) */}
+                    {/* 2. PRESCRIPTION REMAINING SECTION */}
+                    {rxRemainingList.length > 0 && (
+                      <div id="prescription-remaining-section" style={{ borderBottom: '1px solid #fed7aa' }}>
+                        <div
+                          style={{
+                            padding: '9px 18px',
+                            backgroundColor: '#fffbeb',
+                            borderBottom: '1px solid #fde68a',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                            <span style={{ fontSize: '13px' }}>📝</span>
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                color: '#b45309',
+                                letterSpacing: '0.4px',
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              Prescription Remaining
+                            </span>
+                          </div>
+                          <span
+                            id="prescription-remaining-count-badge"
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              color: '#b45309',
+                              backgroundColor: '#fef3c7',
+                              border: '1px solid #fde68a',
+                              padding: '1px 8px',
+                              borderRadius: '9999px',
+                            }}
+                          >
+                            {rxRemainingList.length} remaining
+                          </span>
+                        </div>
+
+                        <div className="prescription-remaining-list">
+                          {rxRemainingList.map((notif) => (
+                            <div
+                              key={notif.id}
+                              onClick={() => handleNotificationClick(notif)}
+                              className="rx-remaining-item"
+                              style={{
+                                padding: '13px 18px',
+                                borderBottom: '1px solid #fef3c7',
+                                backgroundColor: !notif.is_read ? '#fffdf7' : '#ffffff',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.15s ease',
+                                display: 'flex',
+                                gap: '12px',
+                                alignItems: 'flex-start',
+                                position: 'relative',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef9c3')}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = !notif.is_read ? '#fffdf7' : '#ffffff')}
+                              title="Click to create prescription with patient pre-filled"
+                            >
+                              {/* Amber/Gold Icon Badge */}
+                              <div
+                                style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  borderRadius: '10px',
+                                  backgroundColor: '#fef3c7',
+                                  color: '#b45309',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                  marginTop: '2px',
+                                }}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                  <line x1="12" y1="18" x2="12" y2="12" />
+                                  <line x1="9" y1="15" x2="15" y2="15" />
+                                </svg>
+                              </div>
+
+                              {/* Content */}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                  <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                                    {notif.patient_name || 'Patient'}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: '11px',
+                                      fontWeight: '600',
+                                      color: '#9a3412',
+                                      backgroundColor: '#ffedd5',
+                                      padding: '1px 7px',
+                                      borderRadius: '4px',
+                                    }}
+                                  >
+                                    Prescription Remaining
+                                  </span>
+                                </div>
+
+                                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', lineHeight: 1.35, fontWeight: '500' }}>
+                                  {notif.message || `Consultation completed for ${notif.patient_name}. Prescription remaining to be created.`}
+                                </div>
+
+                                {/* Bottom row: date/time & action pill */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', gap: '6px', flexWrap: 'wrap' }}>
+                                  {(notif.appointment_date || notif.booking_time) && (
+                                    <div
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        fontSize: '11.5px',
+                                        color: '#78350f',
+                                        fontWeight: '600',
+                                      }}
+                                    >
+                                      {notif.appointment_date && <span>📅 {notif.appointment_date}</span>}
+                                      {notif.appointment_date && notif.booking_time && <span>•</span>}
+                                      {notif.booking_time && <span>⏰ {notif.booking_time}</span>}
+                                    </div>
+                                  )}
+                                  <span
+                                    style={{
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      color: '#166534',
+                                      backgroundColor: '#dcfce7',
+                                      border: '1px solid #86efac',
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                    }}
+                                  >
+                                    + Create Prescription →
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. CONFIRMED APPOINTMENT REMINDERS SECTION (LISTED BELOW NEW) */}
                     {appointmentReminderEnabled && confirmedReminders.length > 0 && (
                       <div id="confirmed-reminders-section" style={{ borderBottom: '1px solid #d1fae5' }}>
                         <div
@@ -1086,7 +1260,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
                       </div>
                     )}
 
-                    {newAppointmentsList.length === 0 && confirmedReminders.length === 0 && otherNotifsList.length === 0 && (
+                    {newAppointmentsList.length === 0 && rxRemainingList.length === 0 && confirmedReminders.length === 0 && otherNotifsList.length === 0 && (
                       <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
                         <div
                           style={{

@@ -495,6 +495,34 @@ class AppointmentDetailView(APIView):
         if new_status:
             apt.status = new_status
             fields_to_update.append('status')
+            # When an appointment is marked as completed:
+            if str(new_status).strip().lower() in ['complete', 'completed']:
+                Notification.objects.filter(
+                    appointment=apt,
+                    title__in=['New Appointment Booked', 'Confirmed Appointment Reminder']
+                ).update(is_read=True)
+
+                has_rx = (
+                    Prescription.objects.filter(appointment=apt).exists() or
+                    (apt.prescription_status and str(apt.prescription_status).strip().lower() in ['complete', 'completed'])
+                )
+                if not has_rx:
+                    rx_notif, created = Notification.objects.get_or_create(
+                        appointment=apt,
+                        title='Prescription Remaining',
+                        defaults={
+                            'patient_name': apt.patient_name,
+                            'appointment_date': apt.appointment_date,
+                            'booking_time': apt.time_slot,
+                            'message': f"Appointment completed for {apt.patient_name}. Prescription remaining to be created.",
+                            'is_read': False,
+                        }
+                    )
+                    if not created and rx_notif.is_read:
+                        rx_notif.is_read = False
+                        rx_notif.message = f"Appointment completed for {apt.patient_name}. Prescription remaining to be created."
+                        rx_notif.save(update_fields=['is_read', 'message'])
+
         if new_prescription_status:
             apt.prescription_status = new_prescription_status
             fields_to_update.append('prescription_status')
@@ -526,6 +554,32 @@ class NotificationListView(APIView):
         notif_settings = clinic_settings.get('notifications') or {}
         # appointmentReminder is True by default unless explicitly disabled
         reminder_enabled = bool(notif_settings.get('appointmentReminder', True))
+
+        # Ensure completed appointments without prescriptions have Prescription Remaining notification
+        completed_apts = Appointment.objects.filter(status__iexact='Complete')
+        for c_apt in completed_apts:
+            has_rx = (
+                Prescription.objects.filter(appointment=c_apt).exists() or
+                (c_apt.prescription_status and str(c_apt.prescription_status).strip().lower() in ['complete', 'completed'])
+            )
+            if not has_rx:
+                Notification.objects.get_or_create(
+                    appointment=c_apt,
+                    title='Prescription Remaining',
+                    defaults={
+                        'patient_name': c_apt.patient_name,
+                        'appointment_date': c_apt.appointment_date,
+                        'booking_time': c_apt.time_slot,
+                        'message': f"Appointment completed for {c_apt.patient_name}. Prescription remaining to be created.",
+                        'is_read': False,
+                    }
+                )
+            else:
+                Notification.objects.filter(
+                    appointment=c_apt,
+                    title__icontains='Prescription Remaining',
+                    is_read=False
+                ).update(is_read=True)
 
         notifications = Notification.objects.all().order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
@@ -1045,6 +1099,16 @@ class PrescriptionListView(APIView):
             matched_apt.prescription_status = 'Complete'
             matched_apt.status = 'Complete'
             matched_apt.save(update_fields=['prescription_status', 'status'])
+            Notification.objects.filter(
+                appointment=matched_apt,
+                title__icontains='Prescription Remaining'
+            ).update(is_read=True)
+
+        if rx.patient_name:
+            Notification.objects.filter(
+                patient_name__iexact=rx.patient_name,
+                title__icontains='Prescription Remaining'
+            ).update(is_read=True)
 
         # Create notification if prescriptionUpdates setting is enabled (or by default True)
         clinic_settings = load_clinic_settings()

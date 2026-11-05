@@ -97,14 +97,20 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
       );
       if (isAppointment) {
         setSelectedAppointment(initialPatient);
+        const pName = initialPatient.patient_name || initialPatient.name || initialPatient.patientName || 'Patient';
+        const pPhone = initialPatient.patient_phone || initialPatient.contact || initialPatient.phone || initialPatient.mobile || '';
+        const pAge = initialPatient.age || initialPatient.patient_age || (initialPatient.ageGender ? initialPatient.ageGender.split('/')[0].trim() : '30');
+        const pGender = initialPatient.gender || initialPatient.patient_gender || (initialPatient.ageGender ? initialPatient.ageGender.split('/')[1]?.trim() : 'Adult');
+        const pId = initialPatient.patient_id_ref || initialPatient.patient_record_id || (initialPatient.patient_record?.patient_id) || (initialPatient.patient_id ? `PAT-${initialPatient.patient_id}` : null) || initialPatient.patientId || (initialPatient.id && String(initialPatient.id).startsWith('PAT-') ? initialPatient.id : 'PAT-1010');
+
         setSelectedPatient({
-          id: initialPatient.patient_id_ref || initialPatient.patientId || initialPatient.id,
-          name: initialPatient.patient_name || initialPatient.name || initialPatient.patientName,
-          phone: initialPatient.patient_phone || initialPatient.contact || initialPatient.phone || initialPatient.mobile,
-          ageGender: initialPatient.age_gender || initialPatient.ageGender || '30 / Adult',
-          age: initialPatient.age || '30 Years',
-          gender: initialPatient.gender || 'Adult',
-          initials: (initialPatient.patient_name || initialPatient.name || initialPatient.patientName || 'PT')
+          id: pId,
+          name: pName,
+          phone: pPhone,
+          ageGender: `${pAge} | ${pGender}`,
+          age: pAge,
+          gender: pGender,
+          initials: pName
             .split(' ')
             .map((n) => n[0])
             .join('')
@@ -164,6 +170,26 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         const data = await appointmentApi.getPatients();
         if (Array.isArray(data) && data.length > 0) {
           setAvailablePatients(data);
+          setSelectedPatient((prev) => {
+            if (!prev || !prev.name) return prev;
+            const match = data.find((p) =>
+              (p.mobile && prev.phone && (p.mobile === prev.phone || p.mobile.endsWith(prev.phone.slice(-10)))) ||
+              (p.name && prev.name && p.name.trim().toLowerCase() === prev.name.trim().toLowerCase())
+            );
+            if (match) {
+              return {
+                ...prev,
+                id: match.id || prev.id,
+                name: match.name || prev.name,
+                phone: match.mobile || prev.phone,
+                age: match.ageGender?.split('/')[0]?.trim() || prev.age || '30',
+                gender: match.ageGender?.split('/')[1]?.trim() || prev.gender || 'Adult',
+                ageGender: match.ageGender || prev.ageGender || '30 | Adult',
+                initials: match.initials || prev.initials,
+              };
+            }
+            return prev;
+          });
         }
       } catch (err) {
         console.error('Failed to load database patients for prescription:', err);

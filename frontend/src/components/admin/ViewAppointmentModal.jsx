@@ -59,6 +59,21 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
     }
   };
 
+  const handleCompleteAppointment = async () => {
+    try {
+      const targetId = raw.rawId || raw.id || raw.appointment_id;
+      await appointmentApi.updateAppointmentStatus(targetId, 'Complete');
+      setCurrentStatus('Complete');
+      window.dispatchEvent(
+        new CustomEvent('appointment-updated', {
+          detail: { id: targetId, status: 'Complete' },
+        })
+      );
+    } catch (err) {
+      console.error('Failed to complete appointment:', err);
+    }
+  };
+
   if (!isOpen) return null;
 
   // Normalize appointment data with clean fallbacks
@@ -439,6 +454,31 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               >
                 <span>✓</span>
                 <span>Confirm Appointment</span>
+              </button>
+            )}
+            {currentStatus !== 'Complete' && (
+              <button
+                type="button"
+                onClick={handleCompleteAppointment}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: '#0284c7',
+                  color: '#ffffff',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#0369a1')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0284c7')}
+              >
+                <span>✓</span>
+                <span>Mark as Complete</span>
               </button>
             )}
             <button

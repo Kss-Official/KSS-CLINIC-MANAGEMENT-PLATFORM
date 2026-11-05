@@ -527,18 +527,3 @@ dialog::backdrop {
     -webkit-overflow-scrolling: touch;
   }
 }
-
-
-@keyframes prescriptionPopIn {
-  0% {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.85);
-  }
-  60% {
-    transform: translateY(1px) scale(1.03);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
