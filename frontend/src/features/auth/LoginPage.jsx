@@ -23,16 +23,17 @@ const LoginPage = ({ initialMode = "login" }) => {
     }
   }, [location.pathname, initialMode]);
 
-  // If already authenticated: redirect patients to Home page (/), admins to /dashboard
+  // If already authenticated: redirect patients to intended page or Home (/), admins to /dashboard
   useEffect(() => {
     if (isAuthenticated && user?.role) {
       if (user.role === "PATIENT") {
-        navigate("/", { replace: true });
+        const dest = location.state?.from || "/";
+        navigate(dest, { replace: true });
       } else {
         navigate("/dashboard", { replace: true });
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, location.state]);
 
   // Form states
   const [loginData, setLoginData] = useState({
@@ -217,7 +218,8 @@ const LoginPage = ({ initialMode = "login" }) => {
         return;
       }
 
-      navigate("/", { replace: true });
+      const dest = location.state?.from || "/";
+      navigate(dest, { replace: true });
     } catch (err) {
       setError(
         extractErrorMessage(err) ||
@@ -338,7 +340,8 @@ const LoginPage = ({ initialMode = "login" }) => {
 
       const data = await register(payload);
       if (data?.user?.role === "PATIENT") {
-        navigate("/", { replace: true });
+        const dest = location.state?.from || "/";
+        navigate(dest, { replace: true });
       } else {
         navigate("/dashboard", { replace: true });
       }

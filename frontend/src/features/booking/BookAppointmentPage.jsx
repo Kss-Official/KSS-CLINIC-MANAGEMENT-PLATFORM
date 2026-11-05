@@ -66,6 +66,12 @@ const BookAppointmentPage = () => {
 
   const [bookingLoading, setBookingLoading] = useState(false);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/book-appointment' }, replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
 
 
   useEffect(() => {

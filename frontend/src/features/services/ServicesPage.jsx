@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import Navbar from '../../components/layout/Navbar';
 import Footer from '../../components/layout/Footer';
 import AppointmentModal from '../../components/AppointmentModal';
@@ -18,8 +19,14 @@ const ServicesPage = () => {
     window.scrollTo(0, 0);
   }, []);
 
+  const { isAuthenticated } = useAuth();
+
   const handleOpenBooking = () => {
-    setIsBookingOpen(true);
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/book-appointment' } });
+      return;
+    }
+    navigate('/book-appointment');
   };
 
   const handleCloseBooking = () => {
