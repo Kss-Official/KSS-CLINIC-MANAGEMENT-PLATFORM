@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import Navbar from '../../components/layout/Navbar';
 import Footer from '../../components/layout/Footer';
 import AppointmentModal from '../../components/AppointmentModal';
@@ -8,6 +10,8 @@ import CtaBannerSection from '../home/CtaBannerSection';
 import contactHeroBg from '../../assets/contact-hero-bg.jpg';
 
 const ContactPage = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -28,7 +32,11 @@ const ContactPage = () => {
   }, []);
 
   const handleOpenBooking = () => {
-    setIsBookingOpen(true);
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/book-appointment' } });
+      return;
+    }
+    navigate('/book-appointment');
   };
 
   const handleCloseBooking = () => {

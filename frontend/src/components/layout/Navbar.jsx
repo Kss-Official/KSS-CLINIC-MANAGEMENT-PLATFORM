@@ -75,11 +75,11 @@ const Navbar = ({ onOpenBooking }) => {
   };
 
   const handleBookClick = () => {
-    if (onOpenBooking && typeof onOpenBooking === 'function' && location.pathname === '/book-appointment') {
-      onOpenBooking();
-    } else {
-      navigate('/book-appointment');
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/book-appointment' } });
+      return;
     }
+    navigate('/book-appointment');
   };
 
   return (

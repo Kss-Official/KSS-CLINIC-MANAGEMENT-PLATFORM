@@ -1,4 +1,6 @@
 import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import Navbar from '../../components/layout/Navbar';
 import HeroSection from './HeroSection';
 import AboutSection from './AboutSection';
@@ -22,8 +24,15 @@ const HomePage = () => {
     setShowSplash(false);
   }, []);
 
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
   const handleOpenBooking = () => {
-    setIsBookingOpen(true);
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/book-appointment' } });
+      return;
+    }
+    navigate('/book-appointment');
   };
 
   const handleCloseBooking = () => {
@@ -47,7 +56,7 @@ const HomePage = () => {
         <AboutSection />
 
         {/* 3. Our Service */}
-        <ServicesSection />
+        <ServicesSection onOpenBooking={handleOpenBooking} />
 
         {/* 4. Meet Our Doctor */}
         <DoctorSection onOpenBooking={handleOpenBooking} />

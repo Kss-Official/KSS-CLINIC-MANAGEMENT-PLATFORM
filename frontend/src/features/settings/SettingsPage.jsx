@@ -233,7 +233,6 @@ const SettingsPage = () => {
     newAppointment: true,
     appointmentReminder: true,
     prescriptionUpdates: true,
-    followUpReminder: true,
   });
   const [notificationChannels, setNotificationChannels] = useState({
     whatsapp: true,
@@ -1206,12 +1205,11 @@ const SettingsPage = () => {
           </button>
         </div>
 
-        <div className="admin-notification-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+        <div className="admin-notification-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
           {[
             { key: 'newAppointment', title: 'New Appointment', desc: 'Get notified when a new appointment is booked.' },
             { key: 'appointmentReminder', title: 'Appointment Reminder', desc: 'Receive reminders for upcoming appointments.' },
             { key: 'prescriptionUpdates', title: 'Prescription Updates', desc: 'Get notified when a prescription is issued.' },
-            { key: 'followUpReminder', title: 'Follow-up Reminder', desc: 'Receive follow-up alerts for patients.' },
           ].map((item) => {
             const enabled = notifications[item.key];
             return (
@@ -1958,7 +1956,6 @@ const SettingsPage = () => {
                     { key: 'newAppointment', title: 'New Appointment Alerts', desc: 'Notify immediately when an appointment is scheduled.' },
                     { key: 'appointmentReminder', title: 'Appointment Reminders', desc: 'Send automated reminders 2 hours before the session.' },
                     { key: 'prescriptionUpdates', title: 'Prescription Updates', desc: 'Send notification when a prescription is issued or dispatched.' },
-                    { key: 'followUpReminder', title: 'Follow-up Reminders', desc: 'Notify patient when next consultation date arrives.' },
                   ].map((item) => {
                     const isChecked = draftNotifications[item.key];
                     return (

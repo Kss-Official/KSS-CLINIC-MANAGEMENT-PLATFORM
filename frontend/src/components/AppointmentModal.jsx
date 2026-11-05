@@ -1,10 +1,22 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import appointmentApi from '../api/appointmentApi';
 import useAuth from '../hooks/useAuth';
 import PatientAuthModal from './auth/PatientAuthModal';
 
 const AppointmentModal = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (isOpen && !isAuthenticated) {
+      if (dialogRef.current?.open) {
+        dialogRef.current.close();
+      }
+      onClose?.();
+      navigate('/login', { state: { from: '/book-appointment' } });
+    }
+  }, [isOpen, isAuthenticated, navigate, onClose]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const dialogRef = useRef(null);
   const [formData, setFormData] = useState({
@@ -195,6 +207,10 @@ const AppointmentModal = ({ isOpen, onClose }) => {
         setIsBookingLoading(false);
       });
   };
+
+  if (!isAuthenticated && isOpen) {
+    return null;
+  }
 
   return (
     <dialog

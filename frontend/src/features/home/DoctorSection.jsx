@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import doctorMortarImg from '../../assets/doctor-mortar.jpg';
+import doctorPhotoImg from '../../assets/doctor-photo.jpg';
 
 const DoctorSection = ({ onOpenBooking }) => {
   const navigate = useNavigate();
@@ -41,7 +41,7 @@ const DoctorSection = ({ onOpenBooking }) => {
             alignItems: 'center',
           }}
         >
-          {/* Left Column: Mortar & Pestle Photo Card */}
+          {/* Left Column: Doctor Photo Card */}
           <div className="doctor-photo-col" style={{ width: '100%' }}>
             <div
               style={{
@@ -54,14 +54,14 @@ const DoctorSection = ({ onOpenBooking }) => {
               }}
             >
               <img
-                src={doctorMortarImg}
-                alt="Dr. Kumar Tripathi preparing natural homeopathic remedies"
+                src={doctorPhotoImg}
+                alt="Dr. Kumar Tripathi Ampeh (Pat.)"
                 style={{
                   width: '100%',
                   height: '100%',
                   display: 'block',
                   objectFit: 'cover',
-                  objectPosition: 'center',
+                  objectPosition: 'center 40%',
                   transition: 'transform 0.4s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.02)')}
