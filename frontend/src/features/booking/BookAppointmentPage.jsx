@@ -13,6 +13,7 @@ import bookingBannerClean from '../../assets/booking-banner-clean.jpg';
 import confirmedIllustration from '../../assets/confirmed-illustration.png';
 
 import appointmentApi from '../../api/appointmentApi';
+import { downloadAppointmentConfirmationPdf } from '../../utils/appointmentPdf';
 
 
 
@@ -706,7 +707,14 @@ const BookAppointmentPage = () => {
 
         setCurrentStep(3);
 
-        window.scrollTo({ top: 260, behavior: 'smooth' });
+        setTimeout(() => {
+          const bookingCardEl = document.querySelector('.booking-card');
+          if (bookingCardEl) {
+            bookingCardEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            window.scrollTo({ top: 200, behavior: 'smooth' });
+          }
+        }, 50);
 
       } catch (err) {
 
@@ -943,11 +951,24 @@ const BookAppointmentPage = () => {
 
 
   // Handle PDF Download / Print
-
   const handleDownloadPdf = () => {
-
-    window.print();
-
+    try {
+      downloadAppointmentConfirmationPdf({
+        appointmentId: formData.appointmentId,
+        fullName: formData.fullName,
+        mobileNumber: formData.mobileNumber,
+        email: formData.email,
+        doctorName: 'Dr. K. Tripathi Ampeh (Pat.)',
+        service: 'Homeopathy Consultation',
+        date: formatSelectedFullDate(),
+        time: formData.selectedTimeSlot,
+        clinicAddress: '123 Clinic Street, Your City, Your State - 123456',
+        clinicPhone: '+91 98765 43210',
+      });
+    } catch (err) {
+      console.error('Error generating appointment PDF:', err);
+      window.print();
+    }
   };
 
 
@@ -3303,621 +3324,315 @@ const BookAppointmentPage = () => {
 
 
             {/* ================= STEP 3: YOUR APPOINTMENT IS CONFIRMED! (EXACT MATCHING UI) ================= */}
-
             {currentStep === 3 && (
+              <div className="booking-confirm-animated">
+                {/* Top 3D Calendar & Remedies Illustration with Celebration Effects */}
+                <div style={{ textAlign: 'center', marginBottom: '20px', position: 'relative' }}>
+                  <div className="booking-confirm-glow-wrap">
+                    {/* Celebratory Sparkle Particles */}
+                    <div className="booking-confirm-particles" aria-hidden="true">
+                      <span className="particle p1" />
+                      <span className="particle p2" />
+                      <span className="particle p3" />
+                      <span className="particle p4" />
+                      <span className="particle p5" />
+                      <span className="particle p6" />
+                      <span className="particle p7" />
+                      <span className="particle p8" />
+                    </div>
 
-              <div>
-
-                {/* Top 3D Calendar & Remedies Illustration */}
-
-                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-
-                  <img
-
-                    src={confirmedIllustration}
-
-                    alt="Appointment Confirmed"
-
-                    className="booking-confirm-img"
-
-                    style={{
-
-                      maxWidth: '240px',
-
-                      height: 'auto',
-
-                      display: 'inline-block',
-
-                      objectFit: 'contain',
-
-                    }}
-
-                  />
-
+                    <img
+                      src={confirmedIllustration}
+                      alt="Appointment Confirmed"
+                      className="booking-confirm-img"
+                      style={{
+                        maxWidth: '240px',
+                        height: 'auto',
+                        display: 'inline-block',
+                        objectFit: 'contain',
+                      }}
+                    />
+                  </div>
                 </div>
-
-
 
                 {/* Heading & Subtitle */}
-
-                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-
+                <div style={{ textAlign: 'center', marginBottom: '30px' }}>
                   <h2
-
                     className="booking-confirm-title"
-
                     style={{
-
                       fontSize: '28px',
-
                       fontWeight: '800',
-
-                      color: '#111827',
-
+                      color: '#0f172a',
                       margin: '0 0 10px 0',
-
                       letterSpacing: '-0.3px',
-
                     }}
-
                   >
-
                     Your Appointment is Confirmed!
-
                   </h2>
-
                   <p
-
+                    className="booking-confirm-subtitle"
                     style={{
-
                       fontSize: '14px',
-
-                      color: '#6b7280',
-
+                      color: '#64748b',
                       lineHeight: '1.6',
-
                       margin: 0,
-
                     }}
-
                   >
-
                     Thank you for choosing Dr. Kumar Tripathi Ampeh (Pat.).<br />
-
                     We look forward to seeing you at the clinic.
-
                   </p>
-
                 </div>
 
-
-
-                {/* Appointment Details Card */}
-
+                {/* Appointment Details Section - Clean Modern Cardless UI */}
                 <div
-
+                  className="booking-confirm-card"
                   style={{
-
-                    backgroundColor: '#f8faf9',
-
-                    border: '1px solid #edf2ee',
-
-                    borderRadius: '16px',
-
-                    padding: '24px 28px',
-
-                    marginBottom: '20px',
-
+                    backgroundColor: 'transparent',
+                    borderTop: '1px solid #f1f5f9',
+                    borderBottom: '1px solid #f1f5f9',
+                    borderRadius: 0,
+                    padding: '24px 2px 24px',
+                    marginBottom: '24px',
                   }}
-
                 >
-
                   {/* Header Row: Title & Confirmed Badge */}
-
                   <div
-
                     style={{
-
                       display: 'flex',
-
                       alignItems: 'center',
-
                       justifyContent: 'space-between',
-
                       marginBottom: '22px',
-
                     }}
-
                   >
-
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
                       <div
-
                         style={{
-
                           width: '32px',
-
                           height: '32px',
-
                           borderRadius: '8px',
-
-                          backgroundColor: '#e8f5e9',
-
+                          backgroundColor: '#ecfdf5',
                           display: 'flex',
-
                           alignItems: 'center',
-
                           justifyContent: 'center',
-
-                          color: '#2e7d32',
-
-                          fontSize: '16px',
-
+                          fontSize: '15px',
                         }}
-
                       >
-
-                        📅
-
+                        📋
                       </div>
-
-                      <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#111827', margin: 0 }}>
-
+                      <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.2px' }}>
                         Appointment Details
-
                       </h3>
-
                     </div>
-
-
 
                     <span
-
                       style={{
-
-                        backgroundColor: '#dcfce7',
-
-                        color: '#166534',
-
+                        backgroundColor: '#ecfdf5',
+                        color: '#047857',
+                        border: '1px solid #a7f3d0',
                         fontSize: '12px',
-
                         fontWeight: '700',
-
                         padding: '4px 12px',
-
                         borderRadius: '9999px',
-
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
                         letterSpacing: '0.2px',
-
                       }}
-
                     >
-
+                      <span
+                        style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          backgroundColor: '#10b981',
+                          display: 'inline-block',
+                        }}
+                      />
                       Confirmed
-
                     </span>
-
                   </div>
-
-
 
                   {/* 2-Columns Details Grid */}
-
                   <div
-
                     className="booking-confirm-grid"
-
                     style={{
-
                       display: 'grid',
-
                       gridTemplateColumns: '1.15fr 1fr',
-
                       rowGap: '16px',
-
-                      columnGap: '24px',
-
+                      columnGap: '28px',
                       fontSize: '14px',
-
                     }}
-
                   >
-
                     {/* Row 1 */}
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-                      <span style={{ color: '#9ca3af', fontSize: '15px' }}>🪪</span>
-
-                      <span style={{ color: '#6b7280', minWidth: '115px' }}>Appointment ID</span>
-
-                      <strong style={{ color: '#111827' }}>{formData.appointmentId}</strong>
-
+                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🪪</span>
+                      <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Appointment ID</span>
+                      <strong style={{ color: '#0f172a', fontWeight: '700', wordBreak: 'break-all' }}>{formData.appointmentId}</strong>
                     </div>
 
-
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-                      <span style={{ color: '#9ca3af', fontSize: '15px' }}>👨‍⚕️</span>
-
-                      <span style={{ color: '#6b7280', minWidth: '70px' }}>Doctor</span>
-
-                      <strong style={{ color: '#111827' }}>Dr. K. Tripathi Ampeh (Pat.)</strong>
-
+                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>👨‍⚕️</span>
+                      <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: '72px', width: '72px', flexShrink: 0, fontWeight: '500' }}>Doctor</span>
+                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>Dr. K. Tripathi Ampeh (Pat.)</strong>
                     </div>
-
-
 
                     {/* Row 2 */}
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-                      <span style={{ color: '#9ca3af', fontSize: '15px' }}>👤</span>
-
-                      <span style={{ color: '#6b7280', minWidth: '115px' }}>Patient Name</span>
-
-                      <strong style={{ color: '#111827' }}>{formData.fullName}</strong>
-
+                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>👤</span>
+                      <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Patient Name</span>
+                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formData.fullName}</strong>
                     </div>
 
-
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-                      <span style={{ color: '#9ca3af', fontSize: '15px' }}>⚙️</span>
-
-                      <span style={{ color: '#6b7280', minWidth: '70px' }}>Service</span>
-
-                      <strong style={{ color: '#111827' }}>Homeopathy Consultation</strong>
-
+                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>⚙️</span>
+                      <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: '72px', width: '72px', flexShrink: 0, fontWeight: '500' }}>Service</span>
+                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>Homeopathy Consultation</strong>
                     </div>
-
-
 
                     {/* Row 3 */}
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-                      <span style={{ color: '#9ca3af', fontSize: '15px' }}>📞</span>
-
-                      <span style={{ color: '#6b7280', minWidth: '115px' }}>Mobile Number</span>
-
-                      <strong style={{ color: '#111827' }}>{formData.mobileNumber}</strong>
-
+                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>📞</span>
+                      <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Mobile Number</span>
+                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formData.mobileNumber}</strong>
                     </div>
 
-
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-                      <span style={{ color: '#9ca3af', fontSize: '15px' }}>📅</span>
-
-                      <span style={{ color: '#6b7280', minWidth: '70px' }}>Date</span>
-
-                      <strong style={{ color: '#111827' }}>{formatSelectedFullDate()}</strong>
-
+                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>📅</span>
+                      <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: '72px', width: '72px', flexShrink: 0, fontWeight: '500' }}>Date</span>
+                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formatSelectedFullDate()}</strong>
                     </div>
-
-
 
                     {/* Row 4 */}
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-                      <span style={{ color: '#9ca3af', fontSize: '15px' }}>✉️</span>
-
-                      <span style={{ color: '#6b7280', minWidth: '115px' }}>Email</span>
-
-                      <strong style={{ color: '#111827' }}>{formData.email}</strong>
-
+                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>✉️</span>
+                      <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Email</span>
+                      <strong style={{ color: '#0f172a', fontWeight: '700', wordBreak: 'break-all' }}>{formData.email}</strong>
                     </div>
 
-
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-                      <span style={{ color: '#9ca3af', fontSize: '15px' }}>🕒</span>
-
-                      <span style={{ color: '#6b7280', minWidth: '70px' }}>Time</span>
-
-                      <strong style={{ color: '#111827' }}>{formData.selectedTimeSlot}</strong>
-
+                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🕒</span>
+                      <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: '72px', width: '72px', flexShrink: 0, fontWeight: '500' }}>Time</span>
+                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formData.selectedTimeSlot}</strong>
                     </div>
-
-
 
                     {/* Row 5: Clinic Address */}
-
-                    <div style={{ display: 'none' }} />
-
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-
-                      <span style={{ color: '#9ca3af', fontSize: '15px', marginTop: '2px' }}>📍</span>
-
-                      <span style={{ color: '#6b7280', minWidth: '95px' }}>Clinic Address</span>
-
-                      <strong style={{ color: '#111827', lineHeight: '1.4' }}>
-
+                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', marginTop: '2px', flexShrink: 0 }}>📍</span>
+                      <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, marginTop: '2px', fontWeight: '500' }}>Clinic Address</span>
+                      <strong style={{ color: '#0f172a', fontWeight: '700', lineHeight: '1.5' }}>
                         123 Clinic Street, Your City,<br />
-
                         Your State - 123456
-
                       </strong>
-
                     </div>
-
                   </div>
-
                 </div>
 
-
-
-                {/* Important Note Box */}
-
+                {/* Important Note Callout */}
                 <div
-
                   style={{
-
-                    backgroundColor: '#f0fdf4',
-
-                    border: '1px solid #dcfce7',
-
-                    borderRadius: '12px',
-
-                    padding: '14px 18px',
-
-                    marginBottom: '32px',
-
+                    backgroundColor: '#f8fafc',
+                    borderLeft: '3px solid #10b981',
+                    borderRadius: '0 10px 10px 0',
+                    padding: '13px 18px',
+                    marginBottom: '30px',
                     display: 'flex',
-
                     alignItems: 'flex-start',
-
                     gap: '12px',
-
                   }}
-
                 >
-
                   <div
-
                     style={{
-
                       width: '20px',
-
                       height: '20px',
-
                       borderRadius: '50%',
-
-                      backgroundColor: '#dcfce7',
-
-                      color: '#16a34a',
-
+                      backgroundColor: '#ecfdf5',
+                      color: '#059669',
                       display: 'flex',
-
                       alignItems: 'center',
-
                       justifyContent: 'center',
-
                       fontSize: '11px',
-
                       fontWeight: '800',
-
                       marginTop: '2px',
-
                       flexShrink: 0,
-
                     }}
-
                   >
-
                     ℹ
-
                   </div>
-
                   <div>
-
-                    <h5 style={{ fontSize: '13px', fontWeight: '700', color: '#166534', margin: '0 0 2px 0' }}>
-
+                    <h5 style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', margin: '0 0 2px 0' }}>
                       Important Note
-
                     </h5>
-
-                    <p style={{ fontSize: '12px', color: '#15803d', margin: 0, lineHeight: '1.5' }}>
-
+                    <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0, lineHeight: '1.55' }}>
                       Please arrive 5-10 minutes before your appointment time. If you need to reschedule or cancel, please contact us in advance.
-
                     </p>
-
                   </div>
-
                 </div>
 
-
-
-                {/* Bottom 3 Action Buttons */}
-
+                {/* Bottom Action Buttons */}
                 <div
-
                   className="booking-confirm-actions"
-
                   style={{
-
                     display: 'flex',
-
                     alignItems: 'center',
-
                     gap: '12px',
-
                     flexWrap: 'wrap',
-
                   }}
-
                 >
-
                   {/* Button 1: Download Confirmation (PDF) */}
-
                   <button
-
                     type="button"
-
                     className="booking-action-btn"
-
                     onClick={handleDownloadPdf}
-
                     style={{
-
                       backgroundColor: '#ffffff',
-
                       color: '#374151',
-
                       border: '1px solid #d1d5db',
-
                       borderRadius: '8px',
-
                       padding: '11px 18px',
-
                       fontSize: '13px',
-
                       fontWeight: '600',
-
                       cursor: 'pointer',
-
                       display: 'inline-flex',
-
                       alignItems: 'center',
-
                       gap: '8px',
-
                       transition: 'all 0.2s',
-
                     }}
-
                     onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#9ca3af')}
-
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#d1d5db')}
-
                   >
-
                     <span>📥</span>
-
                     Download Confirmation (PDF)
-
                   </button>
 
-
-
-                  {/* Button 2: Send Prescription through Whatsapp */}
-
+                  {/* Button 2: Back to Home */}
                   <button
-
                     type="button"
-
-                    className="booking-action-btn"
-
-                    onClick={handleWhatsappSend}
-
-                    style={{
-
-                      backgroundColor: '#ffffff',
-
-                      color: '#374151',
-
-                      border: '1px solid #d1d5db',
-
-                      borderRadius: '8px',
-
-                      padding: '11px 18px',
-
-                      fontSize: '13px',
-
-                      fontWeight: '600',
-
-                      cursor: 'pointer',
-
-                      display: 'inline-flex',
-
-                      alignItems: 'center',
-
-                      gap: '8px',
-
-                      transition: 'all 0.2s',
-
-                    }}
-
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#9ca3af')}
-
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#d1d5db')}
-
-                  >
-
-                    <span>💬</span>
-
-                    Send Prescription through Whatsapp
-
-                  </button>
-
-
-
-                  {/* Button 3: Back to Home */}
-
-                  <button
-
-                    type="button"
-
                     className="booking-action-btn booking-home-btn"
-
                     onClick={() => navigate('/')}
-
                     style={{
-
                       backgroundColor: '#1b4332',
-
                       color: '#ffffff',
-
                       border: 'none',
-
                       borderRadius: '8px',
-
                       padding: '11px 22px',
-
                       fontSize: '13px',
-
                       fontWeight: '700',
-
                       cursor: 'pointer',
-
                       display: 'inline-flex',
-
                       alignItems: 'center',
-
                       gap: '8px',
-
                       marginLeft: 'auto',
-
                       boxShadow: '0 4px 12px rgba(27, 67, 50, 0.2)',
-
                       transition: 'all 0.2s',
-
                     }}
-
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#143527')}
-
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b4332')}
-
                   >
-
                     <span>🏠</span>
-
                     Back to Home
-
                   </button>
-
                 </div>
-
               </div>
-
             )}
 
           </div>
@@ -4621,6 +4336,142 @@ const BookAppointmentPage = () => {
           display: inline;
         }
 
+        /* Confirmation Celebration Animations & Effects */
+        @keyframes glowPulse {
+          0% {
+            opacity: 0.4;
+            transform: scale(0.95);
+          }
+          100% {
+            opacity: 0.75;
+            transform: scale(1.05);
+          }
+        }
+        .booking-confirm-glow-wrap {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .booking-confirm-glow-wrap::before {
+          content: '';
+          position: absolute;
+          width: 80%;
+          height: 80%;
+          left: 10%;
+          top: 10%;
+          background: radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, rgba(74, 222, 128, 0.08) 50%, transparent 72%);
+          border-radius: 50%;
+          filter: blur(24px);
+          z-index: 0;
+          animation: glowPulse 3s ease-in-out infinite alternate;
+          pointer-events: none;
+        }
+
+        /* 3D Illustration Entrance and Floating Animation */
+        @keyframes confirmIllustrationEntrance {
+          0% {
+            opacity: 0;
+            transform: scale(0.6) translateY(30px);
+          }
+          55% {
+            opacity: 1;
+            transform: scale(1.06) translateY(-4px);
+          }
+          75% {
+            transform: scale(0.98) translateY(2px);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        @keyframes floatIllustration {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-8px) rotate(0.5deg);
+          }
+        }
+        .booking-confirm-img {
+          position: relative;
+          z-index: 1;
+          filter: drop-shadow(0 10px 22px rgba(22, 101, 52, 0.12));
+          animation: confirmIllustrationEntrance 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+                     floatIllustration 4.5s ease-in-out 0.8s infinite;
+        }
+
+        /* Celebratory Sparkle Particles */
+        .booking-confirm-particles {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 2;
+        }
+        .particle {
+          position: absolute;
+          border-radius: 50%;
+          opacity: 0;
+          animation: particleBurst 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        @keyframes particleBurst {
+          0% {
+            opacity: 0;
+            transform: translate(0, 0) scale(0.3);
+          }
+          30% {
+            opacity: 1;
+          }
+          80% {
+            opacity: 0.8;
+          }
+          100% {
+            opacity: 0;
+            transform: var(--dest-transform) scale(0);
+          }
+        }
+        .p1 { top: 30%; left: 15%; width: 9px; height: 9px; background: #22c55e; --dest-transform: translate(-38px, -45px); animation-delay: 0.15s; }
+        .p2 { top: 20%; right: 18%; width: 10px; height: 10px; background: #eab308; --dest-transform: translate(45px, -50px); animation-delay: 0.2s; }
+        .p3 { top: 60%; left: 8%; width: 8px; height: 8px; background: #10b981; --dest-transform: translate(-50px, 15px); animation-delay: 0.1s; }
+        .p4 { top: 55%; right: 12%; width: 9px; height: 9px; background: #16a34a; --dest-transform: translate(52px, 18px); animation-delay: 0.25s; }
+        .p5 { top: 12%; left: 45%; width: 8px; height: 8px; background: #86efac; --dest-transform: translate(-15px, -55px); animation-delay: 0.18s; }
+        .p6 { top: 15%; right: 35%; width: 7px; height: 7px; background: #facc15; --dest-transform: translate(25px, -52px); animation-delay: 0.22s; }
+        .p7 { bottom: 15%; left: 22%; width: 8px; height: 8px; background: #34d399; --dest-transform: translate(-30px, 35px); animation-delay: 0.28s; }
+        .p8 { bottom: 18%; right: 25%; width: 9px; height: 9px; background: #4ade80; --dest-transform: translate(35px, 38px); animation-delay: 0.12s; }
+
+        /* Staggered Content Reveals */
+        @keyframes fadeInUpStagger {
+          from {
+            opacity: 0;
+            transform: translateY(16px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .booking-confirm-title {
+          animation: fadeInUpStagger 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+        }
+        .booking-confirm-subtitle {
+          animation: fadeInUpStagger 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.38s both;
+        }
+        .booking-confirm-card {
+          animation: fadeInUpStagger 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+        }
+
+        .booking-confirm-label {
+          min-width: 120px;
+          width: 120px;
+          flex-shrink: 0;
+        }
+        .booking-confirm-label-col2 {
+          min-width: 72px;
+          width: 72px;
+          flex-shrink: 0;
+        }
+
         @media (max-width: 1024px) {
           .booking-main-content {
             padding: 32px 20px 60px !important;
@@ -4744,9 +4595,19 @@ const BookAppointmentPage = () => {
           .booking-confirm-subtitle {
             font-size: 13px !important;
           }
+          .booking-confirm-card {
+            padding: 20px 0 !important;
+            border-radius: 0 !important;
+          }
           .booking-confirm-grid {
             grid-template-columns: 1fr !important;
-            row-gap: 12px !important;
+            row-gap: 14px !important;
+          }
+          .booking-confirm-label,
+          .booking-confirm-label-col2 {
+            min-width: 118px !important;
+            width: 118px !important;
+            flex-shrink: 0 !important;
           }
           .booking-confirm-actions {
             flex-direction: column !important;
@@ -4822,6 +4683,72 @@ const BookAppointmentPage = () => {
           .booking-slots-grid {
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 8px !important;
+          }
+          .booking-confirm-label,
+          .booking-confirm-label-col2 {
+            min-width: 105px !important;
+            width: 105px !important;
+          }
+        }
+
+        /* Print Media Optimization */
+        @media print {
+          @page {
+            margin: 12mm;
+            size: A4 portrait;
+          }
+          body, html {
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          header,
+          nav,
+          footer,
+          .booking-hero-banner,
+          .booking-confirm-actions,
+          .booking-sidebar-card,
+          .booking-footer,
+          .navbar-container,
+          .navbar,
+          .booking-stepper-wrap {
+            display: none !important;
+          }
+          .booking-page-wrapper {
+            padding: 0 !important;
+            background: #ffffff !important;
+          }
+          .booking-main-content {
+            padding: 0 !important;
+            max-width: 100% !important;
+          }
+          .booking-grid {
+            display: block !important;
+          }
+          .booking-card {
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: none !important;
+            padding: 24px 28px !important;
+            page-break-inside: avoid !important;
+          }
+          .booking-confirm-img {
+            max-width: 130px !important;
+          }
+          .booking-confirm-title {
+            font-size: 22px !important;
+          }
+          .booking-confirm-grid {
+            grid-template-columns: 1.15fr 1fr !important;
+            row-gap: 14px !important;
+            column-gap: 28px !important;
+          }
+          .booking-confirm-label {
+            min-width: 120px !important;
+            width: 120px !important;
+          }
+          .booking-confirm-label-col2 {
+            min-width: 72px !important;
+            width: 72px !important;
           }
         }
       `}</style>

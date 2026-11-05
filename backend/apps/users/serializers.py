@@ -16,6 +16,25 @@ class UserSerializer(serializers.ModelSerializer):
 
     patient_id = serializers.SerializerMethodField()
     profile_image_url = serializers.SerializerMethodField()
+    initials = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+
+    def get_full_name(self, obj):
+        name = f"{obj.first_name or ''} {obj.last_name or ''}".strip()
+        if not name:
+            patient = getattr(obj, 'patient_records', None)
+            if patient and patient.exists():
+                return patient.first().name
+        return name or obj.username or 'Patient'
+
+    def get_initials(self, obj):
+        name = self.get_full_name(obj)
+        parts = name.strip().split()
+        if len(parts) >= 2:
+            return f"{parts[0][0]}{parts[-1][0]}".upper()
+        if len(parts) == 1:
+            return parts[0][0].upper()
+        return "P"
 
     def get_patient_id(self, obj):
         patient = getattr(obj, 'patient_records', None)
@@ -54,6 +73,8 @@ class UserSerializer(serializers.ModelSerializer):
             'date_joined',
             'patient_id',
             'profile_image_url',
+            'initials',
+            'full_name',
         ]
         read_only_fields = ['id', 'date_joined', 'profile_image_url']
 

@@ -5,6 +5,7 @@ import logoWhite from '../../assets/logo-white.png';
 const Footer = () => {
   return (
     <footer
+      className="site-footer"
       style={{
         backgroundColor: '#0d2214',
         color: '#9ca3af',
@@ -37,7 +38,7 @@ const Footer = () => {
           }}
         >
           {/* Column 1: Brand & Description */}
-          <div>
+          <div className="footer-col-brand">
             <Link
               to="/"
               style={{
@@ -74,7 +75,7 @@ const Footer = () => {
           </div>
 
           {/* Column 2: Quick Links */}
-          <div>
+          <div className="footer-col-links">
             <h4
               style={{
                 fontSize: '13px',
@@ -127,7 +128,7 @@ const Footer = () => {
           </div>
 
           {/* Column 3: Contact Information */}
-          <div>
+          <div className="footer-col-contact">
             <h4
               style={{
                 fontSize: '13px',
@@ -249,6 +250,7 @@ const Footer = () => {
 
         {/* Divider Line */}
         <div
+          className="footer-divider"
           style={{
             borderTop: '1px solid #1c3726',
             marginBottom: '22px',
@@ -310,32 +312,50 @@ const Footer = () => {
             gap: 32px !important;
           }
         }
-        @media (max-width: 820px) {
+        @media (min-width: 769px) and (max-width: 820px) {
           .footer-columns-grid {
             grid-template-columns: 1fr 1fr !important;
             gap: 28px !important;
           }
+        }
+
+        /* Mobile Responsive View (<= 768px): Simplify footer by removing QUICK LINKS, Homeopathy Clinic, and CONTACT INFORMATION */
+        @media (max-width: 768px) {
+          .footer-columns-grid,
+          .footer-col-brand,
+          .footer-col-links,
+          .footer-col-contact {
+            display: none !important;
+          }
+          .footer-divider {
+            display: none !important;
+          }
+          .site-footer {
+            padding: 24px 0 24px !important;
+          }
+          .footer-inner-container {
+            padding: 0 16px !important;
+          }
           .footer-bottom-row {
             flex-direction: column !important;
-            align-items: flex-start !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
             gap: 12px !important;
+            min-height: auto !important;
+          }
+          .footer-bottom-row p {
+            text-align: center !important;
+            font-size: 12.5px !important;
+            line-height: 1.5 !important;
+            max-width: 340px !important;
           }
           .footer-legal-links {
             position: static !important;
-          }
-        }
-        @media (max-width: 540px) {
-          .footer-columns-grid {
-            grid-template-columns: 1fr !important;
-            gap: 26px !important;
-          }
-          .footer-bottom-row {
+            display: flex !important;
             align-items: center !important;
-            text-align: center !important;
-            gap: 14px !important;
-          }
-          .footer-legal-links {
             justify-content: center !important;
+            gap: 16px !important;
           }
         }
       `}</style>

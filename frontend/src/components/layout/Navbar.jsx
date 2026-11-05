@@ -7,11 +7,59 @@ import avatarImg from '../../assets/avatar.png';
 const Navbar = ({ onOpenBooking }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, updateUser } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeNav, setActiveNav] = useState('Home');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Helper to get consistent user initials across Navbar and Profile sections
+  const getUserInitials = (u) => {
+    if (u?.initials) return u.initials.toUpperCase();
+    const name = (
+      u?.full_name ||
+      u?.name ||
+      u?.fullName ||
+      `${u?.first_name || ''} ${u?.last_name || ''}`.trim() ||
+      u?.username ||
+      ''
+    ).trim();
+    if (!name) return 'P';
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+  };
+
+  // Keep Navbar avatar & initials synchronized with real-time profile updates
+  useEffect(() => {
+    const handleProfileImageUpdate = (e) => {
+      const newUrl = e?.detail?.profile_image_url !== undefined ? e.detail.profile_image_url : null;
+      if (user && updateUser) {
+        updateUser({
+          ...user,
+          profile_image_url: newUrl,
+        });
+      }
+    };
+
+    const handleProfileUpdate = (e) => {
+      if (e?.detail && user && updateUser) {
+        updateUser({
+          ...user,
+          ...e.detail,
+        });
+      }
+    };
+
+    window.addEventListener('profile-image-updated', handleProfileImageUpdate);
+    window.addEventListener('profile-updated', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('profile-image-updated', handleProfileImageUpdate);
+      window.removeEventListener('profile-updated', handleProfileUpdate);
+    };
+  }, [user, updateUser]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -365,6 +413,7 @@ const Navbar = ({ onOpenBooking }) => {
             >
               {user?.profile_image_url ? (
                 <img
+                  key={user.profile_image_url}
                   src={user.profile_image_url}
                   alt="Profile"
                   style={{
@@ -397,7 +446,7 @@ const Navbar = ({ onOpenBooking }) => {
                   letterSpacing: '0.5px',
                 }}
               >
-                {user ? (((user.first_name?.[0] || '') + (user.last_name?.[0] || user.username?.[0] || '')).toUpperCase() || 'PT') : 'PT'}
+                {getUserInitials(user)}
               </div>
             </div>
 
@@ -422,7 +471,7 @@ const Navbar = ({ onOpenBooking }) => {
                 {/* User info banner */}
                 <div style={{ padding: '4px 8px 10px 8px', borderBottom: '1px solid #f1f5f9' }}>
                   <p style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {user?.first_name || user?.username || 'Patient'}
+                    {user?.full_name || user?.name || user?.first_name || user?.username || 'Patient'}
                   </p>
                   <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {user?.email || user?.phone_number || 'Logged In'}

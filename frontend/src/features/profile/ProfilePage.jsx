@@ -54,17 +54,45 @@ const ProfilePage = () => {
 
   const { user, isAuthenticated, updateUser } = useAuth();
 
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
 
 
 
+  // Consistent initials generator across Profile and Navbar
+  const getInitials = (name, fallbackUser = null) => {
+    if (fallbackUser?.initials) return fallbackUser.initials.toUpperCase();
+    const nameToUse = (
+      name ||
+      fallbackUser?.full_name ||
+      fallbackUser?.name ||
+      fallbackUser?.fullName ||
+      `${fallbackUser?.first_name || ''} ${fallbackUser?.last_name || ''}`.trim() ||
+      fallbackUser?.username ||
+      ''
+    ).trim();
+    if (!nameToUse) return 'P';
+    const parts = nameToUse.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+  };
+
+  const initialName = user ? (user.full_name || user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || '') : '';
+  const initialInitials = user?.initials || getInitials(initialName, user);
+
   // User profile state initialized with clinic reference design defaults
 
   const [profile, setProfile] = useState({
 
-    fullName: user ? (`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username) : '',
+    fullName: initialName,
 
     mobileNumber: user?.phone_number || '',
 
@@ -76,7 +104,7 @@ const ProfilePage = () => {
 
     city: '',
 
-    initials: user ? (((user.first_name?.[0] || '') + (user.last_name?.[0] || user.username?.[0] || '')).toUpperCase() || 'PT') : 'PT',
+    initials: initialInitials,
 
     patientId: user?.patient_id || '',
 
@@ -140,6 +168,9 @@ const ProfilePage = () => {
             profile_image_url: newImageUrl,
           });
         }
+        window.dispatchEvent(new CustomEvent('profile-image-updated', {
+          detail: { profile_image_url: newImageUrl }
+        }));
       }
     } catch (err) {
       console.error('Failed to upload profile picture:', err);
@@ -154,18 +185,26 @@ const ProfilePage = () => {
   };
 
   const handleRemoveImage = async (e) => {
-    e.stopPropagation();
-    if (!window.confirm('Are you sure you want to remove your profile picture?')) return;
+    e?.stopPropagation?.();
+    setUploadDropdownOpen(false);
+
+    // 1. Instantly remove image from both Personal Information and Navbar with a single click
+    setProfile((prev) => ({ ...prev, profileImageUrl: null }));
+    if (updateUser && user) {
+      updateUser({
+        ...user,
+        profile_image_url: null,
+      });
+    }
+
+    window.dispatchEvent(new CustomEvent('profile-image-updated', {
+      detail: { profile_image_url: null }
+    }));
+
+    // 2. Perform backend delete
     setIsUploadingImage(true);
     try {
       await userApi.removeProfileImage();
-      setProfile((prev) => ({ ...prev, profileImageUrl: null }));
-      if (updateUser && user) {
-        updateUser({
-          ...user,
-          profile_image_url: null,
-        });
-      }
     } catch (err) {
       console.error('Failed to remove profile picture:', err);
       alert(err.response?.data?.error || 'Failed to remove profile picture.');
@@ -254,27 +293,31 @@ const ProfilePage = () => {
 
       }
 
+      const currentUser = userRef.current;
       const queryParams = {};
 
-      if (user?.patient_id) queryParams.patient_id = user.patient_id;
-
-
+      if (currentUser?.patient_id) queryParams.patient_id = currentUser.patient_id;
+      if (currentUser?.email) queryParams.email = currentUser.email;
+      if (currentUser?.phone_number) queryParams.phone = currentUser.phone_number;
 
       const res = await appointmentApi.getMyProfile(queryParams);
 
       if (res) {
+        const loadedName = res.name || currentUser?.full_name || currentUser?.name || '';
+        const loadedInitials = res.initials || getInitials(loadedName, currentUser);
+        const loadedImage = res.profile_image_url || null;
 
         setProfile((prev) => ({
 
           ...prev,
 
-          fullName: res.name || prev.fullName || '',
+          fullName: loadedName,
 
           email: res.email || prev.email || '',
 
           mobileNumber: res.mobile || prev.mobileNumber || '',
 
-          initials: res.initials || prev.initials || 'PT',
+          initials: loadedInitials,
 
           patientId: res.id || prev.patientId || '',
 
@@ -286,15 +329,25 @@ const ProfilePage = () => {
 
           city: res.city || prev.city || '',
 
-          profileImageUrl: res.profile_image_url || prev.profileImageUrl || user?.profile_image_url || null,
+          profileImageUrl: loadedImage,
 
         }));
 
-        if (res.profile_image_url && (!user?.profile_image_url || user.profile_image_url !== res.profile_image_url)) {
-          if (updateUser && user) {
+        if (updateUser && currentUser) {
+          const isNameDiff = (currentUser.name || currentUser.full_name || '') !== loadedName;
+          const isInitialsDiff = (currentUser.initials || '') !== loadedInitials;
+          const isImgDiff = (currentUser.profile_image_url || null) !== (loadedImage || null);
+          const isPatientIdDiff = Boolean(res.id && currentUser.patient_id !== res.id);
+          if (isNameDiff || isInitialsDiff || isImgDiff || isPatientIdDiff) {
             updateUser({
-              ...user,
-              profile_image_url: res.profile_image_url,
+              ...currentUser,
+              name: loadedName,
+              full_name: loadedName,
+              first_name: loadedName ? loadedName.split(' ')[0] : currentUser.first_name,
+              last_name: loadedName && loadedName.includes(' ') ? loadedName.split(' ').slice(1).join(' ') : (currentUser.last_name || ''),
+              initials: loadedInitials,
+              profile_image_url: loadedImage,
+              patient_id: res.id || currentUser.patient_id,
             });
           }
         }
@@ -309,13 +362,32 @@ const ProfilePage = () => {
 
             const dateStr = a.date || '';
 
-            const parts = dateStr.trim().split(/[\s-]+/);
+            const parts = dateStr.trim().split(/[\s-]+/).filter(Boolean);
 
-            const day = parts[0] || '28';
+            let day = '01';
+            let monthShort = 'NOV';
+            let year = '2026';
 
-            const month = parts.length > 2 ? `${parts[1].toUpperCase()} ${parts[2]}` : (parts[1] || 'OCT 2026');
-
-
+            if (parts.length >= 3) {
+              if (parts[0].length === 4) {
+                // YYYY-MM-DD
+                year = parts[0];
+                const mIdx = parseInt(parts[1], 10) - 1;
+                const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+                monthShort = monthNames[mIdx] || parts[1].slice(0, 3).toUpperCase();
+                day = parts[2];
+              } else {
+                // DD Month YYYY (e.g. 5 November 2026)
+                day = parts[0];
+                monthShort = parts[1].slice(0, 3).toUpperCase();
+                year = parts[2];
+              }
+            } else if (parts.length === 2) {
+              day = parts[0];
+              monthShort = parts[1].slice(0, 3).toUpperCase();
+            } else if (parts.length === 1 && parts[0]) {
+              day = parts[0];
+            }
 
             return {
 
@@ -325,7 +397,11 @@ const ProfilePage = () => {
 
               day: day,
 
-              month: month,
+              month: monthShort,
+
+              monthShort: monthShort,
+
+              year: year,
 
               fullDate: a.date,
 
@@ -493,15 +569,11 @@ const ProfilePage = () => {
 
     }
 
-  }, [user]);
+  }, []);
 
 
 
   useEffect(() => {
-
-    setAppointments([]);
-
-    setPrescriptions([]);
 
     fetchPatientData(false);
 
@@ -880,54 +952,50 @@ const ProfilePage = () => {
 
 
     // Compute initials from Full Name
-
-    const parts = nameTrimmed.split(/\s+/);
-
-    const computedInitials =
-
-      parts.length > 1
-
-        ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-
-        : nameTrimmed.slice(0, 2).toUpperCase();
-
-
+    const computedInitials = getInitials(nameTrimmed, user);
 
     // Format mobile for display (+91 98765 43210)
-
     const formattedMobile = `+91 ${mobileDigits.slice(0, 5)} ${mobileDigits.slice(5)}`;
 
-
-
     appointmentApi.updateMyProfile({
-
       name: nameTrimmed,
-
       phone: mobileDigits,
-
       email: emailVal,
-
       gender: editFormData.gender || '',
-
       date_of_birth: editFormData.dateOfBirth || '',
-
       city: editFormData.city || '',
+    }).then((res) => {
+      if (res?.user && updateUser) {
+        updateUser(res.user);
+      }
+    }).catch((err) => console.error('Failed to update profile:', err));
 
-    }).catch((err) => console.error('Failed to update profile in Neon:', err));
-
-
-
-    setProfile({
-
+    setProfile((prev) => ({
+      ...prev,
       ...editFormData,
-
       fullName: nameTrimmed,
-
       mobileNumber: formattedMobile,
+      initials: computedInitials,
+    }));
 
-      initials: computedInitials || 'RS',
+    if (updateUser && user) {
+      updateUser({
+        ...user,
+        name: nameTrimmed,
+        full_name: nameTrimmed,
+        first_name: nameTrimmed ? nameTrimmed.split(' ')[0] : user.first_name,
+        last_name: nameTrimmed && nameTrimmed.includes(' ') ? nameTrimmed.split(' ').slice(1).join(' ') : '',
+        initials: computedInitials,
+      });
+    }
 
-    });
+    window.dispatchEvent(new CustomEvent('profile-updated', {
+      detail: {
+        name: nameTrimmed,
+        full_name: nameTrimmed,
+        initials: computedInitials,
+      }
+    }));
 
     setEditErrors({});
 
@@ -1581,6 +1649,7 @@ const ProfilePage = () => {
               >
                 {profile.profileImageUrl ? (
                   <img
+                    key={profile.profileImageUrl}
                     src={profile.profileImageUrl}
                     alt={profile.fullName || 'Patient Profile'}
                     style={{
@@ -1686,7 +1755,7 @@ const ProfilePage = () => {
                   </svg>
                 </button>
 
-                {/* Dropdown Menu with Change Profile and Remove Profile */}
+                {/* Dropdown Menu: shows Upload Image when no image, or Change/Remove when image exists */}
                 {uploadDropdownOpen && (
                   <div
                     style={{
@@ -1704,7 +1773,7 @@ const ProfilePage = () => {
                       animation: 'fadeIn 0.12s ease-out',
                     }}
                   >
-                    {/* Action 1: Change Profile */}
+                    {/* Action 1: Upload Image (if no image) OR Change Profile (if image exists) */}
                     <button
                       type="button"
                       onClick={() => {
@@ -1739,59 +1808,64 @@ const ProfilePage = () => {
                         e.currentTarget.style.color = '#1e293b';
                       }}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                        <circle cx="12" cy="13" r="4" />
-                      </svg>
-                      <span>Change Profile</span>
+                      {profile.profileImageUrl ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                          <circle cx="12" cy="13" r="4" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      )}
+                      <span>{profile.profileImageUrl ? 'Change Profile' : 'Upload Image'}</span>
                     </button>
 
-                    {/* Action 2: Remove Profile */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        setUploadDropdownOpen(false);
-                        handleRemoveImage(e);
-                      }}
-                      disabled={isUploadingImage || !profile.profileImageUrl}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 12px',
-                        border: 'none',
-                        borderRadius: '8px',
-                        backgroundColor: 'transparent',
-                        color: profile.profileImageUrl ? '#dc2626' : '#94a3b8',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        cursor: profile.profileImageUrl ? 'pointer' : 'not-allowed',
-                        textAlign: 'left',
-                        fontFamily: "'Manrope', sans-serif",
-                        transition: 'all 0.15s ease',
-                        boxSizing: 'border-box',
-                        opacity: profile.profileImageUrl ? 1 : 0.6,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (profile.profileImageUrl) {
+                    {/* Action 2: Remove Profile (only visible when profile image exists) */}
+                    {profile.profileImageUrl && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          setUploadDropdownOpen(false);
+                          handleRemoveImage(e);
+                        }}
+                        disabled={isUploadingImage}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          border: 'none',
+                          borderRadius: '8px',
+                          backgroundColor: 'transparent',
+                          color: '#dc2626',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontFamily: "'Manrope', sans-serif",
+                          transition: 'all 0.15s ease',
+                          boxSizing: 'border-box',
+                        }}
+                        onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = '#fef2f2';
                           e.currentTarget.style.color = '#b91c1c';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (profile.profileImageUrl) {
+                        }}
+                        onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = 'transparent';
                           e.currentTarget.style.color = '#dc2626';
-                        }
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
-                      <span>Remove Profile</span>
-                    </button>
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                        <span>Remove Profile</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2216,7 +2290,19 @@ const ProfilePage = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
-              {appointments.length === 0 ? (
+              {isLoading && appointments.length === 0 ? (
+
+                <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+
+                    Loading appointments...
+
+                  </p>
+
+                </div>
+
+              ) : appointments.length === 0 ? (
 
                 <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
 
@@ -2260,9 +2346,9 @@ const ProfilePage = () => {
 
                 </div>
 
-              ) : appointments
+              ) : (() => {
 
-                .filter((item) => {
+                const filtered = appointments.filter((item) => {
 
                   if (appointmentFilter === 'All') return true;
 
@@ -2272,9 +2358,31 @@ const ProfilePage = () => {
 
                   return true;
 
-                })
+                });
 
-                .map((item) => (
+
+
+                if (filtered.length === 0) {
+
+                  return (
+
+                    <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+
+                        No {appointmentFilter.toLowerCase()} appointments found.
+
+                      </p>
+
+                    </div>
+
+                  );
+
+                }
+
+
+
+                return filtered.map((item) => (
 
                 <div
 
@@ -2328,13 +2436,17 @@ const ProfilePage = () => {
 
                       style={{
 
-                        width: '54px',
+                        width: '56px',
 
-                        height: '54px',
+                        height: '56px',
+
+                        minWidth: '56px',
 
                         borderRadius: '12px',
 
                         backgroundColor: '#edf5ee',
+
+                        border: '1px solid #d8e8dc',
 
                         display: 'flex',
 
@@ -2346,21 +2458,37 @@ const ProfilePage = () => {
 
                         flexShrink: 0,
 
+                        padding: '3px 2px',
+
+                        boxSizing: 'border-box',
+
+                        textAlign: 'center',
+
                       }}
 
                     >
 
-                      <span style={{ fontSize: '16px', fontWeight: '800', color: '#1b4332', lineHeight: '1', fontFamily: "'Manrope', sans-serif" }}>
+                      <span style={{ fontSize: '16px', fontWeight: '800', color: '#1b4332', lineHeight: '1', fontFamily: "'Manrope', sans-serif", textAlign: 'center', display: 'block' }}>
 
                         {item.day}
 
                       </span>
 
-                      <span style={{ fontSize: '10px', fontWeight: '700', color: '#2e7d32', marginTop: '2px', fontFamily: "'Manrope', sans-serif" }}>
+                      <span style={{ fontSize: '10px', fontWeight: '800', color: '#2e7d32', letterSpacing: '0.4px', lineHeight: '1.1', marginTop: '2px', fontFamily: "'Manrope', sans-serif", textAlign: 'center', display: 'block' }}>
 
-                        {item.month}
+                        {item.monthShort || item.month}
 
                       </span>
+
+                      {item.year && (
+
+                        <span style={{ fontSize: '9px', fontWeight: '600', color: '#6b7280', lineHeight: '1', marginTop: '2px', fontFamily: "'Manrope', sans-serif", textAlign: 'center', display: 'block' }}>
+
+                          {item.year}
+
+                        </span>
+
+                      )}
 
                     </div>
 
@@ -2434,7 +2562,8 @@ const ProfilePage = () => {
 
                 </div>
 
-              ))}
+              ));
+            })()}
 
             </div>
 
@@ -2589,6 +2718,26 @@ const ProfilePage = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
               {(() => {
+
+                if (isLoading && prescriptions.length === 0) {
+
+                  return (
+
+                    <div style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+
+                        Loading prescriptions...
+
+                      </p>
+
+                    </div>
+
+                  );
+
+                }
+
+
 
                 if (prescriptions.length === 0) {
 
