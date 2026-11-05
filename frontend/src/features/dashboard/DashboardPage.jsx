@@ -48,106 +48,7 @@ const DashboardPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState('5 page');
 
-  // Track Prescription Updated notifications for specific patient rows
-  const [rxNotifications, setRxNotifications] = useState([]);
 
-  useEffect(() => {
-    const handleRxEvent = (e) => {
-      const rx = e?.detail;
-      if (!rx) return;
-      const notifItem = {
-        rxId: rx.id || rx.rxId,
-        patientName: (rx.patientName || rx.name || rx.patient_name || '').trim().toLowerCase(),
-        patientPhone: String(rx.mobile || rx.contact || rx.patient_phone || rx.phone || '').replace(/\D/g, ''),
-        appointmentId: String(rx.appointment_id || rx.appointmentId || '').trim().toLowerCase(),
-        appointmentDbId: rx.appointment_database_id ? String(rx.appointment_database_id) : '',
-        timestamp: Date.now(),
-      };
-      setRxNotifications((prev) => [
-        ...prev.filter(
-          (p) =>
-            !(notifItem.appointmentId && p.appointmentId === notifItem.appointmentId) &&
-            !(notifItem.patientPhone && p.patientPhone === notifItem.patientPhone) &&
-            !(notifItem.patientName && p.patientName === notifItem.patientName)
-        ),
-        notifItem,
-      ]);
-
-      setTimeout(() => {
-        setRxNotifications((prev) => prev.filter((p) => p.timestamp !== notifItem.timestamp));
-      }, 15000);
-    };
-
-    window.addEventListener('prescription-created', handleRxEvent);
-    window.addEventListener('prescription-updated', handleRxEvent);
-
-    const checkUnreadRxNotifs = async () => {
-      try {
-        const notifData = await appointmentApi.getNotifications();
-        if (notifData && Array.isArray(notifData.notifications)) {
-          const unreadRx = notifData.notifications
-            .filter((n) => !n.is_read && n.title && n.title.toLowerCase().includes('prescription'))
-            .map((n) => ({
-              rxId: n.id,
-              patientName: (n.patient_name || '').trim().toLowerCase(),
-              patientPhone: String(n.patient_phone || '').replace(/\D/g, ''),
-              appointmentId: String(n.appointment_id || (n.appointment_details?.appointment_id) || n.appointment || '').trim().toLowerCase(),
-              appointmentDbId: String(n.appointment || ''),
-              timestamp: Date.now(),
-            }));
-          if (unreadRx.length > 0) {
-            setRxNotifications((prev) => {
-              const list = [...prev];
-              unreadRx.forEach((u) => {
-                if (!list.some((l) => (u.appointmentId && l.appointmentId === u.appointmentId) || (u.patientName && l.patientName === u.patientName))) {
-                  list.push(u);
-                }
-              });
-              return list;
-            });
-          }
-        }
-      } catch (e) {}
-    };
-    checkUnreadRxNotifs();
-
-    return () => {
-      window.removeEventListener('prescription-created', handleRxEvent);
-      window.removeEventListener('prescription-updated', handleRxEvent);
-    };
-  }, []);
-
-  const dismissRxNotification = useCallback((notif) => {
-    if (!notif) return;
-    setRxNotifications((prev) => prev.filter((p) => p !== notif && p.timestamp !== notif.timestamp));
-    if (notif.rxId && typeof notif.rxId === 'number') {
-      appointmentApi.markNotificationRead(notif.rxId).catch(() => {});
-    }
-  }, []);
-
-  const getRowRxNotification = useCallback((row) => {
-    if (!row || rxNotifications.length === 0) return null;
-    const rowAptId = String(row.id || '').trim().toLowerCase();
-    const rowRawId = String(row.rawId || '').trim().toLowerCase();
-    const rowName = String(row.name || '').trim().toLowerCase();
-    const rowPhone = String(row.contact || '').replace(/\D/g, '');
-
-    return rxNotifications.find((notif) => {
-      // 1. If appointment ID was provided for the prescription, match strictly on that specific appointment row
-      if (notif.appointmentId || notif.appointmentDbId) {
-        const matchesAptId = notif.appointmentId && (notif.appointmentId === rowAptId || notif.appointmentId === rowRawId);
-        const matchesDbId = notif.appointmentDbId && (notif.appointmentDbId === rowRawId || notif.appointmentDbId === rowAptId);
-        return Boolean(matchesAptId || matchesDbId);
-      }
-
-      // 2. Otherwise (general prescription without specific appointment ID), match on corresponding patient
-      if (notif.patientPhone && rowPhone && notif.patientPhone.length >= 7 && rowPhone.length >= 7) {
-        if (notif.patientPhone.endsWith(rowPhone.slice(-10)) || rowPhone.endsWith(notif.patientPhone.slice(-10))) return true;
-      }
-      if (notif.patientName && rowName && notif.patientName === rowName) return true;
-      return false;
-    });
-  }, [rxNotifications]);
 
   const [appointmentsData, setAppointmentsData] = useState([]);
   const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(true);
@@ -909,82 +810,23 @@ const DashboardPage = () => {
               ) : (
                 paginatedAppointmentsData.map((row, idx) => {
                   const badge = getStatusBadge(row.status);
-                  const rxNotif = getRowRxNotification(row);
                   return (
                     <tr
                       key={row.rawId || row.id || idx}
                       style={{
                         borderBottom: '1px solid #f8fafc',
                         transition: 'all 0.3s ease',
-                        backgroundColor: rxNotif ? '#f0fdf4' : 'transparent',
-                        borderLeft: rxNotif ? '4px solid #059669' : '4px solid transparent',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = rxNotif ? '#ecfdf5' : '#fafafa')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = rxNotif ? '#f0fdf4' : 'transparent')}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fafafa')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
                       <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#1e293b' }}>
                         {row.time}
                       </td>
                       <td style={{ padding: '14px 16px', position: 'relative' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
-                            {row.name}
-                          </span>
-                          {rxNotif && (
-                            <div
-                              className="prescription-updated-popup"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                backgroundColor: '#065f46',
-                                color: '#ffffff',
-                                padding: '3px 10px',
-                                borderRadius: '20px',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                letterSpacing: '0.2px',
-                                boxShadow: '0 4px 12px rgba(6, 95, 70, 0.25)',
-                                border: '1px solid #10b981',
-                                animation: 'prescriptionPopIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
-                                whiteSpace: 'nowrap',
-                                zIndex: 10,
-                              }}
-                              title="Prescription has been created/updated for this patient"
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                              <span>Prescription Updated</span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  dismissRxNotification(rxNotif);
-                                }}
-                                style={{
-                                  border: 'none',
-                                  background: 'rgba(255, 255, 255, 0.25)',
-                                  color: '#ffffff',
-                                  borderRadius: '50%',
-                                  width: '14px',
-                                  height: '14px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  cursor: 'pointer',
-                                  fontSize: '9px',
-                                  padding: 0,
-                                  marginLeft: '2px',
-                                  lineHeight: 1,
-                                }}
-                                title="Dismiss notification"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                          {row.name}
+                        </span>
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#64748b' }}>
                         {row.contact}
