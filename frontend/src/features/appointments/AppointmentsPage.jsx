@@ -918,6 +918,11 @@ const AppointmentsPage = () => {
                                 onClick: () => handleUpdateStatus(row.id, 'Confirmed'),
                               },
                               {
+                                label: 'Mark as Pending',
+                                icon: '⏳',
+                                onClick: () => handleUpdateStatus(row.id, 'Pending'),
+                              },
+                              {
                                 label: 'Cancel Appointment',
                                 icon: '✕',
                                 danger: true,

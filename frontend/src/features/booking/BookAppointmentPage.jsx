@@ -134,6 +134,167 @@ const BookAppointmentPage = () => {
 
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  // Synchronized appointment settings state from Admin
+  const [workingDays, setWorkingDays] = useState(() => {
+    try {
+      const cached = localStorage.getItem('clinic_appointment_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const days = parsed.workingDays || parsed.working_days;
+        if (Array.isArray(days) && days.length > 0) return days;
+      }
+    } catch {}
+    return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  });
+
+  const [dateRestrictions, setDateRestrictions] = useState(() => {
+    try {
+      const cached = localStorage.getItem('clinic_appointment_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const restrs = parsed.dateRestrictions || parsed.date_restrictions;
+        if (Array.isArray(restrs)) return restrs;
+      }
+    } catch {}
+    return [];
+  });
+
+  const [customWorkingHours, setCustomWorkingHours] = useState(() => {
+    try {
+      const cached = localStorage.getItem('clinic_appointment_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const cwh = parsed.customWorkingHours || parsed.custom_working_hours;
+        if (Array.isArray(cwh)) return cwh;
+      }
+    } catch {}
+    return [];
+  });
+
+  // Helper to check if a date is restricted
+  const checkDateRestricted = (y, m, d) => {
+    if (!dateRestrictions || dateRestrictions.length === 0) return { isRestricted: false, reason: '' };
+    const mStr = String(m + 1).padStart(2, '0');
+    const dStr = String(d).padStart(2, '0');
+    const dateNorm = `${y}-${mStr}-${dStr}`;
+    for (const r of dateRestrictions) {
+      if (r && r.startDate && r.endDate) {
+        if (r.startDate <= dateNorm && dateNorm <= r.endDate) {
+          return {
+            isRestricted: true,
+            reason: r.reason || (r.type === 'month' ? 'Entire month closed' : 'Clinic closed on this date'),
+          };
+        }
+      }
+    }
+    return { isRestricted: false, reason: '' };
+  };
+
+  // Helper to convert time format to minutes from midnight
+  const timeToMinutes = (timeStr) => {
+    if (!timeStr) return null;
+    const cleaned = String(timeStr).trim().toUpperCase();
+    const match = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+    if (!match) return null;
+    let [_, h, m, period] = match;
+    let hours = parseInt(h, 10);
+    const minutes = parseInt(m, 10);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  // Helper to determine effective working hours for a specific date
+  const getEffectiveWorkingHours = (y, m, d) => {
+    const mStr = String(m + 1).padStart(2, '0');
+    const dStr = String(d).padStart(2, '0');
+    const dateNorm = `${y}-${mStr}-${dStr}`;
+    if (customWorkingHours && customWorkingHours.length > 0) {
+      for (const ch of customWorkingHours) {
+        if (ch && ch.startDate && ch.endDate && ch.startDate <= dateNorm && dateNorm <= ch.endDate) {
+          return {
+            startTime: ch.startTime || '09:00 AM',
+            endTime: ch.endTime || '06:00 PM',
+            isCustom: true,
+            reason: ch.reason || 'Special working hours',
+          };
+        }
+      }
+    }
+    return {
+      startTime: '09:00 AM',
+      endTime: '06:00 PM',
+      isCustom: false,
+      reason: '',
+    };
+  };
+
+  useEffect(() => {
+    const fetchAppointmentSettings = async () => {
+      try {
+        const data = await appointmentApi.getClinicSettings();
+        const days = data?.workingDays || data?.working_days;
+        if (Array.isArray(days) && days.length > 0) setWorkingDays(days);
+        const restrs = data?.dateRestrictions || data?.date_restrictions;
+        if (Array.isArray(restrs)) setDateRestrictions(restrs);
+        const cwh = data?.customWorkingHours || data?.custom_working_hours;
+        if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
+        try {
+          localStorage.setItem('clinic_appointment_settings', JSON.stringify(data));
+        } catch {}
+      } catch (err) {
+        console.log('Using cached or default appointment settings');
+      }
+    };
+    fetchAppointmentSettings();
+
+    const handleSettingsUpdated = (e) => {
+      const days = e?.detail?.workingDays || e?.detail?.working_days;
+      if (Array.isArray(days)) setWorkingDays(days);
+      const restrs = e?.detail?.dateRestrictions || e?.detail?.date_restrictions;
+      if (Array.isArray(restrs)) setDateRestrictions(restrs);
+      const cwh = e?.detail?.customWorkingHours || e?.detail?.custom_working_hours;
+      if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
+    };
+    window.addEventListener('appointment-settings-updated', handleSettingsUpdated);
+    return () => window.removeEventListener('appointment-settings-updated', handleSettingsUpdated);
+  }, []);
+
+  // Ensure initially selected day is not on a disabled working day or restricted date
+  useEffect(() => {
+    if (!workingDays || workingDays.length === 0) return;
+    const curDate = new Date(formData.selectedYear, formData.selectedMonth, formData.selectedDay);
+    const dayOfWeekName = daysOfWeek[curDate.getDay()];
+    const { isRestricted } = checkDateRestricted(formData.selectedYear, formData.selectedMonth, formData.selectedDay);
+
+    if (!workingDays.includes(dayOfWeekName) || isRestricted) {
+      const base = new Date();
+      base.setHours(0, 0, 0, 0);
+      const target = curDate < base ? base : curDate;
+      for (let offset = 0; offset <= 90; offset++) {
+        const candidate = new Date(target);
+        candidate.setDate(target.getDate() + offset);
+        const candidateDayName = daysOfWeek[candidate.getDay()];
+        const candY = candidate.getFullYear();
+        const candM = candidate.getMonth();
+        const candD = candidate.getDate();
+        const { isRestricted: candRestr } = checkDateRestricted(candY, candM, candD);
+
+        if (workingDays.includes(candidateDayName) && !candRestr) {
+          setFormData((prev) => ({
+            ...prev,
+            selectedDay: candD,
+            selectedMonth: candM,
+            selectedYear: candY,
+          }));
+          setCalendarMonth(candM);
+          setCalendarYear(candY);
+          break;
+        }
+      }
+    }
+  }, [workingDays, dateRestrictions]);
+
 
 
   // Base Time Slots list matching reference design
@@ -274,13 +435,26 @@ const BookAppointmentPage = () => {
 
 
 
+  const effectiveHours = getEffectiveWorkingHours(
+    formData.selectedYear,
+    formData.selectedMonth,
+    formData.selectedDay
+  );
+  const startMins = timeToMinutes(effectiveHours.startTime);
+  const endMins = timeToMinutes(effectiveHours.endTime);
+
   const timeSlots = baseTimeSlots.map((slot) => {
 
     const norm = normalizeSlotTime(slot.time);
 
     const isBooked = bookedSet.has(norm);
 
-    const isAvailable = slot.defaultAvailable && !isBooked;
+    const slotMins = timeToMinutes(slot.time);
+
+    const isOutsideHours = slotMins !== null && startMins !== null && endMins !== null &&
+      (slotMins < startMins || slotMins >= endMins);
+
+    const isAvailable = slot.defaultAvailable && !isBooked && !isOutsideHours;
 
     return {
 
@@ -289,6 +463,8 @@ const BookAppointmentPage = () => {
       available: isAvailable,
 
       isBooked,
+
+      isOutsideHours,
 
     };
 
@@ -611,6 +787,20 @@ const BookAppointmentPage = () => {
 
       }
 
+      // Ensure the selected date is on an active working day
+      const selectedDayName = daysOfWeek[selectedDateZero.getDay()];
+      if (!workingDays.includes(selectedDayName)) {
+        alert(`The clinic is closed on ${selectedDayName}s. Please select an available working day.`);
+        return;
+      }
+
+      // Ensure the selected date is not restricted
+      const { isRestricted: isDateRestrictedOnNext, reason: nextRestrReason } = checkDateRestricted(formData.selectedYear, formData.selectedMonth, formData.selectedDay);
+      if (isDateRestrictedOnNext) {
+        alert(`Appointments are unavailable on this date (${nextRestrReason || 'Clinic closed'}). Please choose another date.`);
+        return;
+      }
+
 
 
       // Ensure the selected slot is currently available
@@ -830,6 +1020,17 @@ const BookAppointmentPage = () => {
 
     if (!isCurrentMonth || isPast) return;
 
+    const dObj = new Date(calendarYear, calendarMonth, day);
+    const dayOfWeekName = daysOfWeek[dObj.getDay()];
+    if (!workingDays.includes(dayOfWeekName)) {
+      return; // Cannot select closed day
+    }
+
+    const { isRestricted } = checkDateRestricted(calendarYear, calendarMonth, day);
+    if (isRestricted) {
+      return; // Cannot select restricted date
+    }
+
     setFormData((prev) => ({
 
       ...prev,
@@ -887,10 +1088,14 @@ const BookAppointmentPage = () => {
     for (let i = 1; i <= daysInMonth; i++) {
 
       const isPast = isDateInPast(calendarYear, calendarMonth, i);
+      const dObj = new Date(calendarYear, calendarMonth, i);
+      const dayOfWeekName = daysOfWeek[dObj.getDay()];
+      const isWorkingDay = workingDays.includes(dayOfWeekName);
+      const { isRestricted, reason: restrictionReason } = checkDateRestricted(calendarYear, calendarMonth, i);
+      const isDisabled = isPast || !isWorkingDay || isRestricted;
 
-      // Days with availability dot: only available for today and future days
-
-      const hasDot = !isPast;
+      // Days with availability dot: only available for today and future non-restricted working days
+      const hasDot = !isDisabled;
 
       days.push({
 
@@ -899,6 +1104,14 @@ const BookAppointmentPage = () => {
         isCurrentMonth: true,
 
         isPast,
+
+        isWorkingDay,
+
+        isDateRestricted: isRestricted,
+
+        restrictionReason,
+
+        isDisabled,
 
         hasDot,
 
@@ -2777,11 +2990,15 @@ const BookAppointmentPage = () => {
 
                       {generateCalendarDays().map((item, idx) => {
 
+                        const isDayClosed = item.isCurrentMonth && item.isWorkingDay === false;
+                        const isDateRestricted = item.isCurrentMonth && item.isDateRestricted;
+                        const isDisabled = !item.isCurrentMonth || item.isPast || isDayClosed || isDateRestricted;
+
                         const isSelected =
 
                           item.isCurrentMonth &&
 
-                          !item.isPast &&
+                          !isDisabled &&
 
                           item.day === formData.selectedDay &&
 
@@ -2791,19 +3008,25 @@ const BookAppointmentPage = () => {
 
 
 
-                        const isDisabled = !item.isCurrentMonth || item.isPast;
-
-
-
                         return (
 
                           <div
 
                             key={idx}
 
-                            onClick={() => handleSelectDate(item.day, item.isCurrentMonth, item.isPast)}
+                            onClick={() => !isDisabled && handleSelectDate(item.day, item.isCurrentMonth, item.isPast)}
 
-                            title={isDisabled ? 'Past date not selectable' : 'Click to select date'}
+                            title={
+                              !item.isCurrentMonth
+                                ? ''
+                                : item.isPast
+                                ? 'Past date not selectable'
+                                : isDateRestricted
+                                ? `Clinic closed on this date (${item.restrictionReason || 'Restricted'})`
+                                : isDayClosed
+                                ? 'Clinic is closed on this day'
+                                : 'Click to select date'
+                            }
 
                             style={{
 
@@ -3017,6 +3240,30 @@ const BookAppointmentPage = () => {
 
                       {/* 3 Columns Time Slots Grid */}
 
+                      {effectiveHours.isCustom && (
+                        <div
+                          style={{
+                            marginBottom: '16px',
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            backgroundColor: '#eff6ff',
+                            border: '1px solid #bfdbfe',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '13px',
+                            color: '#1e40af',
+                            fontWeight: '600',
+                          }}
+                        >
+                          <span>⏱</span>
+                          <span>
+                            Special Clinic Hours for this date: <strong>{effectiveHours.startTime} - {effectiveHours.endTime}</strong>
+                            {effectiveHours.reason ? ` (${effectiveHours.reason})` : ''}
+                          </span>
+                        </div>
+                      )}
+
                       <div
 
                         className="booking-slots-grid"
@@ -3063,7 +3310,7 @@ const BookAppointmentPage = () => {
 
                               }}
 
-                              title={slot.isBooked ? 'Slot already booked' : isUnavailable ? 'Slot unavailable' : 'Click to select slot'}
+                              title={slot.isBooked ? 'Slot already booked' : slot.isOutsideHours ? `Outside clinic hours (${effectiveHours.startTime} - ${effectiveHours.endTime})` : isUnavailable ? 'Slot unavailable' : 'Click to select slot'}
 
                               style={{
 

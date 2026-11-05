@@ -4,13 +4,27 @@ import brandLogoImg from '../../assets/brand-logo.png';
 import useAuth from '../../hooks/useAuth';
 import appointmentApi from '../../api/appointmentApi';
 
-const AdminHeader = ({ onToggleSidebar }) => {
+const AdminHeader = ({ onToggleSidebar, onViewAppointment }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [pendingReminders, setPendingReminders] = useState([]);
+  const [pendingPatientsCount, setPendingPatientsCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [appointmentReminderEnabled, setAppointmentReminderEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('clinic_notification_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.appointmentReminder === 'boolean') {
+          return parsed.appointmentReminder;
+        }
+      }
+    } catch {}
+    return true;
+  });
   const notifRef = useRef(null);
   const profileRef = useRef(null);
   const [clinicProfileImage, setClinicProfileImage] = useState(() => {
@@ -39,6 +53,11 @@ const AdminHeader = ({ onToggleSidebar }) => {
       if (data) {
         setNotifications(data.notifications || []);
         setUnreadCount(data.unread_count || 0);
+        setPendingReminders(data.pending_reminders || []);
+        setPendingPatientsCount(typeof data.pending_patients_count === 'number' ? data.pending_patients_count : 0);
+        if (typeof data.appointment_reminder_enabled === 'boolean') {
+          setAppointmentReminderEnabled(data.appointment_reminder_enabled);
+        }
       }
     } catch (err) {
       console.error('Error fetching notifications:', err);
@@ -61,14 +80,28 @@ const AdminHeader = ({ onToggleSidebar }) => {
     };
     window.addEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
 
-    // Poll every 5 seconds for real-time automatic notification updates
-    const interval = setInterval(fetchNotifications, 5000);
-
-    // Listen to custom event when an appointment is booked anywhere in the app
-    const handleAppointmentBooked = () => {
+    // Listen to custom event when notification settings are updated
+    const handleNotificationSettingsUpdated = (e) => {
+      const updated = e?.detail;
+      if (updated && typeof updated.appointmentReminder === 'boolean') {
+        setAppointmentReminderEnabled(updated.appointmentReminder);
+      }
       fetchNotifications();
     };
-    window.addEventListener('appointment-booked', handleAppointmentBooked);
+    window.addEventListener('notification-settings-updated', handleNotificationSettingsUpdated);
+
+    // Listen to appointment changes anywhere in the app for automatic real-time updates
+    const handleAppointmentChanged = () => {
+      fetchNotifications();
+    };
+    window.addEventListener('appointment-booked', handleAppointmentChanged);
+    window.addEventListener('appointment-updated', handleAppointmentChanged);
+    window.addEventListener('appointment-deleted', handleAppointmentChanged);
+    window.addEventListener('appointment-settings-updated', handleAppointmentChanged);
+    window.addEventListener('prescription-created', handleAppointmentChanged);
+
+    // Poll every 5 seconds for real-time automatic notification updates
+    const interval = setInterval(fetchNotifications, 5000);
 
     // Outside click to close notification and profile dropdowns
     const handleOutsideClick = (e) => {
@@ -84,7 +117,12 @@ const AdminHeader = ({ onToggleSidebar }) => {
     return () => {
       clearInterval(interval);
       window.removeEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
-      window.removeEventListener('appointment-booked', handleAppointmentBooked);
+      window.removeEventListener('notification-settings-updated', handleNotificationSettingsUpdated);
+      window.removeEventListener('appointment-booked', handleAppointmentChanged);
+      window.removeEventListener('appointment-updated', handleAppointmentChanged);
+      window.removeEventListener('appointment-deleted', handleAppointmentChanged);
+      window.removeEventListener('appointment-settings-updated', handleAppointmentChanged);
+      window.removeEventListener('prescription-created', handleAppointmentChanged);
       document.removeEventListener('mousedown', handleOutsideClick);
     };
   }, []);
@@ -109,6 +147,50 @@ const AdminHeader = ({ onToggleSidebar }) => {
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
       console.error('Error marking notification as read:', err);
+    }
+  };
+
+  const handleNotificationClick = (notif) => {
+    if (!notif.is_read) {
+      handleMarkSingleRead(notif.id);
+    }
+    setNotificationsOpen(false);
+
+    const item = notif.appointment_details || {};
+    const rxStatus = item.prescription_status || item.prescriptionStatus || 'Pending';
+    const isRxComplete = ['complete', 'completed'].includes(String(rxStatus).trim().toLowerCase());
+    let aptStatus = item.status || 'Confirmed';
+    if (isRxComplete && String(aptStatus).toLowerCase() !== 'cancelled') {
+      aptStatus = 'Complete';
+    }
+
+    const formattedAptId = item.appointment_id || (item.id ? ('APT-' + item.id) : (notif.appointment ? ('APT-' + notif.appointment) : 'APT-0000'));
+    const aptToOpen = {
+      ...item,
+      id: formattedAptId,
+      rawId: item.id || notif.appointment,
+      appointment_id: formattedAptId,
+      name: item.patient_name || notif.patient_name || 'Patient',
+      patient_name: item.patient_name || notif.patient_name || 'Patient',
+      contact: item.patient_phone || notif.patient_phone || '',
+      patient_phone: item.patient_phone || notif.patient_phone || '',
+      email: item.patient_email || notif.patient_email || '',
+      date: item.appointment_date || notif.appointment_date || '',
+      appointment_date: item.appointment_date || notif.appointment_date || '',
+      time: item.time_slot || notif.booking_time || '',
+      time_slot: item.time_slot || notif.booking_time || '',
+      reason: item.reason_for_visit || 'Homeopathic Consultation',
+      reason_for_visit: item.reason_for_visit || 'Homeopathic Consultation',
+      consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
+      status: aptStatus,
+      prescriptionStatus: rxStatus,
+      ageGender: item.age_gender || item.ageGender || 'Adult',
+      notes: item.notes || item.reason_for_visit || 'Homeopathic Consultation',
+      doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+    };
+
+    if (typeof onViewAppointment === 'function') {
+      onViewAppointment(aptToOpen);
     }
   };
 
@@ -232,33 +314,39 @@ const AdminHeader = ({ onToggleSidebar }) => {
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
-            {/* Unread indicator badge with count */}
-            {unreadCount > 0 && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: '2px',
-                  right: '2px',
-                  minWidth: '17px',
-                  height: '17px',
-                  backgroundColor: '#ef4444',
-                  color: '#ffffff',
-                  borderRadius: '9999px',
-                  border: '2px solid #ffffff',
-                  fontSize: '10px',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '0 4px',
-                  boxSizing: 'border-box',
-                  lineHeight: 1,
-                  boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)',
-                }}
-              >
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
+            {/* Unread & pending reminders indicator badge with count */}
+            {(() => {
+              const activePendingCount = appointmentReminderEnabled ? (pendingReminders.length || pendingPatientsCount) : 0;
+              const displayBadgeCount = unreadCount > 0 ? unreadCount : activePendingCount;
+              if (displayBadgeCount <= 0) return null;
+              return (
+                <span
+                  id="admin-header-bell-badge"
+                  style={{
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    minWidth: '17px',
+                    height: '17px',
+                    backgroundColor: unreadCount > 0 ? '#ef4444' : '#d97706',
+                    color: '#ffffff',
+                    borderRadius: '9999px',
+                    border: '2px solid #ffffff',
+                    fontSize: '10px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 4px',
+                    boxSizing: 'border-box',
+                    lineHeight: 1,
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                  }}
+                >
+                  {displayBadgeCount > 9 ? '9+' : displayBadgeCount}
+                </span>
+              );
+            })()}
           </button>
 
           {/* Notifications Dropdown Panel */}
@@ -291,7 +379,7 @@ const AdminHeader = ({ onToggleSidebar }) => {
                   backgroundColor: '#ffffff',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
                     Notifications
                   </h3>
@@ -307,6 +395,27 @@ const AdminHeader = ({ onToggleSidebar }) => {
                       }}
                     >
                       {unreadCount} new
+                    </span>
+                  )}
+                  {appointmentReminderEnabled && (
+                    <span
+                      id="pending-appointments-reminder-badge"
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: '600',
+                        color: pendingPatientsCount > 0 ? '#b45309' : '#64748b',
+                        backgroundColor: pendingPatientsCount > 0 ? '#fef3c7' : '#f1f5f9',
+                        border: `1px solid ${pendingPatientsCount > 0 ? '#fde68a' : '#e2e8f0'}`,
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                      title={`Total patients with pending appointments: ${pendingPatientsCount}`}
+                    >
+                      <span>⏳</span>
+                      <span>{pendingPatientsCount} {pendingPatientsCount === 1 ? 'patient' : 'patients'} pending</span>
                     </span>
                   )}
                 </div>
@@ -339,7 +448,143 @@ const AdminHeader = ({ onToggleSidebar }) => {
                   overflowY: 'auto',
                 }}
               >
-                {notifications.length === 0 ? (
+                {/* Pending Appointment Reminders Section */}
+                {appointmentReminderEnabled && pendingReminders.length > 0 && (
+                  <div id="pending-reminders-section" style={{ borderBottom: '1px solid #fef3c7' }}>
+                    <div
+                      style={{
+                        padding: '8px 18px',
+                        backgroundColor: '#fffbeb',
+                        borderBottom: '1px solid #fef3c7',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '12px' }}>🔔</span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            color: '#92400e',
+                            letterSpacing: '0.4px',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Pending Appointment Reminders
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          color: '#b45309',
+                          backgroundColor: '#fde68a',
+                          padding: '1px 8px',
+                          borderRadius: '9999px',
+                        }}
+                      >
+                        {pendingReminders.length}
+                      </span>
+                    </div>
+
+                    {pendingReminders.map((rem) => (
+                      <div
+                        key={rem.id}
+                        onClick={() => handleNotificationClick(rem)}
+                        className="pending-reminder-item"
+                        style={{
+                          padding: '14px 18px',
+                          borderBottom: '1px solid #fef3c7',
+                          backgroundColor: '#fffdfa',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.15s ease',
+                          display: 'flex',
+                          gap: '12px',
+                          alignItems: 'flex-start',
+                          position: 'relative',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#fef3c750';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#fffdfa';
+                        }}
+                      >
+                        {/* Amber Icon Badge */}
+                        <div
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '10px',
+                            backgroundColor: '#fef3c7',
+                            color: '#b45309',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginTop: '2px',
+                          }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                          </svg>
+                        </div>
+
+                        {/* Content */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                              {rem.patient_name}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '10.5px',
+                                fontWeight: '700',
+                                color: '#b45309',
+                                backgroundColor: '#fef3c7',
+                                border: '1px solid #fde68a',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                              }}
+                            >
+                              Pending
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: '12.5px', color: '#78350f', marginTop: '2px', lineHeight: 1.35, fontWeight: '500' }}>
+                            Pending appointment reminder
+                          </div>
+
+                          {/* Details Tag */}
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              marginTop: '6px',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              backgroundColor: '#ffffff',
+                              border: '1px solid #fed7aa',
+                              fontSize: '11.5px',
+                              color: '#92400e',
+                              fontWeight: '600',
+                            }}
+                          >
+                            <span>📅 {rem.appointment_date}</span>
+                            <span>•</span>
+                            <span>⏰ {rem.booking_time}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {notifications.length === 0 && (!appointmentReminderEnabled || pendingReminders.length === 0) ? (
                   <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
                     <div
                       style={{
@@ -372,9 +617,7 @@ const AdminHeader = ({ onToggleSidebar }) => {
                     return (
                       <div
                         key={notif.id}
-                        onClick={() => {
-                          if (isUnread) handleMarkSingleRead(notif.id);
-                        }}
+                        onClick={() => handleNotificationClick(notif)}
                         style={{
                           padding: '14px 18px',
                           borderBottom: '1px solid #f8fafc',
