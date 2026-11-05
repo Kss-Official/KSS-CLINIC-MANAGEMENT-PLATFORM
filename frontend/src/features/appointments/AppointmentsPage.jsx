@@ -197,7 +197,12 @@ const AppointmentsPage = () => {
       prev.map((apt) => (apt.id === aptId ? { ...apt, status: newStatus } : apt))
     );
     try {
-      await appointmentApi.updateAppointmentStatus(aptId, newStatus);
+      const res = await appointmentApi.updateAppointmentStatus(aptId, newStatus);
+      window.dispatchEvent(
+        new CustomEvent('appointment-updated', {
+          detail: { id: aptId, status: newStatus, appointment: res },
+        })
+      );
     } catch (err) {
       console.error('Failed to update status on server:', err);
       fetchAppointments();
@@ -1032,12 +1037,12 @@ const AppointmentsPage = () => {
                             borderRadius: '9999px',
                             fontSize: '12px',
                             fontWeight: '600',
-                            backgroundColor: rxNotif ? '#dcfce7' : rxBadge.bg,
-                            color: rxNotif ? '#15803d' : rxBadge.color,
-                            border: rxNotif ? '1px solid #86efac' : 'none',
+                            backgroundColor: rxBadge.bg,
+                            color: rxBadge.color,
+                            border: 'none',
                           }}
                         >
-                          {rxNotif ? 'Complete' : (row.prescriptionStatus || 'Pending')}
+                          {row.prescriptionStatus || 'Pending'}
                         </span>
                       </td>
                       <td style={{ padding: '14px 16px' }}>

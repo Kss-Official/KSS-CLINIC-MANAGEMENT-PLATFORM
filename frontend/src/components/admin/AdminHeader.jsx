@@ -238,6 +238,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     };
 
     if (isPrescriptionRemaining) {
+      navigate('/prescriptions');
       if (typeof onNewPrescription === 'function') {
         onNewPrescription(aptToOpen);
       } else {
@@ -612,16 +613,20 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
               {/* Notification List (Structured with New Appointments, Prescription Remaining, Confirmed Reminders & others) */}
               {(() => {
                 const newAppointmentsList = notifications.filter(
-                  (n) => (!n.is_read || (n.title && n.title.toLowerCase().includes('new'))) &&
+                  (n) => !n.is_read &&
+                         ((n.title && n.title.toLowerCase().includes('new')) || (n.message && n.message.toLowerCase().includes('new appointment'))) &&
                          !(n.title && n.title.toLowerCase().includes('prescription remaining'))
                 );
                 const rxRemainingList = notifications.filter(
                   (n) => (n.title && n.title.toLowerCase().includes('prescription remaining')) ||
                          (n.message && n.message.toLowerCase().includes('prescription remaining'))
-                );
+                ).sort((a, b) => {
+                  if (!a.is_read && b.is_read) return -1;
+                  if (a.is_read && !b.is_read) return 1;
+                  return 0;
+                });
                 const otherNotifsList = notifications.filter(
                   (n) => n.is_read &&
-                         !(n.title && n.title.toLowerCase().includes('new')) &&
                          !(n.title && n.title.toLowerCase().includes('prescription remaining'))
                 );
 
@@ -828,108 +833,166 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                         </div>
 
                         <div className="prescription-remaining-list">
-                          {rxRemainingList.map((notif) => (
-                            <div
-                              key={notif.id}
-                              onClick={() => handleNotificationClick(notif)}
-                              className="rx-remaining-item"
-                              style={{
-                                padding: '13px 18px',
-                                borderBottom: '1px solid #fef3c7',
-                                backgroundColor: !notif.is_read ? '#fffdf7' : '#ffffff',
-                                cursor: 'pointer',
-                                transition: 'background-color 0.15s ease',
-                                display: 'flex',
-                                gap: '12px',
-                                alignItems: 'flex-start',
-                                position: 'relative',
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef9c3')}
-                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = !notif.is_read ? '#fffdf7' : '#ffffff')}
-                              title="Click to create prescription with patient pre-filled"
-                            >
-                              {/* Amber/Gold Icon Badge */}
+                          {rxRemainingList.map((notif) => {
+                            const aptNum = notif.appointment_details?.appointment_id || notif.appointment_id || (notif.appointment ? `APT-${notif.appointment}` : 'APT-0000');
+                            const patientName = notif.patient_name || notif.appointment_details?.patient_name || 'Patient';
+                            return (
                               <div
+                                key={notif.id}
+                                onClick={() => handleNotificationClick(notif)}
+                                className="rx-remaining-item"
                                 style={{
-                                  width: '36px',
-                                  height: '36px',
-                                  borderRadius: '10px',
-                                  backgroundColor: '#fef3c7',
-                                  color: '#b45309',
+                                  padding: '13px 18px',
+                                  borderBottom: '1px solid #fef3c7',
+                                  backgroundColor: !notif.is_read ? '#fffdf7' : '#ffffff',
+                                  cursor: 'pointer',
+                                  transition: 'background-color 0.15s ease',
                                   display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  flexShrink: 0,
-                                  marginTop: '2px',
+                                  gap: '12px',
+                                  alignItems: 'flex-start',
+                                  position: 'relative',
                                 }}
+                                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef9c3')}
+                                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = !notif.is_read ? '#fffdf7' : '#ffffff')}
+                                title="Click to create prescription with patient pre-filled"
                               >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                  <polyline points="14 2 14 8 20 8" />
-                                  <line x1="12" y1="18" x2="12" y2="12" />
-                                  <line x1="9" y1="15" x2="15" y2="15" />
-                                </svg>
-                              </div>
-
-                              {/* Content */}
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                                  <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
-                                    {notif.patient_name || 'Patient'}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: '11px',
-                                      fontWeight: '600',
-                                      color: '#9a3412',
-                                      backgroundColor: '#ffedd5',
-                                      padding: '1px 7px',
-                                      borderRadius: '4px',
-                                    }}
-                                  >
-                                    Prescription Remaining
-                                  </span>
+                                {/* Amber/Gold Icon Badge */}
+                                <div
+                                  style={{
+                                    width: '36px',
+                                    height: '36px',
+                                    borderRadius: '10px',
+                                    backgroundColor: '#fef3c7',
+                                    color: '#b45309',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    marginTop: '2px',
+                                  }}
+                                >
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="12" y1="18" x2="12" y2="12" />
+                                    <line x1="9" y1="15" x2="15" y2="15" />
+                                  </svg>
                                 </div>
 
-                                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', lineHeight: 1.35, fontWeight: '500' }}>
-                                  {notif.message || `Consultation completed for ${notif.patient_name}. Prescription remaining to be created.`}
-                                </div>
+                                {/* Content */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  {/* Row 1: Patient Name & Prescription Remaining Badge */}
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
+                                      {patientName}
+                                    </span>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                      <span
+                                        style={{
+                                          fontSize: '11px',
+                                          fontWeight: '700',
+                                          color: '#9a3412',
+                                          backgroundColor: '#ffedd5',
+                                          border: '1px solid #fed7aa',
+                                          padding: '2px 8px',
+                                          borderRadius: '4px',
+                                          letterSpacing: '0.2px',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
+                                        Prescription Remaining
+                                      </span>
+                                      {!notif.is_read && (
+                                        <span
+                                          style={{
+                                            width: '7px',
+                                            height: '7px',
+                                            borderRadius: '50%',
+                                            backgroundColor: '#ea580c',
+                                            flexShrink: 0,
+                                          }}
+                                          title="Unread notification"
+                                        />
+                                      )}
+                                    </div>
+                                  </div>
 
-                                {/* Bottom row: date/time & action pill */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', gap: '6px', flexWrap: 'wrap' }}>
-                                  {(notif.appointment_date || notif.booking_time) && (
+                                  {/* Row 2: Appointment Number & Appointment Status: Completed */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
                                     <div
                                       style={{
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: '6px',
+                                        gap: '5px',
                                         fontSize: '11.5px',
-                                        color: '#78350f',
-                                        fontWeight: '600',
+                                        color: '#334155',
+                                        backgroundColor: '#f1f5f9',
+                                        border: '1px solid #e2e8f0',
+                                        padding: '2px 8px',
+                                        borderRadius: '5px',
                                       }}
                                     >
-                                      {notif.appointment_date && <span>📅 {notif.appointment_date}</span>}
-                                      {notif.appointment_date && notif.booking_time && <span>•</span>}
-                                      {notif.booking_time && <span>⏰ {notif.booking_time}</span>}
+                                      <span style={{ color: '#64748b', fontWeight: '500' }}>APT:</span>
+                                      <span style={{ fontWeight: '700', color: '#0f172a', fontFamily: 'monospace' }}>
+                                        {aptNum}
+                                      </span>
                                     </div>
-                                  )}
-                                  <span
-                                    style={{
-                                      fontSize: '11px',
-                                      fontWeight: '700',
-                                      color: '#166534',
-                                      backgroundColor: '#dcfce7',
-                                      border: '1px solid #86efac',
-                                      padding: '2px 8px',
-                                      borderRadius: '6px',
-                                    }}
-                                  >
-                                    + Create Prescription →
-                                  </span>
+
+                                    <div
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        fontSize: '11.5px',
+                                        fontWeight: '600',
+                                        color: '#1d4ed8',
+                                        backgroundColor: '#eff6ff',
+                                        border: '1px solid #bfdbfe',
+                                        padding: '2px 8px',
+                                        borderRadius: '9999px',
+                                      }}
+                                    >
+                                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
+                                      <span>Appointment Status: Completed</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Row 3: Scheduled Date/Time & CTA Button */}
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', gap: '6px', flexWrap: 'wrap' }}>
+                                    {(notif.appointment_date || notif.booking_time) && (
+                                      <div
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '6px',
+                                          fontSize: '11.5px',
+                                          color: '#78350f',
+                                          fontWeight: '600',
+                                        }}
+                                      >
+                                        {notif.appointment_date && <span>📅 {notif.appointment_date}</span>}
+                                        {notif.appointment_date && notif.booking_time && <span>•</span>}
+                                        {notif.booking_time && <span>⏰ {notif.booking_time}</span>}
+                                      </div>
+                                    )}
+                                    <span
+                                      style={{
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        color: '#166534',
+                                        backgroundColor: '#dcfce7',
+                                        border: '1px solid #86efac',
+                                        padding: '2px 8px',
+                                        borderRadius: '6px',
+                                      }}
+                                    >
+                                      + Create Prescription →
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}

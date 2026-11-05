@@ -884,14 +884,29 @@ const DashboardPage = () => {
                                 onClick: () => openViewAppointment(row),
                               },
                               {
-                                label: 'Go to Appointments',
-                                icon: '📅',
-                                onClick: () => navigate('/appointments'),
-                              },
-                              {
                                 label: 'Create Prescription',
                                 icon: '🌿',
                                 onClick: () => openNewPrescription(row),
+                              },
+                              ...(row.status !== 'Complete' && row.status !== 'Completed' ? [{
+                                label: 'Mark as Complete',
+                                icon: '✓',
+                                onClick: async () => {
+                                  try {
+                                    const targetId = row.rawId || row.id;
+                                    await appointmentApi.updateAppointmentStatus(targetId, 'Complete');
+                                    window.dispatchEvent(new CustomEvent('appointment-updated', {
+                                      detail: { id: targetId, status: 'Complete' }
+                                    }));
+                                  } catch (err) {
+                                    console.error('Failed to mark complete from dashboard:', err);
+                                  }
+                                }
+                              }] : []),
+                              {
+                                label: 'Go to Appointments',
+                                icon: '📅',
+                                onClick: () => navigate('/appointments'),
                               },
                             ]}
                           />

@@ -514,13 +514,13 @@ class AppointmentDetailView(APIView):
                             'patient_name': apt.patient_name,
                             'appointment_date': apt.appointment_date,
                             'booking_time': apt.time_slot,
-                            'message': f"Appointment completed for {apt.patient_name}. Prescription remaining to be created.",
+                            'message': f"Appointment {apt.appointment_id} for {apt.patient_name} marked as Completed. Prescription remaining to be created.",
                             'is_read': False,
                         }
                     )
-                    if not created and rx_notif.is_read:
+                    if not created:
                         rx_notif.is_read = False
-                        rx_notif.message = f"Appointment completed for {apt.patient_name}. Prescription remaining to be created."
+                        rx_notif.message = f"Appointment {apt.appointment_id} for {apt.patient_name} marked as Completed. Prescription remaining to be created."
                         rx_notif.save(update_fields=['is_read', 'message'])
 
         if new_prescription_status:
@@ -552,7 +552,7 @@ class NotificationListView(APIView):
         reminder_enabled = bool(notif_settings.get('appointmentReminder', True))
 
         # Ensure completed appointments without prescriptions have Prescription Remaining notification
-        completed_apts = Appointment.objects.filter(status__iexact='Complete')
+        completed_apts = Appointment.objects.filter(models.Q(status__iexact='Complete') | models.Q(status__iexact='Completed'))
         for c_apt in completed_apts:
             has_rx = (
                 Prescription.objects.filter(appointment=c_apt).exists() or
@@ -566,7 +566,7 @@ class NotificationListView(APIView):
                         'patient_name': c_apt.patient_name,
                         'appointment_date': c_apt.appointment_date,
                         'booking_time': c_apt.time_slot,
-                        'message': f"Appointment completed for {c_apt.patient_name}. Prescription remaining to be created.",
+                        'message': f"Appointment {c_apt.appointment_id} for {c_apt.patient_name} marked as Completed. Prescription remaining to be created.",
                         'is_read': False,
                     }
                 )
