@@ -273,7 +273,6 @@ const AdminLayout = ({ children }) => {
           isOpen={isPrescriptionModalOpen}
           onClose={closeNewPrescription}
           onSave={(data) => {
-            alert(`Prescription created successfully for ${data.patient?.name || 'patient'}!`);
             closeNewPrescription();
           }}
         />

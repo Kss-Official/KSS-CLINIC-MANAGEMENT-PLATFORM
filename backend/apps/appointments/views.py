@@ -1046,6 +1046,24 @@ class PrescriptionListView(APIView):
             matched_apt.status = 'Complete'
             matched_apt.save(update_fields=['prescription_status', 'status'])
 
+        # Create notification if prescriptionUpdates setting is enabled (or by default True)
+        clinic_settings = load_clinic_settings()
+        notif_settings = clinic_settings.get('notifications') or {}
+        rx_notif_enabled = bool(notif_settings.get('prescriptionUpdates', True))
+        if rx_notif_enabled:
+            try:
+                Notification.objects.create(
+                    appointment=matched_apt,
+                    title='Prescription Updated',
+                    patient_name=rx.patient_name,
+                    appointment_date=rx.date,
+                    booking_time=rx.time,
+                    message=f"Prescription {rx.prescription_id} issued for {rx.patient_name}",
+                    is_read=False,
+                )
+            except Exception as e:
+                print('Error creating Prescription Updated notification:', e)
+
         return Response({
             'id': rx.prescription_id,
             'rxId': rx.prescription_id,
@@ -1055,6 +1073,10 @@ class PrescriptionListView(APIView):
             'patientId': rx.patient_id_ref,
             'patient_id_ref': rx.patient_id_ref,
             'mobile': rx.patient_phone,
+            'contact': rx.patient_phone,
+            'appointment_id': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId')),
+            'appointmentId': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId')),
+            'appointment_database_id': matched_apt.id if matched_apt else None,
             'ageGender': rx.age_gender,
             'date': rx.date,
             'time': rx.time,
