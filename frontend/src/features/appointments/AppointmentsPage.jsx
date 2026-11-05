@@ -214,11 +214,7 @@ const AppointmentsPage = () => {
 
   const mapApiAppointment = (item) => {
     const rxStatus = item.prescription_status || item.prescriptionStatus || 'Pending';
-    const isRxComplete = ['complete', 'completed'].includes(String(rxStatus).trim().toLowerCase());
-    let aptStatus = item.status || 'Confirmed';
-    if (isRxComplete && String(aptStatus).toLowerCase() !== 'cancelled') {
-      aptStatus = 'Complete';
-    }
+    const aptStatus = item.status || 'Confirmed';
 
     return {
       id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),

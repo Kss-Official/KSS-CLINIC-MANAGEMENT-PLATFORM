@@ -354,7 +354,7 @@ class AppointmentListCreateView(APIView):
             if req_dob:
                 save_kwargs['patient_dob'] = req_dob
             if not serializer.validated_data.get('status'):
-                save_kwargs['status'] = 'Pending'
+                save_kwargs['status'] = 'Confirmed'
             if not serializer.validated_data.get('prescription_status'):
                 save_kwargs['prescription_status'] = 'Pending'
             appointment = serializer.save(**save_kwargs)
@@ -526,10 +526,6 @@ class AppointmentDetailView(APIView):
         if new_prescription_status:
             apt.prescription_status = new_prescription_status
             fields_to_update.append('prescription_status')
-            if str(new_prescription_status).strip().lower() in ['complete', 'completed'] and apt.status != 'Cancelled':
-                apt.status = 'Complete'
-                if 'status' not in fields_to_update:
-                    fields_to_update.append('status')
 
         apt.save(update_fields=fields_to_update)
         return Response(AppointmentSerializer(apt).data)
@@ -1094,11 +1090,10 @@ class PrescriptionListView(APIView):
             status=payload.get('status') or 'Pending',
         )
 
-        # Update ONLY the exact matched appointment's status and prescription status to Complete
+        # Update matched appointment's prescription status to Complete (appointment status remains until admin manually marks Complete)
         if matched_apt and matched_apt.status != 'Cancelled':
             matched_apt.prescription_status = 'Complete'
-            matched_apt.status = 'Complete'
-            matched_apt.save(update_fields=['prescription_status', 'status'])
+            matched_apt.save(update_fields=['prescription_status'])
             Notification.objects.filter(
                 appointment=matched_apt,
                 title__icontains='Prescription Remaining'

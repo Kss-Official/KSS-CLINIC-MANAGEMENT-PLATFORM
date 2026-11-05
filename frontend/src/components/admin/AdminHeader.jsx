@@ -207,11 +207,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
 
     const item = notif.appointment_details || {};
     const rxStatus = item.prescription_status || item.prescriptionStatus || 'Pending';
-    const isRxComplete = ['complete', 'completed'].includes(String(rxStatus).trim().toLowerCase());
-    let aptStatus = item.status || 'Confirmed';
-    if (isRxComplete && String(aptStatus).toLowerCase() !== 'cancelled') {
-      aptStatus = 'Complete';
-    }
+    const aptStatus = item.status || 'Confirmed';
 
     const formattedAptId = item.appointment_id || (item.id ? ('APT-' + item.id) : (notif.appointment ? ('APT-' + notif.appointment) : 'APT-0000'));
     const aptToOpen = {
