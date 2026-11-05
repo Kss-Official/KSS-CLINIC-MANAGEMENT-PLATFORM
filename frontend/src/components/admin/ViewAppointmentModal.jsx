@@ -1,6 +1,14 @@
-import React, { useEffect } from 'react';
+import appointmentApi from '../../api/appointmentApi';
+import React, { useEffect, useState } from 'react';
 
 const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
+  const raw = appointment || {};
+  const [currentStatus, setCurrentStatus] = useState(raw.status || 'Confirmed');
+
+  useEffect(() => {
+    setCurrentStatus(raw.status || 'Confirmed');
+  }, [raw.status, raw.id]);
+
   // Lock background screen scroll and handle ESC key to close
   useEffect(() => {
     if (!isOpen) return;
@@ -36,23 +44,52 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
     };
   }, [isOpen, onClose]);
 
+  const handleConfirmAppointment = async () => {
+    try {
+      const targetId = raw.rawId || raw.id || raw.appointment_id;
+      await appointmentApi.updateAppointmentStatus(targetId, 'Confirmed');
+      setCurrentStatus('Confirmed');
+      window.dispatchEvent(
+        new CustomEvent('appointment-updated', {
+          detail: { id: targetId, status: 'Confirmed' },
+        })
+      );
+    } catch (err) {
+      console.error('Failed to confirm appointment:', err);
+    }
+  };
+
   if (!isOpen) return null;
 
-  // Fallback appointment data
-  const apt = appointment || {
-    id: 'APT-1001',
-    name: 'Rahul Sharma',
-    contact: '+91 98765 43210',
-    date: '28 Oct 2026',
-    time: '09:30 AM',
-    reason: 'Skin Allergy',
-    status: 'Confirmed',
-    consultationType: 'In clinic Visit',
-    ageGender: '28 Years / Male',
-    bloodGroup: 'O+',
-    email: 'rahul.sharma@gmail.com',
-    doctor: 'Dr. Kumar Tripathi Ampeh (Pat.)',
-    notes: 'Patient reported recurring allergic rashes on hands and neck. Prescribed constitutional remedy and recommended dietary caution.',
+  // Normalize appointment data with clean fallbacks
+  const formatDisplayDate = (d) => {
+    if (!d) return '28 Oct 2026';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      const [year, month, day] = d.split('-');
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      return `${parseInt(day, 10)} ${months[parseInt(month, 10) - 1]} ${year}`;
+    }
+    return d;
+  };
+
+  const formattedId = raw.appointment_id || (raw.id && String(raw.id).startsWith('APT-') ? raw.id : (raw.id ? ('APT-' + raw.id) : 'APT-1001'));
+  const apt = {
+    ...raw,
+    id: formattedId,
+    appointment_id: formattedId,
+    name: raw.patient_name || raw.name || 'Rahul Sharma',
+    contact: raw.patient_phone || raw.contact || '+91 98765 43210',
+    date: formatDisplayDate(raw.appointment_date || raw.date),
+    time: raw.time_slot || raw.time || '09:30 AM',
+    reason: raw.reason_for_visit || raw.reason || 'Homeopathic Consultation',
+    status: raw.status || 'Confirmed',
+    consultationType: (raw.consultation_type || raw.consultationType || 'In clinic Visit').replace('In-clinic', 'In clinic'),
+    ageGender: raw.ageGender || raw.age_gender || (raw.patient_gender ? (raw.patient_age ? (raw.patient_age + ' • ' + raw.patient_gender) : raw.patient_gender) : 'Adult'),
+    bloodGroup: raw.blood_group || raw.bloodGroup || 'O+',
+    email: raw.patient_email || raw.email || '',
+    doctor: raw.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+    notes: raw.notes || raw.clinical_remarks || raw.reason_for_visit || raw.reason || 'Homeopathic Consultation',
+    prescriptionStatus: raw.prescription_status || raw.prescriptionStatus || 'Pending',
   };
 
   const getStatusBadge = (status) => {
@@ -82,7 +119,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
     }
   };
 
-  const badge = getStatusBadge(apt.status || 'Confirmed');
+  const badge = getStatusBadge(currentStatus || apt.status || 'Confirmed');
   const rxStatus = apt.prescriptionStatus || apt.prescription_status || 'Pending';
   const rxBadge = getPrescriptionBadge(rxStatus);
 
@@ -189,7 +226,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                   border: `1px solid ${badge.border}`,
                 }}
               >
-                {apt.status}
+                {currentStatus || apt.status}
               </span>
               <button
                 type="button"
@@ -345,7 +382,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 ASSIGNED DOCTOR
               </div>
               <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#0f172a', marginTop: '4px' }}>
-                {apt.doctor || 'Dr. Kumar Tripathi Ampeh'}
+                {apt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)'}
               </div>
             </div>
           </div>
@@ -379,6 +416,31 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               borderTop: '1px solid #f1f5f9',
             }}
           >
+            {currentStatus === 'Pending' && (
+              <button
+                type="button"
+                onClick={handleConfirmAppointment}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: '#1e7e34',
+                  color: '#ffffff',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#155724')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1e7e34')}
+              >
+                <span>✓</span>
+                <span>Confirm Appointment</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}

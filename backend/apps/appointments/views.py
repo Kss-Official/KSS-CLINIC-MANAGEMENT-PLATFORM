@@ -10,7 +10,7 @@ from rest_framework import status, permissions
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from apps.core.permissions import IsStaffOrAdmin, IsPatientUser
 from .models import Appointment, Notification, Prescription, Patient
-from .serializers import AppointmentSerializer, NotificationSerializer, ClinicSettingsSerializer
+from .serializers import AppointmentSerializer, NotificationSerializer, ClinicSettingsSerializer, AppointmentSettingsSerializer
 from datetime import datetime
 from .services.whatsapp_service import whatsapp_service
 from .services.prescription_pdf import generate_prescription_pdf_bytes
@@ -41,6 +41,19 @@ def normalize_date_str(date_str):
     return date_str.lower().strip()
 
 
+def is_upcoming_or_today(date_str):
+    if not date_str:
+        return True
+    norm = normalize_date_str(date_str)
+    if norm and len(norm.split('-')) == 3:
+        try:
+            apt_d = datetime.strptime(norm, '%Y-%m-%d').date()
+            return apt_d >= datetime.now().date()
+        except Exception:
+            return True
+    return True
+
+
 def normalize_time_str(time_str):
     if not time_str:
         return ''
@@ -51,6 +64,80 @@ def normalize_time_str(time_str):
         except (ValueError, TypeError):
             continue
     return t
+
+def parse_time_to_minutes(time_str):
+    if not time_str:
+        return None
+    import re
+    cleaned = str(time_str).strip()
+    match = re.match(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$', cleaned, re.IGNORECASE)
+    if not match:
+        for fmt in ['%I:%M %p', '%H:%M', '%I:%M%p', '%I:%M %P']:
+            try:
+                dt = datetime.strptime(cleaned, fmt)
+                return dt.hour * 60 + dt.minute
+            except (ValueError, TypeError):
+                continue
+        return None
+    h, m, p = match.groups()
+    hours = int(h)
+    minutes = int(m)
+    period = p.upper()
+    if period == 'PM' and hours != 12:
+        hours += 12
+    elif period == 'AM' and hours == 12:
+        hours = 0
+    return hours * 60 + minutes
+
+
+def check_date_restriction(date_str_or_obj, restrictions):
+    """
+    Checks if a given date falls inside any active date restriction.
+    Returns (is_restricted: bool, reason: str or None)
+    """
+    if not date_str_or_obj or not restrictions:
+        return False, None
+    norm = normalize_date_str(str(date_str_or_obj))
+    if not norm or len(norm.split('-')) != 3:
+        return False, None
+    for item in restrictions:
+        if not isinstance(item, dict):
+            continue
+        start_d = normalize_date_str(item.get('startDate') or item.get('start_date') or '')
+        end_d = normalize_date_str(item.get('endDate') or item.get('end_date') or '')
+        if start_d and end_d:
+            if start_d <= norm <= end_d:
+                reason = item.get('reason') or item.get('label') or 'Clinic closed on this date'
+                return True, reason
+    return False, None
+
+
+def get_working_hours_for_date(date_str_or_obj, clinic_settings):
+    """
+    Returns (start_time: str, end_time: str, is_custom: bool, reason: str or None)
+    """
+    default_hours = clinic_settings.get('consultationHours') or clinic_settings.get('consultation_hours') or '09:00 AM - 06:00 PM'
+    parts = [p.strip() for p in default_hours.split('-')]
+    def_start = parts[0] if len(parts) > 0 else '09:00 AM'
+    def_end = parts[1] if len(parts) > 1 else '06:00 PM'
+
+    norm = normalize_date_str(str(date_str_or_obj)) if date_str_or_obj else None
+    if not norm or len(norm.split('-')) != 3:
+        return def_start, def_end, False, None
+
+    custom_list = clinic_settings.get('customWorkingHours') or clinic_settings.get('custom_working_hours') or []
+    for item in custom_list:
+        if not isinstance(item, dict):
+            continue
+        start_d = normalize_date_str(item.get('startDate') or item.get('start_date') or '')
+        end_d = normalize_date_str(item.get('endDate') or item.get('end_date') or '')
+        if start_d and end_d and start_d <= norm <= end_d:
+            c_start = item.get('startTime') or item.get('start_time') or def_start
+            c_end = item.get('endTime') or item.get('end_time') or def_end
+            reason = item.get('reason') or item.get('label') or 'Special working hours'
+            return c_start, c_end, True, reason
+
+    return def_start, def_end, False, None
 
 
 class AppointmentSlotsView(APIView):
@@ -91,11 +178,40 @@ class AppointmentSlotsView(APIView):
                 slots_set.update(all_booked_serialized[raw_target])
             booked_slots = sorted(list(slots_set))
 
+        clinic_settings = load_clinic_settings()
+        working_days = clinic_settings.get('workingDays') or clinic_settings.get('working_days') or ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        is_working_day = True
+        if target_norm:
+            try:
+                from datetime import datetime
+                d_obj = datetime.strptime(target_norm, '%Y-%m-%d').date()
+                is_working_day = d_obj.strftime('%a') in working_days
+            except Exception:
+                pass
+
+        restrictions = clinic_settings.get('dateRestrictions') or clinic_settings.get('date_restrictions') or []
+        custom_hours = clinic_settings.get('customWorkingHours') or clinic_settings.get('custom_working_hours') or []
+        is_restricted, restriction_reason = check_date_restriction(target_norm, restrictions)
+        effective_start, effective_end, is_custom_hours, custom_hours_reason = get_working_hours_for_date(target_norm, clinic_settings)
+
         return Response({
             'date': date_param,
             'normalized_date': target_norm,
             'booked_slots': booked_slots,
             'all_booked_slots': all_booked_serialized,
+            'working_days': working_days,
+            'workingDays': working_days,
+            'is_working_day': is_working_day,
+            'is_date_restricted': is_restricted,
+            'restriction_reason': restriction_reason,
+            'effective_start_time': effective_start,
+            'effective_end_time': effective_end,
+            'is_custom_hours': is_custom_hours,
+            'custom_hours_reason': custom_hours_reason,
+            'date_restrictions': restrictions,
+            'dateRestrictions': restrictions,
+            'custom_working_hours': custom_hours,
+            'customWorkingHours': custom_hours,
         })
 
 
@@ -174,7 +290,43 @@ class AppointmentListCreateView(APIView):
                                 'error': 'Cannot book an appointment for a past date. Please select today or a future date.',
                                 'detail': f"Requested date '{req_date}' is in the past."
                             }, status=status.HTTP_400_BAD_REQUEST)
-                except Exception:
+
+                        clinic_settings = load_clinic_settings()
+
+                        # 1. Date restriction check
+                        restrictions = clinic_settings.get('dateRestrictions') or clinic_settings.get('date_restrictions') or []
+                        is_restr, restr_reason = check_date_restriction(norm_d, restrictions)
+                        if is_restr:
+                            return Response({
+                                'error': f"Appointments are unavailable on {req_date} ({restr_reason or 'Clinic closed on this date'}). Please select an open date.",
+                                'detail': f"Requested date '{req_date}' is restricted: {restr_reason}"
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
+                        # 2. Working day check
+                        working_days = clinic_settings.get('workingDays') or clinic_settings.get('working_days') or ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                        day_abbr = apt_date_obj.strftime('%a')
+                        day_full = apt_date_obj.strftime('%A')
+                        if day_abbr not in working_days:
+                            return Response({
+                                'error': f"The clinic is closed on {day_full}s. Please select an available working day.",
+                                'detail': f"Requested date '{req_date}' falls on {day_full}, which is a disabled non-working day."
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
+                        # 3. Working hours check for requested time slot
+                        if req_slot:
+                            eff_start, eff_end, is_custom, custom_lbl = get_working_hours_for_date(norm_d, clinic_settings)
+                            slot_mins = parse_time_to_minutes(req_slot)
+                            start_mins = parse_time_to_minutes(eff_start)
+                            end_mins = parse_time_to_minutes(eff_end)
+                            if slot_mins is not None and start_mins is not None and end_mins is not None:
+                                if slot_mins < start_mins or slot_mins >= end_mins:
+                                    hours_desc = f"{eff_start} - {eff_end}" + (f" ({custom_lbl})" if custom_lbl else "")
+                                    return Response({
+                                        'error': f"The requested time slot '{req_slot}' is outside clinic working hours ({hours_desc}) for this date.",
+                                        'detail': f"Slot {req_slot} is not within {eff_start} - {eff_end}."
+                                    }, status=status.HTTP_400_BAD_REQUEST)
+                except Exception as ex:
+                    logger.warning(f"Error checking date/hours restriction: {ex}")
                     pass
 
             # Prevent double booking: ensure slot on requested date is available
@@ -202,7 +354,7 @@ class AppointmentListCreateView(APIView):
             if req_dob:
                 save_kwargs['patient_dob'] = req_dob
             if not serializer.validated_data.get('status'):
-                save_kwargs['status'] = 'Confirmed'
+                save_kwargs['status'] = 'Pending'
             if not serializer.validated_data.get('prescription_status'):
                 save_kwargs['prescription_status'] = 'Pending'
             appointment = serializer.save(**save_kwargs)
@@ -370,12 +522,60 @@ class NotificationListView(APIView):
     permission_classes = [IsAuthenticated, IsStaffOrAdmin]
 
     def get(self, request):
+        clinic_settings = load_clinic_settings()
+        notif_settings = clinic_settings.get('notifications') or {}
+        # appointmentReminder is True by default unless explicitly disabled
+        reminder_enabled = bool(notif_settings.get('appointmentReminder', True))
+
         notifications = Notification.objects.all().order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
         unread_count = Notification.objects.filter(is_read=False).count()
+
+        # Query all upcoming appointments that are still Pending
+        pending_apts = Appointment.objects.filter(status__iexact='Pending').order_by('created_at')
+        upcoming_pending = [apt for apt in pending_apts if is_upcoming_or_today(apt.appointment_date)]
+
+        # Count total distinct patients with pending appointments
+        pending_patient_keys = set()
+        for apt in upcoming_pending:
+            p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
+            if apt.patient_record_id:
+                p_key = f"rec_{apt.patient_record_id}"
+            pending_patient_keys.add(p_key)
+
+        pending_patients_count = len(pending_patient_keys)
+        pending_appointments_count = len(upcoming_pending)
+
+        # Build pending reminders list
+        pending_reminders = []
+        if reminder_enabled:
+            for apt in upcoming_pending:
+                pending_reminders.append({
+                    'id': f"pending-reminder-{apt.id}",
+                    'raw_id': apt.id,
+                    'appointment': apt.id,
+                    'appointment_id': apt.appointment_id or f"APT-{apt.id}",
+                    'title': 'Pending Appointment Reminder',
+                    'message': f"Pending appointment for {apt.patient_name} on {apt.appointment_date} at {apt.time_slot} is awaiting confirmation.",
+                    'patient_name': apt.patient_name,
+                    'patient_phone': apt.patient_phone,
+                    'patient_email': apt.patient_email or '',
+                    'appointment_date': apt.appointment_date,
+                    'booking_time': apt.time_slot,
+                    'status': 'Pending',
+                    'is_reminder': True,
+                    'is_read': False,
+                    'created_at_formatted': 'Pending Confirmation',
+                    'appointment_details': AppointmentSerializer(apt).data,
+                })
+
         return Response({
             'notifications': serializer.data,
-            'unread_count': unread_count
+            'unread_count': unread_count,
+            'pending_patients_count': pending_patients_count if reminder_enabled else 0,
+            'pending_appointments_count': pending_appointments_count if reminder_enabled else 0,
+            'appointment_reminder_enabled': reminder_enabled,
+            'pending_reminders': pending_reminders if reminder_enabled else [],
         })
 
 
@@ -384,12 +584,14 @@ class NotificationMarkReadView(APIView):
 
     def post(self, request, pk):
         try:
+            if isinstance(pk, str) and pk.startswith('pending-reminder-'):
+                return Response({'status': 'success', 'id': pk})
             notification = Notification.objects.get(pk=pk)
             notification.is_read = True
             notification.save()
             return Response({'status': 'success', 'notification': NotificationSerializer(notification).data})
-        except Notification.DoesNotExist:
-            return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
+        except (Notification.DoesNotExist, ValueError):
+            return Response({'status': 'success', 'id': pk})
 
 
 class NotificationMarkAllReadView(APIView):
@@ -921,20 +1123,45 @@ DEFAULT_CLINIC_SETTINGS = {
     'email': 'clinic.tripathi@gmail.com',
     'address': '12, Green Park, Bangalore',
     'profile_image_url': None,
+    'working_days': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    'workingDays': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    'consultation_hours': '09:00 AM - 06:00 PM',
+    'consultationHours': '09:00 AM - 06:00 PM',
+    'slot_duration': '30 Minutes',
+    'slotDuration': '30 Minutes',
+    'date_restrictions': [],
+    'dateRestrictions': [],
+    'custom_working_hours': [],
+    'customWorkingHours': [],
+    'notifications': {
+        'newAppointment': True,
+        'appointmentReminder': True,
+        'prescriptionUpdates': True,
+    },
+    'notificationChannels': {
+        'whatsapp': True,
+        'email': True,
+        'sms': False,
+    },
 }
 
 def load_clinic_settings():
+    base = DEFAULT_CLINIC_SETTINGS.copy()
     if os.path.exists(CLINIC_SETTINGS_FILE):
         try:
             with open(CLINIC_SETTINGS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                loaded = json.load(f)
+                if isinstance(loaded, dict):
+                    base.update(loaded)
         except Exception:
             pass
-    return DEFAULT_CLINIC_SETTINGS.copy()
+    return base
 
 def save_clinic_settings(data):
+    current = load_clinic_settings()
+    current.update(data)
     with open(CLINIC_SETTINGS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2)
+        json.dump(current, f, indent=2)
 
 class PatientMyProfileView(APIView):
     permission_classes = [IsAuthenticated, IsPatientUser]
@@ -1247,6 +1474,101 @@ class ClinicSettingsView(APIView):
             save_clinic_settings(validated_data)
             return Response(validated_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        return self.post(request)
+
+
+class AppointmentSettingsView(APIView):
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [AllowAny()]
+        return [IsAuthenticated(), IsStaffOrAdmin()]
+
+    def get(self, request):
+        settings_data = load_clinic_settings()
+        return Response({
+            'working_days': settings_data.get('working_days', ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']),
+            'workingDays': settings_data.get('workingDays', ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']),
+            'consultation_hours': settings_data.get('consultation_hours', '09:00 AM - 06:00 PM'),
+            'consultationHours': settings_data.get('consultationHours', '09:00 AM - 06:00 PM'),
+            'slot_duration': settings_data.get('slot_duration', '30 Minutes'),
+            'slotDuration': settings_data.get('slotDuration', '30 Minutes'),
+            'date_restrictions': settings_data.get('date_restrictions', []),
+            'dateRestrictions': settings_data.get('dateRestrictions', []),
+            'custom_working_hours': settings_data.get('custom_working_hours', []),
+            'customWorkingHours': settings_data.get('customWorkingHours', []),
+        })
+
+    def post(self, request):
+        serializer = AppointmentSettingsSerializer(data=request.data)
+        if serializer.is_valid():
+            save_clinic_settings(serializer.validated_data)
+            all_settings = load_clinic_settings()
+            return Response({
+                'working_days': all_settings.get('working_days'),
+                'workingDays': all_settings.get('workingDays'),
+                'consultation_hours': all_settings.get('consultation_hours'),
+                'consultationHours': all_settings.get('consultationHours'),
+                'slot_duration': all_settings.get('slot_duration'),
+                'slotDuration': all_settings.get('slotDuration'),
+                'date_restrictions': all_settings.get('date_restrictions', []),
+                'dateRestrictions': all_settings.get('dateRestrictions', []),
+                'custom_working_hours': all_settings.get('custom_working_hours', []),
+                'customWorkingHours': all_settings.get('customWorkingHours', []),
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        return self.post(request)
+
+
+class NotificationSettingsView(APIView):
+    permission_classes = [IsAuthenticated, IsStaffOrAdmin]
+
+    def get(self, request):
+        clinic_settings = load_clinic_settings()
+        return Response({
+            'notifications': clinic_settings.get('notifications', {
+                'newAppointment': True,
+                'appointmentReminder': True,
+                'prescriptionUpdates': True,
+            }),
+            'notificationChannels': clinic_settings.get('notificationChannels', {
+                'whatsapp': True,
+                'email': True,
+                'sms': False,
+            })
+        })
+
+    def post(self, request):
+        clinic_settings = load_clinic_settings()
+        notifications_data = request.data.get('notifications')
+        channels_data = request.data.get('notificationChannels') or request.data.get('notification_channels')
+
+        if notifications_data is None and any(k in request.data for k in ['newAppointment', 'appointmentReminder', 'prescriptionUpdates']):
+            notifications_data = {
+                'newAppointment': request.data.get('newAppointment', True),
+                'appointmentReminder': request.data.get('appointmentReminder', True),
+                'prescriptionUpdates': request.data.get('prescriptionUpdates', True),
+            }
+
+        if notifications_data is not None and isinstance(notifications_data, dict):
+            current_notifs = clinic_settings.get('notifications') or {}
+            current_notifs.update(notifications_data)
+            clinic_settings['notifications'] = current_notifs
+
+        if channels_data is not None and isinstance(channels_data, dict):
+            current_channels = clinic_settings.get('notificationChannels') or {}
+            current_channels.update(channels_data)
+            clinic_settings['notificationChannels'] = current_channels
+
+        save_clinic_settings(clinic_settings)
+        return Response({
+            'status': 'success',
+            'notifications': clinic_settings.get('notifications'),
+            'notificationChannels': clinic_settings.get('notificationChannels')
+        }, status=status.HTTP_200_OK)
 
     def put(self, request):
         return self.post(request)

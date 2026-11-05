@@ -115,6 +115,29 @@ export const appointmentApi = {
     return response.data;
   },
 
+  // Notification Settings
+  getNotificationSettings: async () => {
+    try {
+      const response = await axiosClient.get('/settings/notifications/');
+      return response.data;
+    } catch {
+      const clinic = await appointmentApi.getClinicSettings();
+      return clinic.notifications || {};
+    }
+  },
+
+  updateNotificationSettings: async (settingsData) => {
+    const response = await axiosClient.post('/settings/notifications/', settingsData);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('notification-settings-updated', {
+          detail: response.data?.notifications || settingsData?.notifications || settingsData,
+        })
+      );
+    }
+    return response.data;
+  },
+
   // Clinic Settings
   getClinicSettings: async () => {
     const response = await axiosClient.get('/settings/clinic/');
@@ -123,6 +146,17 @@ export const appointmentApi = {
 
   updateClinicSettings: async (settingsData) => {
     const response = await axiosClient.post('/settings/clinic/', settingsData);
+    return response.data;
+  },
+
+  // Appointment Settings (Working Days, Hours, Slots)
+  getAppointmentSettings: async () => {
+    const response = await axiosClient.get('/settings/appointment/');
+    return response.data;
+  },
+
+  updateAppointmentSettings: async (settingsData) => {
+    const response = await axiosClient.post('/settings/appointment/', settingsData);
     return response.data;
   },
 

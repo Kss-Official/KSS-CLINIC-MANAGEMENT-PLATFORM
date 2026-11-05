@@ -184,7 +184,7 @@ const AdminLayout = ({ children }) => {
         }}
       >
         {/* Fixed Top Header (70px height) */}
-        <AdminHeader onToggleSidebar={() => setMobileSidebarOpen((prev) => !prev)} />
+        <AdminHeader onToggleSidebar={() => setMobileSidebarOpen((prev) => !prev)} onViewAppointment={openViewAppointment} />
 
         {/* Portal Body: Flex container occupying remaining viewport height */}
         <div
