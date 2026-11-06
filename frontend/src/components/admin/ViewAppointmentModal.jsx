@@ -62,11 +62,29 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
   const handleCompleteAppointment = async () => {
     try {
       const targetId = raw.rawId || raw.id || raw.appointment_id;
-      await appointmentApi.updateAppointmentStatus(targetId, 'Complete');
+      const res = await appointmentApi.updateAppointmentStatus(targetId, 'Complete');
       setCurrentStatus('Complete');
+      const updatedApt = res || raw;
       window.dispatchEvent(
         new CustomEvent('appointment-updated', {
-          detail: { id: targetId, status: 'Complete' },
+          detail: { id: targetId, status: 'Complete', appointment: updatedApt },
+        })
+      );
+      const aptNum = updatedApt.appointment_id || raw.appointment_id || (targetId ? `APT-${targetId}` : 'APT-0000');
+      const pName = updatedApt.patient_name || raw.patient_name || raw.name || 'Patient';
+      window.dispatchEvent(
+        new CustomEvent('prescription-remaining-notification', {
+          detail: {
+            ...raw,
+            ...updatedApt,
+            id: targetId,
+            rawId: targetId,
+            appointment_id: aptNum,
+            patient_name: pName,
+            name: pName,
+            status: 'Completed',
+            prescriptionStatus: 'Pending',
+          },
         })
       );
     } catch (err) {

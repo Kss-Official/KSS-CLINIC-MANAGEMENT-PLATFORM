@@ -110,12 +110,14 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
           ageGender: `${pAge} | ${pGender}`,
           age: pAge,
           gender: pGender,
-          initials: pName
-            .split(' ')
-            .map((n) => n[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase(),
+          initials:
+            pName
+              .split(' ')
+              .filter(Boolean)
+              .map((n) => n[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase() || 'PT',
         });
         if (initialPatient.date || initialPatient.appointment_date) {
           const iso = parseDisplayDateToIso(initialPatient.date || initialPatient.appointment_date);
@@ -128,7 +130,30 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
           setConsultationType(initialPatient.consultationType || initialPatient.consultation_type);
         }
       } else {
-        setSelectedPatient(initialPatient);
+        const pName = initialPatient.name || initialPatient.patient_name || 'Patient';
+        const pPhone = initialPatient.phone || initialPatient.mobile || initialPatient.contact || initialPatient.patient_phone || '';
+        const pAge = initialPatient.age || initialPatient.patient_age || '30';
+        const pGender = initialPatient.gender || initialPatient.patient_gender || 'Adult';
+        const pId = initialPatient.id || initialPatient.patient_id || initialPatient.patient_id_ref || 'PAT-1010';
+        setSelectedPatient({
+          ...initialPatient,
+          id: pId,
+          name: pName,
+          phone: pPhone,
+          age: pAge,
+          gender: pGender,
+          ageGender: initialPatient.ageGender || `${pAge} | ${pGender}`,
+          initials:
+            initialPatient.initials ||
+            pName
+              .split(' ')
+              .filter(Boolean)
+              .map((n) => n[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase() ||
+            'PT',
+        });
         setSelectedAppointment(null);
       }
     }

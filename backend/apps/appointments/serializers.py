@@ -3,11 +3,15 @@ from .models import Appointment, Notification, Prescription
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
+    patient_id_ref = serializers.SerializerMethodField()
+
     class Meta:
         model = Appointment
         fields = [
             'id',
             'appointment_id',
+            'patient_record',
+            'patient_id_ref',
             'patient_name',
             'patient_phone',
             'patient_email',
@@ -23,6 +27,13 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'appointment_id', 'created_at', 'updated_at']
+
+    def get_patient_id_ref(self, obj):
+        if obj.patient_record and obj.patient_record.patient_id:
+            return obj.patient_record.patient_id
+        if obj.patient_record_id:
+            return f"PAT-{obj.patient_record_id}"
+        return "PAT-1010"
 
     def validate_patient_name(self, value):
         val = (value or '').strip()

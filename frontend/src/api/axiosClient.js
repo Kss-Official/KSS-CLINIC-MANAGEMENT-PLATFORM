@@ -13,7 +13,14 @@ axiosClient.interceptors.request.use(
   (config) => {
     const token = sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN) || localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     if (token) {
-      config.headers.Authorization = token.startsWith('Token ') || token.startsWith('Bearer ') ? token : `Token ${token}`;
+      const authVal = token.startsWith('Token ') || token.startsWith('Bearer ') ? token : `Token ${token}`;
+      if (config.headers && typeof config.headers.set === 'function') {
+        config.headers.set('Authorization', authVal);
+      } else {
+        config.headers = config.headers || {};
+        config.headers.Authorization = authVal;
+        config.headers['Authorization'] = authVal;
+      }
     }
     return config;
   },

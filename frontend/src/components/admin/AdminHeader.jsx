@@ -55,6 +55,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     } catch {}
     return true;
   });
+  const [floatingNotification, setFloatingNotification] = useState(null);
   const notifRef = useRef(null);
   const profileRef = useRef(null);
   const [clinicProfileImage, setClinicProfileImage] = useState(() => {
@@ -132,6 +133,55 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     };
   }, [appointmentReminderEnabled, confirmedReminders.length]);
 
+  // Auto-dismiss floating Prescription Remaining notification after 8 seconds
+  useEffect(() => {
+    if (!floatingNotification) return;
+    const timer = setTimeout(() => {
+      setFloatingNotification(null);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [floatingNotification]);
+
+  const handleFloatingNotificationClick = (fn) => {
+    setFloatingNotification(null);
+    const item = fn?.data || fn || {};
+    const formattedAptId = fn.appointment_id || item.appointment_id || (item.id ? ('APT-' + item.id) : 'APT-0000');
+    const pName = fn.patient_name || item.patient_name || item.name || 'Patient';
+    const aptToOpen = {
+      ...item,
+      id: formattedAptId,
+      rawId: item.rawId || item.id,
+      appointment_id: formattedAptId,
+      patient_id_ref: item.patient_id_ref || item.patient_record?.patient_id || (item.patient_record_id ? `PAT-${item.patient_record_id}` : null) || 'PAT-1010',
+      name: pName,
+      patient_name: pName,
+      contact: item.patient_phone || item.contact || item.phone || '',
+      patient_phone: item.patient_phone || item.contact || item.phone || '',
+      email: item.patient_email || item.email || '',
+      date: item.appointment_date || item.date || '',
+      appointment_date: item.appointment_date || item.date || '',
+      time: item.time_slot || item.time || '',
+      time_slot: item.time_slot || item.time || '',
+      reason: item.reason_for_visit || item.reason || 'Homeopathic Consultation',
+      reason_for_visit: item.reason_for_visit || item.reason || 'Homeopathic Consultation',
+      consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
+      status: 'Completed',
+      prescriptionStatus: 'Pending',
+      ageGender: item.age_gender || item.ageGender || 'Adult',
+      age: item.patient_age || item.age || (item.age_gender ? item.age_gender.split('/')[0].trim() : '30'),
+      gender: item.patient_gender || item.gender || (item.age_gender ? item.age_gender.split('/')[1]?.trim() : 'Adult'),
+      notes: item.notes || item.reason_for_visit || 'Homeopathic Consultation',
+      doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+    };
+
+    sessionStorage.setItem('pending_prescription_patient', JSON.stringify(aptToOpen));
+    navigate('/prescriptions', { state: { openNewPrescription: true, patient: aptToOpen } });
+    if (typeof onNewPrescription === 'function') {
+      onNewPrescription(aptToOpen);
+    }
+    window.dispatchEvent(new CustomEvent('open-create-prescription', { detail: aptToOpen }));
+  };
+
   useEffect(() => {
     fetchNotifications();
     fetchClinicProfileImage();
@@ -176,6 +226,35 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     window.addEventListener('appointment-settings-updated', handleAppointmentChanged);
     window.addEventListener('prescription-created', handleAppointmentChanged);
 
+    // Immediate Prescription Remaining Notification listener
+    const handlePrescriptionRemainingEvent = (e) => {
+      const detail = e?.detail;
+      if (!detail) return;
+      try {
+        const saved = localStorage.getItem('clinic_notification_settings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.prescriptionUpdates === false) {
+            return;
+          }
+        }
+      } catch {}
+
+      const aptNum = detail.appointment_id || (detail.id ? `APT-${detail.id}` : 'APT-0000');
+      const pName = detail.patient_name || detail.name || 'Patient';
+
+      setFloatingNotification({
+        id: detail.id || detail.rawId,
+        appointment_id: aptNum,
+        patient_name: pName,
+        status: 'Completed',
+        data: detail,
+      });
+
+      fetchNotifications();
+    };
+    window.addEventListener('prescription-remaining-notification', handlePrescriptionRemainingEvent);
+
     // Poll every 5 seconds for real-time automatic notification updates
     const interval = setInterval(fetchNotifications, 5000);
 
@@ -199,6 +278,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       window.removeEventListener('appointment-deleted', handleAppointmentChanged);
       window.removeEventListener('appointment-settings-updated', handleAppointmentChanged);
       window.removeEventListener('prescription-created', handleAppointmentChanged);
+      window.removeEventListener('prescription-remaining-notification', handlePrescriptionRemainingEvent);
       document.removeEventListener('mousedown', handleOutsideClick);
     };
   }, []);
@@ -276,12 +356,12 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     };
 
     if (isPrescriptionRemaining) {
-      navigate('/prescriptions');
+      sessionStorage.setItem('pending_prescription_patient', JSON.stringify(aptToOpen));
+      navigate('/prescriptions', { state: { openNewPrescription: true, patient: aptToOpen } });
       if (typeof onNewPrescription === 'function') {
         onNewPrescription(aptToOpen);
-      } else {
-        window.dispatchEvent(new CustomEvent('open-create-prescription', { detail: aptToOpen }));
       }
+      window.dispatchEvent(new CustomEvent('open-create-prescription', { detail: aptToOpen }));
       return;
     }
 
@@ -1719,6 +1799,180 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
           )}
         </div>
       </div>
+
+      {/* Floating Immediate Prescription Remaining Notification Banner */}
+      {floatingNotification && prescriptionUpdatesEnabled && (
+        <div
+          id="floating-prescription-notification"
+          onClick={() => handleFloatingNotificationClick(floatingNotification)}
+          style={{
+            position: 'fixed',
+            top: '80px',
+            right: '24px',
+            width: '380px',
+            maxWidth: 'calc(100vw - 32px)',
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            boxShadow: '0 12px 32px rgba(180, 83, 9, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08)',
+            border: '1.5px solid #fed7aa',
+            borderLeft: '5px solid #f59e0b',
+            padding: '14px 18px',
+            zIndex: 99999,
+            cursor: 'pointer',
+            animation: 'adminNotifSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 16px 36px rgba(180, 83, 9, 0.22), 0 6px 14px rgba(0, 0, 0, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'none';
+            e.currentTarget.style.boxShadow = '0 12px 32px rgba(180, 83, 9, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08)';
+          }}
+          title="Click to create prescription for this patient"
+        >
+          {/* Top row: Badge + Close Icon */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: '#fffbeb',
+                border: '1px solid #fde68a',
+                padding: '3px 9px',
+                borderRadius: '6px',
+              }}
+            >
+              <span style={{ fontSize: '13px' }}>📝</span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  color: '#b45309',
+                  letterSpacing: '0.4px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Prescription Remaining
+              </span>
+            </div>
+            <button
+              type="button"
+              id="close-floating-rx-notification"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFloatingNotification(null);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                padding: '2px 4px',
+                fontSize: '14px',
+                fontWeight: '700',
+                lineHeight: 1,
+              }}
+              title="Dismiss notification"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Patient Name */}
+          <div style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', marginBottom: '6px' }}>
+            {floatingNotification.patient_name}
+          </div>
+
+          {/* Row 2: Appointment Number & Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '11.5px',
+                color: '#334155',
+                backgroundColor: '#f1f5f9',
+                border: '1px solid #e2e8f0',
+                padding: '2px 8px',
+                borderRadius: '5px',
+              }}
+            >
+              <span style={{ color: '#64748b', fontWeight: '500' }}>APT:</span>
+              <span style={{ fontWeight: '700', color: '#0f172a', fontFamily: 'monospace' }}>
+                {floatingNotification.appointment_id}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '11.5px',
+                fontWeight: '600',
+                color: '#166534',
+                backgroundColor: '#dcfce7',
+                border: '1px solid #bbf7d0',
+                padding: '2px 8px',
+                borderRadius: '9999px',
+              }}
+            >
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16a34a' }} />
+              <span>Status: Completed</span>
+            </div>
+          </div>
+
+          {/* Bottom Action Prompt */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingTop: '8px',
+              borderTop: '1px solid #fef3c7',
+            }}
+          >
+            <span style={{ fontSize: '11.5px', color: '#78350f', fontWeight: '500' }}>
+              Click notification to create prescription
+            </span>
+            <span
+              style={{
+                fontSize: '11.5px',
+                fontWeight: '700',
+                color: '#166534',
+                backgroundColor: '#dcfce7',
+                border: '1px solid #86efac',
+                padding: '3px 10px',
+                borderRadius: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span>+ Create Prescription</span>
+              <span>→</span>
+            </span>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes adminNotifSlideIn {
+          from {
+            opacity: 0;
+            transform: translateX(40px) scale(0.96);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+        }
+      `}</style>
     </header>
   );
 };

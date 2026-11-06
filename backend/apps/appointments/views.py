@@ -12,6 +12,7 @@ from apps.core.permissions import IsStaffOrAdmin, IsPatientUser
 from .models import Appointment, Notification, Prescription, Patient
 from .serializers import AppointmentSerializer, NotificationSerializer, ClinicSettingsSerializer, AppointmentSettingsSerializer
 from datetime import datetime
+from django.utils import timezone
 from .services.whatsapp_service import whatsapp_service
 from .services.prescription_pdf import generate_prescription_pdf_bytes
 
@@ -516,21 +517,29 @@ class AppointmentDetailView(APIView):
                     (apt.prescription_status and str(apt.prescription_status).strip().lower() in ['complete', 'completed'])
                 )
                 if rx_updates_enabled and not has_rx:
-                    rx_notif, created = Notification.objects.get_or_create(
+                    msg = f"Appointment {apt.appointment_id} for {apt.patient_name} marked as Completed. Prescription remaining to be created."
+                    rx_notif = Notification.objects.filter(
                         appointment=apt,
                         title='Prescription Remaining',
-                        defaults={
-                            'patient_name': apt.patient_name,
-                            'appointment_date': apt.appointment_date,
-                            'booking_time': apt.time_slot,
-                            'message': f"Appointment {apt.appointment_id} for {apt.patient_name} marked as Completed. Prescription remaining to be created.",
-                            'is_read': False,
-                        }
-                    )
-                    if not created:
+                    ).first()
+                    if not rx_notif:
+                        Notification.objects.create(
+                            appointment=apt,
+                            title='Prescription Remaining',
+                            patient_name=apt.patient_name,
+                            appointment_date=apt.appointment_date,
+                            booking_time=apt.time_slot,
+                            message=msg,
+                            is_read=False,
+                        )
+                    else:
                         rx_notif.is_read = False
-                        rx_notif.message = f"Appointment {apt.appointment_id} for {apt.patient_name} marked as Completed. Prescription remaining to be created."
-                        rx_notif.save(update_fields=['is_read', 'message'])
+                        rx_notif.message = msg
+                        rx_notif.patient_name = apt.patient_name
+                        rx_notif.appointment_date = apt.appointment_date
+                        rx_notif.booking_time = apt.time_slot
+                        rx_notif.created_at = timezone.now()
+                        rx_notif.save()
 
         if new_prescription_status:
             apt.prescription_status = new_prescription_status

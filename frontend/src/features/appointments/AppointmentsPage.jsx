@@ -193,16 +193,37 @@ const AppointmentsPage = () => {
   }, [fetchAppointments]);
 
   const handleUpdateStatus = async (aptId, newStatus) => {
+    const targetApt = appointmentsList.find((apt) => apt.id === aptId) || appointmentsList.find((apt) => apt.rawId === aptId);
     setAppointmentsList((prev) =>
       prev.map((apt) => (apt.id === aptId ? { ...apt, status: newStatus } : apt))
     );
     try {
       const res = await appointmentApi.updateAppointmentStatus(aptId, newStatus);
+      const updatedApt = res || targetApt || { id: aptId, status: newStatus };
       window.dispatchEvent(
         new CustomEvent('appointment-updated', {
-          detail: { id: aptId, status: newStatus, appointment: res },
+          detail: { id: aptId, status: newStatus, appointment: updatedApt },
         })
       );
+      if (newStatus === 'Complete' || newStatus === 'Completed') {
+        const aptNum = updatedApt.appointment_id || targetApt?.appointment_id || (aptId ? `APT-${aptId}` : 'APT-0000');
+        const pName = updatedApt.patient_name || targetApt?.patient_name || targetApt?.name || 'Patient';
+        window.dispatchEvent(
+          new CustomEvent('prescription-remaining-notification', {
+            detail: {
+              ...(targetApt || {}),
+              ...(updatedApt || {}),
+              id: aptId,
+              rawId: targetApt?.rawId || aptId,
+              appointment_id: aptNum,
+              patient_name: pName,
+              name: pName,
+              status: 'Completed',
+              prescriptionStatus: 'Pending',
+            },
+          })
+        );
+      }
     } catch (err) {
       console.error('Failed to update status on server:', err);
       fetchAppointments();
@@ -1000,6 +1021,7 @@ const AppointmentsPage = () => {
                         </tr>
                       )}
                       <tr
+                        className="admin-table-row"
                         style={{
                           borderBottom: '1px solid #f8fafc',
                           transition: 'all 0.3s ease',

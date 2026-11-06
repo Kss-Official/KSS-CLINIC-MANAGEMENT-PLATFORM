@@ -813,6 +813,7 @@ const DashboardPage = () => {
                   return (
                     <tr
                       key={row.rawId || row.id || idx}
+                      className="admin-table-row"
                       style={{
                         borderBottom: '1px solid #f8fafc',
                         transition: 'all 0.3s ease',
@@ -894,10 +895,28 @@ const DashboardPage = () => {
                                 onClick: async () => {
                                   try {
                                     const targetId = row.rawId || row.id;
-                                    await appointmentApi.updateAppointmentStatus(targetId, 'Complete');
+                                    const res = await appointmentApi.updateAppointmentStatus(targetId, 'Complete');
+                                    const updatedApt = res || row;
                                     window.dispatchEvent(new CustomEvent('appointment-updated', {
-                                      detail: { id: targetId, status: 'Complete' }
+                                      detail: { id: targetId, status: 'Complete', appointment: updatedApt }
                                     }));
+                                    const aptNum = updatedApt.appointment_id || row.appointment_id || (targetId ? `APT-${targetId}` : 'APT-0000');
+                                    const pName = updatedApt.patient_name || row.patient_name || row.name || 'Patient';
+                                    window.dispatchEvent(
+                                      new CustomEvent('prescription-remaining-notification', {
+                                        detail: {
+                                          ...row,
+                                          ...updatedApt,
+                                          id: targetId,
+                                          rawId: targetId,
+                                          appointment_id: aptNum,
+                                          patient_name: pName,
+                                          name: pName,
+                                          status: 'Completed',
+                                          prescriptionStatus: 'Pending',
+                                        },
+                                      })
+                                    );
                                   } catch (err) {
                                     console.error('Failed to mark complete from dashboard:', err);
                                   }

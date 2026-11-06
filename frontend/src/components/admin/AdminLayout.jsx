@@ -92,8 +92,24 @@ const AdminLayout = ({ children }) => {
       openNewPrescription(patient);
     };
     window.addEventListener('open-create-prescription', handleOpenRxEvent);
+
+    // Also check if navigated with pending patient in sessionStorage or location.state
+    try {
+      const pendingStr = sessionStorage.getItem('pending_prescription_patient');
+      if (pendingStr) {
+        const patient = JSON.parse(pendingStr);
+        sessionStorage.removeItem('pending_prescription_patient');
+        openNewPrescription(patient);
+      } else if (location.state?.openNewPrescription && location.state?.patient) {
+        const patient = location.state.patient;
+        openNewPrescription(patient);
+      }
+    } catch (err) {
+      sessionStorage.removeItem('pending_prescription_patient');
+    }
+
     return () => window.removeEventListener('open-create-prescription', handleOpenRxEvent);
-  }, []);
+  }, [location.pathname, location.state]);
 
   const openNewPrescription = (patient = null) => {
     setSelectedPatientForPrescription(patient);
