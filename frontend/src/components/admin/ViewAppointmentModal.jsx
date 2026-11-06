@@ -607,7 +607,6 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               </div>
             )}
           </div>
-          </div>
 
           {/* Action Footer */}
           <div
