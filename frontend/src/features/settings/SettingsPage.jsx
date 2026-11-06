@@ -751,28 +751,7 @@ const SettingsPage = () => {
     }
   };
 
-  const toggleNotification = async (key) => {
-    const updated = {
-      ...notifications,
-      [key]: !notifications[key],
-    };
-    setNotifications(updated);
-    setDraftNotifications(updated);
-    try {
-      localStorage.setItem('clinic_notification_settings', JSON.stringify(updated));
-    } catch {}
-    try {
-      await appointmentApi.updateNotificationSettings({
-        notifications: updated,
-        notificationChannels,
-      });
-    } catch (err) {
-      console.warn('Backend notification settings sync notice:', err);
-    }
-    window.dispatchEvent(new CustomEvent('notification-settings-updated', { detail: updated }));
-    const label = key === 'appointmentReminder' ? 'Appointment Reminder' : (key === 'newAppointment' ? 'New Appointment' : 'Prescription Updates');
-    showToast(`${label} ${updated[key] ? 'enabled' : 'disabled'}`);
-  };
+  // (toggleNotification removed: Notification settings are read-only on the card; changes require clicking 'Edit' and saving in the modal)
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', position: 'relative' }}>
@@ -1514,6 +1493,7 @@ const SettingsPage = () => {
             </div>
           </div>
           <button
+            id="edit-notification-settings-btn"
             type="button"
             onClick={handleOpenNotificationModal}
             style={{
@@ -1554,16 +1534,22 @@ const SettingsPage = () => {
           ].map((item) => {
             const enabled = notifications[item.key];
             return (
-              <div key={item.key} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div
+                key={item.key}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', userSelect: 'none' }}
+                onClick={() => {
+                  showToast("Notification settings are read-only. Click 'Edit' to change settings.");
+                }}
+              >
                 <div
-                  onClick={() => toggleNotification(item.key)}
+                  title="Notification settings are read-only. Click 'Edit' to change settings."
                   style={{
                     width: '38px',
                     height: '22px',
                     borderRadius: '9999px',
                     backgroundColor: enabled ? '#1e7e34' : '#cbd5e1',
                     position: 'relative',
-                    cursor: 'pointer',
+                    cursor: 'default',
                     flexShrink: 0,
                     transition: 'background-color 0.2s',
                     marginTop: '2px',
@@ -1582,7 +1568,7 @@ const SettingsPage = () => {
                     }}
                   />
                 </div>
-                <div>
+                <div style={{ cursor: 'default' }}>
                   <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#0f172a' }}>{item.title}</div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', lineHeight: 1.35 }}>{item.desc}</div>
                 </div>
@@ -1959,7 +1945,9 @@ const SettingsPage = () => {
                   >
                     Cancel
                   </button>
+                  {/* Save Changes Button (Clinic Information) */}
                   <button
+                    id="save-clinic-btn"
                     type="submit"
                     style={{
                       padding: '9px 22px',
@@ -2659,7 +2647,9 @@ const SettingsPage = () => {
                   >
                     Cancel
                   </button>
+                  {/* Save Changes Button (Appointment Settings) */}
                   <button
+                    id="save-appointment-btn"
                     type="submit"
                     style={{
                       padding: '9px 22px',
@@ -2836,7 +2826,9 @@ const SettingsPage = () => {
                   >
                     Cancel
                   </button>
+                  {/* Save Changes Button (Notification Settings) */}
                   <button
+                    id="save-notification-settings-btn"
                     type="submit"
                     style={{
                       padding: '9px 22px',
