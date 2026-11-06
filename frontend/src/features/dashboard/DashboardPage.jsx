@@ -755,27 +755,6 @@ const DashboardPage = () => {
               <option value="Complete">Complete</option>
             </select>
 
-            {/* View All Appointments */}
-            <button
-              type="button"
-              onClick={() => navigate('/appointments')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'none',
-                border: 'none',
-                color: '#1e4620',
-                fontSize: '13.5px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                padding: '6px 8px',
-              }}
-            >
-              <span>View All</span>
-              <span>→</span>
-            </button>
-
             {/* New Appointment Button */}
             <button
               type="button"
@@ -1127,26 +1106,6 @@ const DashboardPage = () => {
               <option value="Pending">Pending</option>
               <option value="Failed">Failed</option>
             </select>
-
-            <button
-              type="button"
-              onClick={() => navigate('/prescriptions')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'none',
-                border: 'none',
-                color: '#1e4620',
-                fontSize: '13.5px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                padding: '6px 8px',
-              }}
-            >
-              <span>View All</span>
-              <span>→</span>
-            </button>
           </div>
         </div>
 
