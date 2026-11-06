@@ -391,10 +391,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     return 0;
   });
   const otherNotifsList = notifications.filter((n) => {
-    if (!n.is_read) return false;
-    if (!newAppointmentEnabled && isNewAptNotif(n)) return false;
-    if (!prescriptionUpdatesEnabled && isRxNotif(n)) return false;
-    return true;
+    return !!n.is_read;
   });
 
   const handleLogout = async () => {
@@ -569,8 +566,8 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
             </svg>
             {/* Unread & confirmed/pending reminders indicator badge with count */}
             {(() => {
-              const unreadNewCount = newAppointmentEnabled ? newAppointmentsList.length : 0;
-              const unreadRxCount = prescriptionUpdatesEnabled ? rxRemainingList.filter((n) => !n.is_read).length : 0;
+              const unreadNewCount = newAppointmentsList.length;
+              const unreadRxCount = rxRemainingList.filter((n) => !n.is_read).length;
               const activeReminderCount = appointmentReminderEnabled ? (confirmedReminders.length || pendingReminders.length) : 0;
               const effectiveUnread = unreadNewCount + unreadRxCount;
               const displayBadgeCount = effectiveUnread > 0 ? effectiveUnread : activeReminderCount;
@@ -643,7 +640,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                   </h3>
 
                   {/* 1. New Button (Filters notification dropdown to show ONLY new appointment notifications) */}
-                  {newAppointmentEnabled && (
+                  {newAppointmentsList.length > 0 && (
                     <button
                       type="button"
                       id="notifications-new-count-badge"
@@ -711,7 +708,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                 }}
               >
                     {/* 1. NEW APPOINTMENTS SECTION (ALWAYS APPEARS AT THE TOP) */}
-                    {newAppointmentEnabled && (dropdownFilter === 'all' || dropdownFilter === 'new') && newAppointmentsList.length > 0 && (
+                    {(dropdownFilter === 'all' || dropdownFilter === 'new') && newAppointmentsList.length > 0 && (
                       <div id="new-appointments-section" style={{ borderBottom: '1px solid #dcfce7' }}>
                         <div
                           style={{
@@ -854,7 +851,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                     )}
 
                     {/* 2. PRESCRIPTION REMAINING SECTION */}
-                    {prescriptionUpdatesEnabled && (dropdownFilter === 'all' || dropdownFilter === 'rx_remaining') && rxRemainingList.length > 0 && (
+                    {(dropdownFilter === 'all' || dropdownFilter === 'rx_remaining') && rxRemainingList.length > 0 && (
                       <div id="prescription-remaining-section" style={{ borderBottom: '1px solid #fed7aa' }}>
                         <div
                           style={{
@@ -1389,8 +1386,8 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                     )}
 
                     {dropdownFilter === 'all' &&
-                     (!newAppointmentEnabled || newAppointmentsList.length === 0) &&
-                     (!prescriptionUpdatesEnabled || rxRemainingList.length === 0) &&
+                     newAppointmentsList.length === 0 &&
+                     rxRemainingList.length === 0 &&
                      (!appointmentReminderEnabled || confirmedReminders.length === 0) &&
                      otherNotifsList.length === 0 && (
                       <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>

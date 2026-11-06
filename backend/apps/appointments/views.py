@@ -603,18 +603,6 @@ class NotificationListView(APIView):
                 Notification.objects.bulk_create(to_create)
 
         notifications_qs = Notification.objects.all()
-
-        if not new_appointment_enabled:
-            notifications_qs = notifications_qs.exclude(
-                (models.Q(title__icontains='New') | models.Q(message__icontains='New') | models.Q(title__icontains='Appointment'))
-                & ~models.Q(title__icontains='Prescription')
-            )
-
-        if not prescription_updates_enabled:
-            notifications_qs = notifications_qs.exclude(
-                models.Q(title__icontains='Prescription') | models.Q(message__icontains='Prescription')
-            )
-
         unread_count = notifications_qs.filter(is_read=False).count()
         notifications = notifications_qs.order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
