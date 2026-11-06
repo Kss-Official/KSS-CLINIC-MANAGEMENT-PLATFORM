@@ -329,11 +329,11 @@ const AppointmentModal = ({ isOpen, onClose }) => {
       .then((res) => {
         setIsSubmitted(true);
         if (typeof window !== 'undefined') {
-          if (formData.phone) localStorage.setItem('kss_patient_phone', formData.phone);
-          if (formData.email) localStorage.setItem('kss_patient_email', formData.email);
-          if (formData.name) localStorage.setItem('kss_patient_name', formData.name);
+          if (formData.phone) sessionStorage.setItem('kss_patient_phone', formData.phone);
+          if (formData.email) sessionStorage.setItem('kss_patient_email', formData.email);
+          if (formData.name) sessionStorage.setItem('kss_patient_name', formData.name);
           const newAptId = res?.appointment?.appointment_id || res?.appointment_id;
-          if (newAptId) localStorage.setItem('kss_last_appointment_id', newAptId);
+          if (newAptId) sessionStorage.setItem('kss_last_appointment_id', newAptId);
           window.dispatchEvent(new CustomEvent('appointment-booked', { detail: res }));
         }
       })

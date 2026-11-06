@@ -15,7 +15,7 @@ import loginBg from "../../assets/doctor-login-clean-bg.jpg?v=v4_pro_clinic_desk
 const AdminLoginPage = () => {
   const navigate = useNavigate();
 
-  const { adminLogin, isAuthenticated, user, logout } = useAuth();
+  const { adminLogin, clearAuth, isAuthenticated, user, logout } = useAuth();
 
   const [formData, setFormData] = useState({ username: "", password: "" });
 
@@ -25,17 +25,10 @@ const AdminLoginPage = () => {
 
   const [error, setError] = useState("");
 
-  // If already authenticated as ADMIN/DOCTOR/RECEPTIONIST, redirect to /dashboard
-
+  // When visiting Admin Login page, clear any previous session so credentials must be entered afresh
   useEffect(() => {
-    if (isAuthenticated && user?.role) {
-      if (user.role === "PATIENT") {
-        navigate("/", { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
-    }
-  }, [isAuthenticated, user, navigate]);
+    clearAuth();
+  }, []);
 
   // Forgot Password Modal State
 
