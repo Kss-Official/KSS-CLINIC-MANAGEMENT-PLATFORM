@@ -537,6 +537,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
           <div ref={notifRef} style={{ position: 'relative', zIndex: 10 }}>
           <button
             type="button"
+            id="admin-notifications-toggle-btn"
             className="admin-header-notif-btn"
             onClick={() => setNotificationsOpen((prev) => !prev)}
             aria-label={`Notifications, ${unreadCount} unread`}
@@ -608,6 +609,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
           {/* Notifications Dropdown Panel */}
           {notificationsOpen && (
             <div
+              id="admin-notifications-dropdown"
               className="admin-notifications-dropdown"
               style={{
                 position: 'absolute',
@@ -639,54 +641,62 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                   <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
                     Notifications
                   </h3>
-                  {newAppointmentEnabled && newAppointmentsList.length > 0 && (
+
+                  {/* 1. New Button (Filters notification dropdown to show ONLY new appointment notifications) */}
+                  {newAppointmentEnabled && (
                     <button
                       type="button"
                       id="notifications-new-count-badge"
-                      onClick={() => {
-                        setNotificationsOpen(false);
-                        navigateToFilteredAppointments('New');
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDropdownFilter((prev) => (prev === 'new' ? 'all' : 'new'));
                       }}
                       style={{
                         fontSize: '11.5px',
-                        fontWeight: '600',
+                        fontWeight: '700',
                         color: dropdownFilter === 'new' ? '#ffffff' : '#1e4620',
                         backgroundColor: dropdownFilter === 'new' ? '#166534' : '#e8f5ec',
-                        border: '1px solid #bbf7d0',
-                        padding: '2px 8px',
+                        border: dropdownFilter === 'new' ? '1px solid #14532d' : '1px solid #bbf7d0',
+                        padding: '3px 10px',
                         borderRadius: '9999px',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                         outline: 'none',
+                        boxShadow: dropdownFilter === 'new' ? '0 1px 4px rgba(22, 101, 52, 0.25)' : 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
                       }}
                       onMouseEnter={(e) => {
                         if (dropdownFilter !== 'new') e.currentTarget.style.backgroundColor = '#dcfce7';
-                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.transform = 'scale(1.04)';
                       }}
                       onMouseLeave={(e) => {
                         if (dropdownFilter !== 'new') e.currentTarget.style.backgroundColor = '#e8f5ec';
                         e.currentTarget.style.transform = 'scale(1)';
                       }}
-                      title="Click to show New appointments section at the top"
+                      title={dropdownFilter === 'new' ? 'Click to show all notifications' : 'Click to show only new appointment notifications'}
                     >
-                      {unreadCount} new
+                      <span>{newAppointmentsList.length} new</span>
                     </button>
                   )}
-                  {prescriptionUpdatesEnabled && rxRemainingList.length > 0 && (
+
+                  {/* 2. RX Remaining Button (Filters notification dropdown to show ONLY prescription remaining notifications) */}
+                  {prescriptionUpdatesEnabled && (
                     <button
                       type="button"
                       id="prescription-remaining-count-header-badge"
-                      onClick={() => {
-                        setNotificationsOpen(false);
-                        navigate('/prescriptions');
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDropdownFilter((prev) => (prev === 'rx_remaining' ? 'all' : 'rx_remaining'));
                       }}
                       style={{
                         fontSize: '11.5px',
-                        fontWeight: '600',
-                        color: '#9a3412',
-                        backgroundColor: '#ffedd5',
-                        border: '1px solid #fed7aa',
-                        padding: '2px 8px',
+                        fontWeight: '700',
+                        color: dropdownFilter === 'rx_remaining' ? '#ffffff' : '#9a3412',
+                        backgroundColor: dropdownFilter === 'rx_remaining' ? '#c2410c' : '#ffedd5',
+                        border: dropdownFilter === 'rx_remaining' ? '1px solid #9a3412' : '1px solid #fed7aa',
+                        padding: '3px 10px',
                         borderRadius: '9999px',
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -694,83 +704,21 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                         outline: 'none',
+                        boxShadow: dropdownFilter === 'rx_remaining' ? '0 1px 4px rgba(194, 65, 12, 0.25)' : 'none',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#fed7aa';
-                        e.currentTarget.style.transform = 'scale(1.05)';
+                        if (dropdownFilter !== 'rx_remaining') e.currentTarget.style.backgroundColor = '#fed7aa';
+                        e.currentTarget.style.transform = 'scale(1.04)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffedd5';
+                        if (dropdownFilter !== 'rx_remaining') e.currentTarget.style.backgroundColor = '#ffedd5';
                         e.currentTarget.style.transform = 'scale(1)';
                       }}
-                      title="Click to view prescriptions"
+                      title={dropdownFilter === 'rx_remaining' ? 'Click to show all notifications' : 'Click to show only prescription remaining notifications'}
                     >
                       <span>📝</span>
                       <span>{rxRemainingList.length} rx remaining</span>
                     </button>
-                  )}
-                  {appointmentReminderEnabled && confirmedReminders.length > 0 && (
-                    <button
-                      type="button"
-                      id="confirmed-appointments-reminder-badge"
-                      onClick={() => {
-                        setNotificationsOpen(false);
-                        navigateToFilteredAppointments('Confirmed');
-                      }}
-                      style={{
-                        fontSize: '11.5px',
-                        fontWeight: '600',
-                        color: dropdownFilter === 'confirmed' ? '#ffffff' : '#065f46',
-                        backgroundColor: dropdownFilter === 'confirmed' ? '#059669' : '#ecfdf5',
-                        border: '1px solid #a7f3d0',
-                        padding: '2px 8px',
-                        borderRadius: '9999px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        outline: 'none',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#d1fae5';
-                        e.currentTarget.style.transform = 'scale(1.05)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ecfdf5';
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }}
-                      title="Click to view all confirmed appointments"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                        <line x1="16" y1="2" x2="16" y2="6" />
-                        <line x1="8" y1="2" x2="8" y2="6" />
-                        <line x1="3" y1="10" x2="21" y2="10" />
-                      </svg>
-                      <span>{confirmedReminders.length} confirmed</span>
-                    </button>
-                  )}
-                  {appointmentReminderEnabled && pendingPatientsCount > 0 && (
-                    <span
-                      id="pending-appointments-reminder-badge"
-                      style={{
-                        fontSize: '11.5px',
-                        fontWeight: '600',
-                        color: '#b45309',
-                        backgroundColor: '#fef3c7',
-                        border: '1px solid #fde68a',
-                        padding: '2px 8px',
-                        borderRadius: '9999px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                      title={`Total patients with pending appointments: ${pendingPatientsCount}`}
-                    >
-                      <span>⏳</span>
-                      <span>{pendingPatientsCount} pending</span>
-                    </span>
                   )}
                 </div>
                 {unreadCount > 0 && (
@@ -803,7 +751,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                 }}
               >
                     {/* 1. NEW APPOINTMENTS SECTION (ALWAYS APPEARS AT THE TOP) */}
-                    {newAppointmentEnabled && newAppointmentsList.length > 0 && (
+                    {newAppointmentEnabled && (dropdownFilter === 'all' || dropdownFilter === 'new') && newAppointmentsList.length > 0 && (
                       <div id="new-appointments-section" style={{ borderBottom: '1px solid #dcfce7' }}>
                         <div
                           style={{
@@ -829,14 +777,8 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                               New Appointments
                             </span>
                           </div>
-                          <button
-                            type="button"
+                          <span
                             id="new-appointments-section-count-badge"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setNotificationsOpen(false);
-                              navigateToFilteredAppointments('New');
-                            }}
                             style={{
                               fontSize: '11px',
                               fontWeight: '700',
@@ -845,13 +787,10 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                               border: '1px solid #86efac',
                               padding: '1px 8px',
                               borderRadius: '9999px',
-                              cursor: 'pointer',
-                              outline: 'none',
                             }}
-                            title="View all new appointments in table"
                           >
                             {newAppointmentsList.length} new
-                          </button>
+                          </span>
                         </div>
 
                         <div className="new-appointments-list">
@@ -955,7 +894,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                     )}
 
                     {/* 2. PRESCRIPTION REMAINING SECTION */}
-                    {prescriptionUpdatesEnabled && rxRemainingList.length > 0 && (
+                    {prescriptionUpdatesEnabled && (dropdownFilter === 'all' || dropdownFilter === 'rx_remaining') && rxRemainingList.length > 0 && (
                       <div id="prescription-remaining-section" style={{ borderBottom: '1px solid #fed7aa' }}>
                         <div
                           style={{
@@ -1163,7 +1102,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                     )}
 
                     {/* 3. CONFIRMED APPOINTMENT REMINDERS SECTION (LISTED BELOW NEW) */}
-                    {appointmentReminderEnabled && confirmedReminders.length > 0 && (
+                    {appointmentReminderEnabled && dropdownFilter === 'all' && confirmedReminders.length > 0 && (
                       <div id="confirmed-reminders-section" style={{ borderBottom: '1px solid #d1fae5' }}>
                         <div
                           id="confirmed-reminders-toggle-header"
@@ -1204,14 +1143,8 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <button
-                              type="button"
+                            <span
                               id="confirmed-reminders-section-count-badge"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setNotificationsOpen(false);
-                                navigateToFilteredAppointments('Confirmed');
-                              }}
                               style={{
                                 fontSize: '11px',
                                 fontWeight: '700',
@@ -1220,16 +1153,10 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                                 border: '1px solid #86efac',
                                 padding: '1px 8px',
                                 borderRadius: '9999px',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                                outline: 'none',
                               }}
-                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#bbf7d0')}
-                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dcfce7')}
-                              title="Click to view all confirmed appointments"
                             >
                               {confirmedReminders.length}
-                            </button>
+                            </span>
                             <span
                               style={{
                                 fontSize: '10px',
@@ -1348,7 +1275,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                     )}
 
                     {/* 3. OTHER / PAST NOTIFICATIONS */}
-                    {otherNotifsList.length > 0 && (
+                    {dropdownFilter === 'all' && otherNotifsList.length > 0 && (
                       <div className="other-notifications-list">
                         <div
                           style={{
@@ -1484,7 +1411,25 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                       </div>
                     )}
 
-                    {(!newAppointmentEnabled || newAppointmentsList.length === 0) &&
+                    {/* Filter empty states */}
+                    {dropdownFilter === 'new' && newAppointmentsList.length === 0 && (
+                      <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
+                        <div style={{ fontSize: '24px', marginBottom: '8px' }}>✨</div>
+                        <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#166534' }}>No New Appointment Notifications</div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '3px' }}>There are currently no new appointment notifications.</div>
+                      </div>
+                    )}
+
+                    {dropdownFilter === 'rx_remaining' && rxRemainingList.length === 0 && (
+                      <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
+                        <div style={{ fontSize: '24px', marginBottom: '8px' }}>📝</div>
+                        <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#9a3412' }}>No Prescription Remaining Notifications</div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '3px' }}>All prescriptions for completed appointments have been created.</div>
+                      </div>
+                    )}
+
+                    {dropdownFilter === 'all' &&
+                     (!newAppointmentEnabled || newAppointmentsList.length === 0) &&
                      (!prescriptionUpdatesEnabled || rxRemainingList.length === 0) &&
                      (!appointmentReminderEnabled || confirmedReminders.length === 0) &&
                      otherNotifsList.length === 0 && (

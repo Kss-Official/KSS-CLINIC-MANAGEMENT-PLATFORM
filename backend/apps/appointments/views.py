@@ -573,29 +573,34 @@ class NotificationListView(APIView):
         if prescription_updates_enabled:
             # Ensure completed appointments without prescriptions have Prescription Remaining notification
             completed_apts = Appointment.objects.filter(models.Q(status__iexact='Complete') | models.Q(status__iexact='Completed'))
+            rx_apt_ids = set(Prescription.objects.filter(appointment__isnull=False).values_list('appointment_id', flat=True))
+            existing_rx_notifs = {
+                n.appointment_id: n for n in Notification.objects.filter(title='Prescription Remaining')
+            }
+            to_create = []
             for c_apt in completed_apts:
                 has_rx = (
-                    Prescription.objects.filter(appointment=c_apt).exists() or
+                    (c_apt.id in rx_apt_ids) or
                     (c_apt.prescription_status and str(c_apt.prescription_status).strip().lower() in ['complete', 'completed'])
                 )
                 if not has_rx:
-                    Notification.objects.get_or_create(
-                        appointment=c_apt,
-                        title='Prescription Remaining',
-                        defaults={
-                            'patient_name': c_apt.patient_name,
-                            'appointment_date': c_apt.appointment_date,
-                            'booking_time': c_apt.time_slot,
-                            'message': f"Appointment {c_apt.appointment_id} for {c_apt.patient_name} marked as Completed. Prescription remaining to be created.",
-                            'is_read': False,
-                        }
-                    )
+                    if c_apt.id not in existing_rx_notifs:
+                        to_create.append(Notification(
+                            appointment=c_apt,
+                            title='Prescription Remaining',
+                            patient_name=c_apt.patient_name,
+                            appointment_date=c_apt.appointment_date,
+                            booking_time=c_apt.time_slot,
+                            message=f"Appointment {c_apt.appointment_id} for {c_apt.patient_name} marked as Completed. Prescription remaining to be created.",
+                            is_read=False,
+                        ))
                 else:
-                    Notification.objects.filter(
-                        appointment=c_apt,
-                        title__icontains='Prescription Remaining',
-                        is_read=False
-                    ).update(is_read=True)
+                    existing = existing_rx_notifs.get(c_apt.id)
+                    if existing and not existing.is_read:
+                        existing.is_read = True
+                        existing.save(update_fields=['is_read'])
+            if to_create:
+                Notification.objects.bulk_create(to_create)
 
         notifications_qs = Notification.objects.all()
 
