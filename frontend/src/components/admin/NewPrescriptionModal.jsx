@@ -376,8 +376,10 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         patient_name: selectedPatient.name,
         patient_phone: selectedPatient.phone,
         patient_id_ref: selectedPatient.id,
-        appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
-        appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+        appointment_id: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+        appointmentId: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+        apt_number: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+        aptNumber: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
@@ -420,8 +422,10 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         patient_name: selectedPatient.name,
         patient_phone: selectedPatient.phone,
         patient_id_ref: selectedPatient.id,
-        appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
-        appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+        appointment_id: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+        appointmentId: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+        apt_number: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+        aptNumber: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
@@ -563,7 +567,21 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
             </div>
 
             <PrescriptionPreviewCard
-              patient={selectedPatient}
+              patient={{
+                ...selectedPatient,
+                appointment_id: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || '',
+                appointmentId: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || '',
+                aptNumber: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || '',
+                apt_number: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || '',
+              }}
+              aptNumber={
+                selectedAppointment?.appointment_id ||
+                selectedAppointment?.id ||
+                selectedPatient?.appointmentId ||
+                selectedPatient?.appointment_id ||
+                selectedPatient?.aptNumber ||
+                ''
+              }
               date={formatDateForDisplay(appointmentDate)}
               consultationType={consultationType}
               diagnosis={diagnosis || mainComplaint || 'Skin allergy due to seasonal change.'}
@@ -578,8 +596,10 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                   patient_name: selectedPatient?.name || 'Patient',
                   patient_phone: selectedPatient?.phone,
                   patient_id_ref: selectedPatient?.id,
-                  appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
-                  appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+                  appointment_id: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+                  appointmentId: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+                  apt_number: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+                  aptNumber: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
                   age_gender: selectedPatient?.ageGender || `${selectedPatient?.age} / ${selectedPatient?.gender}`,
                   date: formatDateForDisplay(appointmentDate),
                   appointmentDate,

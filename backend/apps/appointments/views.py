@@ -967,6 +967,18 @@ class PrescriptionListView(APIView):
                     if linked_apt and linked_apt.reason_for_visit and linked_apt.reason_for_visit.strip():
                         complaint_val = linked_apt.reason_for_visit.strip()
 
+            apt_num = ''
+            if rx.appointment and rx.appointment.appointment_id:
+                apt_num = rx.appointment.appointment_id
+            elif rx.patient_record:
+                linked_apt = rx.patient_record.appointments.exclude(status='Cancelled').order_by('-created_at').first()
+                if linked_apt and linked_apt.appointment_id:
+                    apt_num = linked_apt.appointment_id
+            if not apt_num and rx.patient_name:
+                linked_apt = Appointment.objects.filter(patient_name__iexact=rx.patient_name).exclude(status='Cancelled').order_by('-created_at').first()
+                if linked_apt and linked_apt.appointment_id:
+                    apt_num = linked_apt.appointment_id
+
             data.append({
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -975,6 +987,11 @@ class PrescriptionListView(APIView):
                 'patientName': rx.patient_name,
                 'patientId': pid,
                 'patient_id_ref': pid,
+                'appointment_id': apt_num,
+                'appointmentId': apt_num,
+                'apt_number': apt_num,
+                'aptNumber': apt_num,
+                'appointment_number': apt_num,
                 'mobile': rx.patient_phone,
                 'contact': rx.patient_phone,
                 'ageGender': rx.age_gender,
@@ -1090,6 +1107,12 @@ class PrescriptionListView(APIView):
             # Match only the exact appointment for this patient on this specific date
             matched_apt = Appointment.objects.filter(patient_q).filter(date_q).exclude(status='Cancelled').order_by('-created_at').first()
 
+        # 3. Fallback to latest appointment for patient if not matched by date
+        if not matched_apt and patient:
+            matched_apt = patient.appointments.exclude(status='Cancelled').order_by('-created_at').first()
+        if not matched_apt and patient_name:
+            matched_apt = Appointment.objects.filter(patient_name__iexact=patient_name).exclude(status='Cancelled').order_by('-created_at').first()
+
         # Resolve actual Reason for Visit entered during appointment booking
         raw_complaint = (
             payload.get('complaint') or
@@ -1173,8 +1196,11 @@ class PrescriptionListView(APIView):
             'patient_id_ref': rx.patient_id_ref,
             'mobile': rx.patient_phone,
             'contact': rx.patient_phone,
-            'appointment_id': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId')),
-            'appointmentId': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId')),
+            'appointment_id': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId') or ''),
+            'appointmentId': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId') or ''),
+            'apt_number': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId') or ''),
+            'aptNumber': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId') or ''),
+            'appointment_number': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId') or ''),
             'appointment_database_id': matched_apt.id if matched_apt else None,
             'ageGender': rx.age_gender,
             'date': rx.date,
@@ -1234,6 +1260,19 @@ class PrescriptionDetailView(APIView):
                     matched_apt = Appointment.objects.filter(patient_name__iexact=rx.patient_name).exclude(status='Cancelled').order_by('-created_at').first()
                     if matched_apt and matched_apt.reason_for_visit and matched_apt.reason_for_visit.strip():
                         complaint_val = matched_apt.reason_for_visit.strip()
+
+            apt_num = ''
+            if rx.appointment and rx.appointment.appointment_id:
+                apt_num = rx.appointment.appointment_id
+            elif rx.patient_record:
+                linked_apt = rx.patient_record.appointments.exclude(status='Cancelled').order_by('-created_at').first()
+                if linked_apt and linked_apt.appointment_id:
+                    apt_num = linked_apt.appointment_id
+            if not apt_num and rx.patient_name:
+                linked_apt = Appointment.objects.filter(patient_name__iexact=rx.patient_name).exclude(status='Cancelled').order_by('-created_at').first()
+                if linked_apt and linked_apt.appointment_id:
+                    apt_num = linked_apt.appointment_id
+
             return Response({
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -1241,6 +1280,11 @@ class PrescriptionDetailView(APIView):
                 'name': rx.patient_name,
                 'patientName': rx.patient_name,
                 'patientId': pid,
+                'appointment_id': apt_num,
+                'appointmentId': apt_num,
+                'apt_number': apt_num,
+                'aptNumber': apt_num,
+                'appointment_number': apt_num,
                 'status': rx.status,
                 'date': rx.date,
                 'time': rx.time,
@@ -1921,10 +1965,24 @@ class PrescriptionPdfDownloadView(APIView):
         if not rx:
             return Response({'error': f'Prescription {rx_id} not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        apt_num = ''
+        if rx.appointment and rx.appointment.appointment_id:
+            apt_num = rx.appointment.appointment_id
+        elif rx.patient_record:
+            linked_apt = rx.patient_record.appointments.exclude(status='Cancelled').order_by('-created_at').first()
+            if linked_apt and linked_apt.appointment_id:
+                apt_num = linked_apt.appointment_id
+        if not apt_num and rx.patient_name:
+            linked_apt = Appointment.objects.filter(patient_name__iexact=rx.patient_name).exclude(status='Cancelled').order_by('-created_at').first()
+            if linked_apt and linked_apt.appointment_id:
+                apt_num = linked_apt.appointment_id
+
         rx_data = {
             'rxId': rx.prescription_id,
             'patientName': rx.patient_name,
             'patientId': rx.patient_id_ref,
+            'aptNumber': apt_num,
+            'appointment_id': apt_num,
             'mobile': rx.patient_phone or getattr(rx.patient_record, 'phone', ''),
             'ageGender': rx.age_gender,
             'date': rx.date,

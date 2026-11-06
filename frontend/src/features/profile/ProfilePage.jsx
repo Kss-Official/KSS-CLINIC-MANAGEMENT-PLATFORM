@@ -4657,7 +4657,13 @@ const ProfilePage = () => {
 
               phone: downloadingRx.contact || downloadingRx.mobile || profile.mobileNumber,
 
+              appointment_id: downloadingRx.appointment_id || downloadingRx.appointmentId || downloadingRx.apt_number || downloadingRx.aptNumber || '',
+
+              aptNumber: downloadingRx.aptNumber || downloadingRx.appointment_id || downloadingRx.appointmentId || downloadingRx.apt_number || '',
+
             }}
+
+            aptNumber={downloadingRx.aptNumber || downloadingRx.appointment_id || downloadingRx.appointmentId || downloadingRx.apt_number || ''}
 
             date={downloadingRx.date}
 

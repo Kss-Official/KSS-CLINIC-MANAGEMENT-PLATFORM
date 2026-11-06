@@ -6,6 +6,7 @@ import appointmentApi from '../../api/appointmentApi';
 const PrescriptionPreviewCard = ({
   prescriptionId,
   patient = {},
+  aptNumber: propAptNumber,
   date = '28 Oct 2026',
   consultationType = 'Follow-up',
   diagnosis = 'Skin allergy due to seasonal change.',
@@ -27,6 +28,20 @@ const PrescriptionPreviewCard = ({
   const patientId = patient.id || patient.patientId || 'PAT-1001';
   const ageGender = patient.ageGender || `${patient.age || '28 Years'} / ${patient.gender || 'Male'}`;
   const contact = patient.phone || patient.contact || patient.mobile || '+91 98765 43210';
+  const aptNumber =
+    propAptNumber ||
+    patient.aptNumber ||
+    patient.apt_number ||
+    patient.appointment_id ||
+    patient.appointmentId ||
+    patient.appointmentNumber ||
+    patient.appointment_number ||
+    (patient.appointment && typeof patient.appointment === 'object'
+      ? (patient.appointment.appointment_id || patient.appointment.id)
+      : (patient.appointment && String(patient.appointment).startsWith('APT-')
+        ? patient.appointment
+        : (patient.appointment ? `APT-${patient.appointment}` : ''))) ||
+    '';
 
   // Normalize medicines list (fallback to exact items from reference image if empty)
   const defaultMedicines = [
@@ -96,6 +111,7 @@ const PrescriptionPreviewCard = ({
           diagnosis,
           medicines: medicineList,
           additionalInstructions,
+          aptNumber,
           pdf_base64: clientPdfBase64,
         });
         setWhatsAppSuccess(res?.message || `Prescription PDF successfully delivered to ${patientName}'s WhatsApp!`);
@@ -273,6 +289,20 @@ const PrescriptionPreviewCard = ({
             <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
             <span style={{ color: '#0f172a', fontWeight: '700' }}>{consultationType}</span>
           </div>
+
+          {/* Row 4: APT Number */}
+          {aptNumber ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                <span style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
+                  APT Number
+                </span>
+                <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
+                <span style={{ color: '#0f172a', fontWeight: '700' }}>{aptNumber}</span>
+              </div>
+              <div />
+            </>
+          ) : null}
         </div>
 
         {/* Diagnosis */}

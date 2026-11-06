@@ -203,6 +203,7 @@ def generate_prescription_pdf_bytes(prescription_data):
     p_phone = prescription_data.get('mobile') or prescription_data.get('patient_phone') or '+91 98765 43210'
     rx_date = prescription_data.get('date') or '28 Oct 2026'
     consultation_type = prescription_data.get('consultationType') or 'Follow-up'
+    p_apt = prescription_data.get('aptNumber') or prescription_data.get('appointment_id') or prescription_data.get('apt_number') or prescription_data.get('appointmentId') or ''
 
     meta_rows = [
         [
@@ -218,6 +219,11 @@ def generate_prescription_pdf_bytes(prescription_data):
             Paragraph(f"<font color='#64748b'>Consultation&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{consultation_type}</b>", meta_style),
         ]
     ]
+    if p_apt:
+        meta_rows.append([
+            Paragraph(f"<font color='#64748b'>APT Number&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{p_apt}</b>", meta_style),
+            Paragraph("", meta_style),
+        ])
     meta_table = Table(meta_rows, colWidths=[95 * mm, 83 * mm])
     meta_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),

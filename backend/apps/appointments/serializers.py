@@ -265,12 +265,19 @@ class ClinicSettingsSerializer(serializers.Serializer):
         return res
 
 class PrescriptionSerializer(serializers.ModelSerializer):
+    appointment_id = serializers.SerializerMethodField()
+    appointment_number = serializers.SerializerMethodField()
+    apt_number = serializers.SerializerMethodField()
+
     class Meta:
         model = Prescription
         fields = [
             'id',
             'prescription_id',
             'appointment',
+            'appointment_id',
+            'appointment_number',
+            'apt_number',
             'patient_name',
             'patient_phone',
             'patient_id_ref',
@@ -288,3 +295,22 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'prescription_id', 'created_at', 'updated_at']
+
+    def get_appointment_id(self, obj):
+        if obj.appointment and obj.appointment.appointment_id:
+            return obj.appointment.appointment_id
+        if obj.patient_record:
+            apt = obj.patient_record.appointments.exclude(status='Cancelled').order_by('-created_at').first()
+            if apt and apt.appointment_id:
+                return apt.appointment_id
+        if obj.patient_name:
+            apt = Appointment.objects.filter(patient_name__iexact=obj.patient_name).exclude(status='Cancelled').order_by('-created_at').first()
+            if apt and apt.appointment_id:
+                return apt.appointment_id
+        return ''
+
+    def get_appointment_number(self, obj):
+        return self.get_appointment_id(obj)
+
+    def get_apt_number(self, obj):
+        return self.get_appointment_id(obj)

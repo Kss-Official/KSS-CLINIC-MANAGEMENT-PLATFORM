@@ -44,28 +44,10 @@
       "reason": "Clinic closed"
     }
   ],
-  "custom_working_hours": [
-    {
-      "id": "cwh_1793859992693",
-      "startDate": "2026-11-18",
-      "endDate": "2026-11-18",
-      "startTime": "10:00 AM",
-      "endTime": "02:00 PM",
-      "reason": "Midweek Special Shift"
-    }
-  ],
-  "customWorkingHours": [
-    {
-      "id": "cwh_1793859992693",
-      "startDate": "2026-11-18",
-      "endDate": "2026-11-18",
-      "startTime": "10:00 AM",
-      "endTime": "02:00 PM",
-      "reason": "Midweek Special Shift"
-    }
-  ],
+  "custom_working_hours": [],
+  "customWorkingHours": [],
   "notifications": {
-    "newAppointment": true,
+    "newAppointment": false,
     "appointmentReminder": true,
     "prescriptionUpdates": true
   },

@@ -15,25 +15,52 @@ const ViewPrescriptionModal = ({
     setActiveRx(prescription);
     if (!isOpen || !prescription) return;
 
-    if (!prescription.medicines || prescription.medicines.length === 0) {
-      const rxIdentifier = prescription.id || prescription.rxId;
-      if (rxIdentifier) {
-        appointmentApi.getPrescriptions().then((list) => {
-          if (Array.isArray(list)) {
-            const found = list.find((item) => (item.id === rxIdentifier || item.rxId === rxIdentifier));
-            if (found && found.medicines && found.medicines.length > 0) {
+    const rxIdentifier = prescription.id || prescription.rxId;
+    if (rxIdentifier) {
+      appointmentApi.getPrescriptions().then((list) => {
+        if (Array.isArray(list)) {
+          const found = list.find((item) => (item.id === rxIdentifier || item.rxId === rxIdentifier));
+          if (found) {
+            setActiveRx((prev) => ({
+              ...prev,
+              ...found,
+              appointment_id: found.appointment_id || found.apt_number || found.aptNumber || prev?.appointment_id,
+              apt_number: found.apt_number || found.appointment_id || found.aptNumber || prev?.apt_number,
+              aptNumber: found.aptNumber || found.appointment_id || found.apt_number || prev?.aptNumber,
+              medicines: (found.medicines && found.medicines.length > 0) ? found.medicines : (prev?.medicines || []),
+              diagnosis: found.diagnosis || prev?.diagnosis,
+              patientId: found.patientId || prev?.patientId,
+              additionalInstructions: found.additionalInstructions || prev?.additionalInstructions,
+            }));
+          }
+        }
+      }).catch((err) => console.error('Failed to load prescription medicines:', err));
+    }
+
+    // Fallback: if appointment ID is not yet attached, find matched appointment by patient name
+    const pName = prescription.patientName || prescription.patient_name || prescription.name;
+    if (!prescription.appointment_id && !prescription.apt_number && !prescription.aptNumber && pName) {
+      appointmentApi.getAppointments().then((aptList) => {
+        if (Array.isArray(aptList)) {
+          const matchedApt = aptList.find(
+            (a) =>
+              (a.patient_name && a.patient_name.toLowerCase() === pName.toLowerCase()) ||
+              (a.name && a.name.toLowerCase() === pName.toLowerCase())
+          );
+          if (matchedApt) {
+            const aptNum = matchedApt.appointment_id || (matchedApt.id ? `APT-${matchedApt.id}` : '');
+            if (aptNum) {
               setActiveRx((prev) => ({
                 ...prev,
-                ...found,
-                medicines: found.medicines,
-                diagnosis: found.diagnosis || prev?.diagnosis,
-                patientId: found.patientId || prev?.patientId,
-                additionalInstructions: found.additionalInstructions || prev?.additionalInstructions,
+                appointment_id: aptNum,
+                appointmentId: aptNum,
+                apt_number: aptNum,
+                aptNumber: aptNum,
               }));
             }
           }
-        }).catch((err) => console.error('Failed to load prescription medicines:', err));
-      }
+        }
+      }).catch((err) => console.error('Failed to lookup appointment for prescription:', err));
     }
   }, [prescription, isOpen]);
   // Lock background screen scroll and handle ESC key to close
@@ -123,11 +150,26 @@ const ViewPrescriptionModal = ({
     ? rx.medicines
     : getPrescriptionMedicines(rx.id);
 
+  const resolvedAptNum =
+    rx.appointment_id ||
+    rx.appointmentId ||
+    rx.apt_number ||
+    rx.aptNumber ||
+    rx.appointment_number ||
+    rx.patient?.appointment_id ||
+    rx.patient?.appointmentId ||
+    rx.patient?.aptNumber ||
+    '';
+
   const patientObj = {
     name: rx.name || rx.patientName || rx.patient_name || 'Patient',
     id: rx.patientId || rx.patient_id_ref || rx.patient?.id || rx.patient?.patient_id || 'PAT-1001',
     ageGender: rx.ageGender || rx.age_gender || rx.patient?.age_gender || 'Adult',
     phone: rx.contact || rx.mobile || rx.phone || rx.patient_phone || rx.patient?.phone || '+91 98765 43210',
+    appointment_id: resolvedAptNum,
+    appointmentId: resolvedAptNum,
+    apt_number: resolvedAptNum,
+    aptNumber: resolvedAptNum,
   };
 
   return (
@@ -241,6 +283,7 @@ const ViewPrescriptionModal = ({
           <PrescriptionPreviewCard
             prescriptionId={rx.id || rx.rxId}
             patient={patientObj}
+            aptNumber={resolvedAptNum}
             date={rx.date || '28 Oct 2026'}
             consultationType={rx.consultationType || 'Follow-up'}
             diagnosis={rx.diagnosis || rx.complaint || 'Skin allergy due to seasonal change.'}
