@@ -145,12 +145,20 @@ const SettingsPage = () => {
           if (data.slotDuration || data.slot_duration) {
             setSlotDuration(data.slotDuration || data.slot_duration);
           }
-          const loadedRestrictions = data.dateRestrictions || data.date_restrictions || [];
-          if (Array.isArray(loadedRestrictions)) {
+          const rawRestrictions = data.dateRestrictions || data.date_restrictions || [];
+          if (Array.isArray(rawRestrictions)) {
+            const loadedRestrictions = rawRestrictions.map((r, i) => ({
+              ...r,
+              id: r.id || `restr_${i}_${Date.now()}`
+            }));
             setDateRestrictions(loadedRestrictions);
           }
-          const loadedCustomHours = data.customWorkingHours || data.custom_working_hours || [];
-          if (Array.isArray(loadedCustomHours)) {
+          const rawCustomHours = data.customWorkingHours || data.custom_working_hours || [];
+          if (Array.isArray(rawCustomHours)) {
+            const loadedCustomHours = rawCustomHours.map((c, i) => ({
+              ...c,
+              id: c.id || `cwh_${i}_${Date.now()}`
+            }));
             setCustomWorkingHours(loadedCustomHours);
           }
           if (data.notifications && typeof data.notifications === 'object') {
@@ -544,12 +552,11 @@ const SettingsPage = () => {
     setDraftCustomWorkingHours([...customWorkingHours]);
     setAppointmentModalTab('general');
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    setNewRestrStartDate(todayStr);
-    setNewRestrEndDate(todayStr);
+    setNewRestrStartDate('');
+    setNewRestrEndDate('');
     setNewRestrReason('');
-    setNewCustomStartDate(todayStr);
-    setNewCustomEndDate(todayStr);
+    setNewCustomStartDate('');
+    setNewCustomEndDate('');
     setNewCustomStartTime('09:00 AM');
     setNewCustomEndTime('02:00 PM');
     setNewCustomReason('');
@@ -608,8 +615,10 @@ const SettingsPage = () => {
     }
   };
 
-  const handleRemoveRestriction = (id) => {
-    setDraftDateRestrictions(draftDateRestrictions.filter((r) => r.id !== id));
+  const handleRemoveRestriction = (id, index) => {
+    setDraftDateRestrictions((prev) =>
+      prev.filter((r, idx) => (r.id ? r.id !== id : idx !== index && idx !== id))
+    );
   };
 
   const handleAddCustomWorkingHours = (e) => {
@@ -636,8 +645,10 @@ const SettingsPage = () => {
     showToast('Custom working hours added.');
   };
 
-  const handleRemoveCustomWorkingHours = (id) => {
-    setDraftCustomWorkingHours(draftCustomWorkingHours.filter((c) => c.id !== id));
+  const handleRemoveCustomWorkingHours = (id, index) => {
+    setDraftCustomWorkingHours((prev) =>
+      prev.filter((c, idx) => (c.id ? c.id !== id : idx !== index && idx !== id))
+    );
   };
 
   const handleSaveAppointmentSettings = async (e) => {
@@ -740,28 +751,7 @@ const SettingsPage = () => {
     }
   };
 
-  const toggleNotification = async (key) => {
-    const updated = {
-      ...notifications,
-      [key]: !notifications[key],
-    };
-    setNotifications(updated);
-    setDraftNotifications(updated);
-    try {
-      localStorage.setItem('clinic_notification_settings', JSON.stringify(updated));
-    } catch {}
-    window.dispatchEvent(new CustomEvent('notification-settings-updated', { detail: updated }));
-    const label = key === 'appointmentReminder' ? 'Appointment Reminder' : (key === 'newAppointment' ? 'New Appointment' : 'Prescription Updates');
-    showToast(`${label} ${updated[key] ? 'enabled' : 'disabled'}`);
-    try {
-      await appointmentApi.updateNotificationSettings({
-        notifications: updated,
-        notificationChannels,
-      });
-    } catch (err) {
-      console.warn('Backend notification settings sync notice:', err);
-    }
-  };
+  // (toggleNotification removed: Notification settings are read-only on the card; changes require clicking 'Edit' and saving in the modal)
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', position: 'relative' }}>
@@ -1507,6 +1497,7 @@ const SettingsPage = () => {
             </div>
           </div>
           <button
+            id="edit-notification-settings-btn"
             type="button"
             onClick={handleOpenNotificationModal}
             style={{
@@ -1547,16 +1538,22 @@ const SettingsPage = () => {
           ].map((item) => {
             const enabled = notifications[item.key];
             return (
-              <div key={item.key} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div
+                key={item.key}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', userSelect: 'none' }}
+                onClick={() => {
+                  showToast("Notification settings are read-only. Click 'Edit' to change settings.");
+                }}
+              >
                 <div
-                  onClick={() => toggleNotification(item.key)}
+                  title="Notification settings are read-only. Click 'Edit' to change settings."
                   style={{
                     width: '38px',
                     height: '22px',
                     borderRadius: '9999px',
                     backgroundColor: enabled ? '#1e7e34' : '#cbd5e1',
                     position: 'relative',
-                    cursor: 'pointer',
+                    cursor: 'default',
                     flexShrink: 0,
                     transition: 'background-color 0.2s',
                     marginTop: '2px',
@@ -1575,7 +1572,7 @@ const SettingsPage = () => {
                     }}
                   />
                 </div>
-                <div>
+                <div style={{ cursor: 'default' }}>
                   <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#0f172a' }}>{item.title}</div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', lineHeight: 1.35 }}>{item.desc}</div>
                 </div>
@@ -1954,7 +1951,9 @@ const SettingsPage = () => {
                   >
                     Cancel
                   </button>
+                  {/* Save Changes Button (Clinic Information) */}
                   <button
+                    id="save-clinic-btn"
                     type="submit"
                     style={{
                       padding: '9px 22px',
@@ -2362,9 +2361,11 @@ const SettingsPage = () => {
                           Active Restrictions ({draftDateRestrictions.length})
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                          {draftDateRestrictions.map((r) => (
+                          {draftDateRestrictions.map((r, idx) => (
                             <div
                               key={r.id}
+                              className="active-restriction-item"
+                              data-restr-id={r.id}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -2394,7 +2395,7 @@ const SettingsPage = () => {
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleRemoveRestriction(r.id)}
+                                onClick={() => handleRemoveRestriction(r.id, idx)}
                                 style={{
                                   padding: '4px 8px',
                                   borderRadius: '6px',
@@ -2581,9 +2582,11 @@ const SettingsPage = () => {
                           Active Date-Specific Hours ({draftCustomWorkingHours.length})
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                          {draftCustomWorkingHours.map((c) => (
+                          {draftCustomWorkingHours.map((c, idx) => (
                             <div
                               key={c.id}
+                              className="active-custom-hours-item"
+                              data-cwh-id={c.id}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -2613,7 +2616,7 @@ const SettingsPage = () => {
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleRemoveCustomWorkingHours(c.id)}
+                                onClick={() => handleRemoveCustomWorkingHours(c.id, idx)}
                                 style={{
                                   padding: '4px 8px',
                                   borderRadius: '6px',
@@ -2652,7 +2655,9 @@ const SettingsPage = () => {
                   >
                     Cancel
                   </button>
+                  {/* Save Changes Button (Appointment Settings) */}
                   <button
+                    id="save-appointment-btn"
                     type="submit"
                     style={{
                       padding: '9px 22px',
@@ -2831,7 +2836,9 @@ const SettingsPage = () => {
                   >
                     Cancel
                   </button>
+                  {/* Save Changes Button (Notification Settings) */}
                   <button
+                    id="save-notification-settings-btn"
                     type="submit"
                     style={{
                       padding: '9px 22px',

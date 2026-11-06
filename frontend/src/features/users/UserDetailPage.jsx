@@ -1,24 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import Button from '../../components/common/Button';
+import Loader from '../../components/common/Loader';
+import userApi from '../../api/userApi';
 
 const UserDetailPage = () => {
   const { id } = useParams();
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Mock user details
-  const user = {
-    id: id || 1,
-    username: 'dr.sharma',
-    email: 'sharma@kssclinic.com',
-    first_name: 'Rajesh',
-    last_name: 'Sharma',
-    role: 'DOCTOR',
-    phone: '+91 98765 43210',
-    specialization: 'Homeopathic Physician',
-    license_no: 'HOM-2024-9812',
-    is_active: true,
-    date_joined: '2026-01-15',
-  };
+  useEffect(() => {
+    const fetchUser = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await userApi.getUserById(id);
+        setUser(data);
+      } catch (err) {
+        console.error('Failed to load user details:', err);
+        setError('User not found or failed to load.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (id) {
+      fetchUser();
+    }
+  }, [id]);
+
+  if (isLoading) {
+    return <Loader />;
+  }
+
+  if (error || !user) {
+    return (
+      <div>
+        <div style={{ marginBottom: '20px' }}>
+          <Link to="/users" style={{ color: '#64748b', fontSize: '14px' }}>
+            ← Back to Users
+          </Link>
+        </div>
+        <div style={{ color: '#ef4444', padding: '16px' }}>{error || 'User not found.'}</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -31,7 +56,7 @@ const UserDetailPage = () => {
       <div className="card">
         <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '16px', marginBottom: '20px' }}>
           <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#0f172a' }}>
-            {user.first_name} {user.last_name}
+            {user.first_name || user.last_name ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : user.username}
           </h1>
           <p style={{ color: '#64748b', fontSize: '14px' }}>
             Role: <strong>{user.role}</strong>
@@ -45,15 +70,17 @@ const UserDetailPage = () => {
           </div>
           <div>
             <span style={{ fontSize: '13px', color: '#64748b' }}>Email</span>
-            <p style={{ fontSize: '15px', fontWeight: '500', marginTop: '2px' }}>{user.email}</p>
+            <p style={{ fontSize: '15px', fontWeight: '500', marginTop: '2px' }}>{user.email || 'N/A'}</p>
           </div>
           <div>
             <span style={{ fontSize: '13px', color: '#64748b' }}>Phone</span>
-            <p style={{ fontSize: '15px', fontWeight: '500', marginTop: '2px' }}>{user.phone}</p>
+            <p style={{ fontSize: '15px', fontWeight: '500', marginTop: '2px' }}>{user.phone_number || user.phone || 'N/A'}</p>
           </div>
           <div>
             <span style={{ fontSize: '13px', color: '#64748b' }}>Joined On</span>
-            <p style={{ fontSize: '15px', fontWeight: '500', marginTop: '2px' }}>{user.date_joined}</p>
+            <p style={{ fontSize: '15px', fontWeight: '500', marginTop: '2px' }}>
+              {user.date_joined ? new Date(user.date_joined).toLocaleDateString() : 'N/A'}
+            </p>
           </div>
         </div>
       </div>
@@ -62,4 +89,3 @@ const UserDetailPage = () => {
 };
 
 export default UserDetailPage;
-

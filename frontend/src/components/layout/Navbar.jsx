@@ -315,6 +315,7 @@ const Navbar = ({ onOpenBooking }) => {
           {!isAuthenticated && (
             <button
               type="button"
+              id="nav-login-btn"
               className="nav-login-btn"
               onClick={() => navigate('/login')}
               style={{
@@ -347,6 +348,7 @@ const Navbar = ({ onOpenBooking }) => {
 
           <button
             type="button"
+            id="nav-book-btn"
             className="nav-book-btn"
             onClick={handleBookClick}
             style={{
@@ -558,6 +560,7 @@ const Navbar = ({ onOpenBooking }) => {
 
                   <button
                     type="button"
+                    id="patient-nav-logout-btn"
                     onClick={async () => {
                       setDropdownOpen(false);
                       await logout();
@@ -842,7 +845,9 @@ const Navbar = ({ onOpenBooking }) => {
             height: 32px !important;
           }
           .nav-login-btn {
-            display: none !important;
+            display: inline-flex !important;
+            padding: 8px 14px !important;
+            font-size: 13px !important;
           }
           .nav-book-btn {
             padding: 8px 14px !important;
@@ -855,6 +860,10 @@ const Navbar = ({ onOpenBooking }) => {
         @media (max-width: 420px) {
           .navbar-inner {
             padding: 0 12px !important;
+          }
+          .nav-login-btn {
+            padding: 7px 11px !important;
+            font-size: 12px !important;
           }
           .nav-book-btn-text {
             display: none !important;

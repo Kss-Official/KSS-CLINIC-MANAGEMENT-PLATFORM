@@ -48,11 +48,14 @@ const DashboardPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState('5 page');
 
+
+
   const [appointmentsData, setAppointmentsData] = useState([]);
   const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(true);
 
   const mapApiAppointment = (item) => ({
     id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
+    appointment_id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
     rawId: item.id,
     name: item.patient_name || item.name || 'Anonymous Patient',
     contact: item.patient_phone || item.contact || 'N/A',
@@ -62,8 +65,9 @@ const DashboardPage = () => {
     reason: item.reason_for_visit || item.reason || 'General Consultation',
     consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
     status: item.status || 'Confirmed',
+    prescriptionStatus: item.prescription_status || item.prescriptionStatus || 'Pending',
     ageGender: item.age_gender || item.ageGender || 'Adult',
-    notes: item.notes || item.reason_for_visit || '',
+    notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
     doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
   });
 
@@ -135,18 +139,29 @@ const DashboardPage = () => {
       if (Array.isArray(data)) {
         const mapped = data.map((item) => ({
           name: item.name || item.patientName || 'Patient',
+          patientName: item.patientName || item.name || 'Patient',
+          patientId: item.patientId || item.patient_id_ref || (item.patient?.id ? `PAT-${item.patient.id}` : (item.patient_record?.patient_id || '')),
+          contact: item.contact || item.mobile || item.phone || item.patient_phone || '',
+          mobile: item.mobile || item.contact || item.phone || item.patient_phone || '',
           rxId: item.rxId || item.id,
           id: item.rxId || item.id,
+          prescriptionId: item.rxId || item.id,
+          appointment_id: item.appointment_id || item.appointmentId || item.apt_number || item.aptNumber || '',
+          appointmentId: item.appointment_id || item.appointmentId || item.apt_number || item.aptNumber || '',
+          apt_number: item.apt_number || item.appointment_id || item.appointmentId || item.aptNumber || '',
+          aptNumber: item.aptNumber || item.appointment_id || item.appointmentId || item.apt_number || '',
           database_id: item.database_id,
           created_at: item.created_at,
           date: item.date,
           time: item.time || '10:00 AM',
-          ageGender: item.ageGender || '',
+          consultationType: item.consultationType || item.consultation_type || 'Follow-up',
+          ageGender: item.ageGender || item.age_gender || '',
           complaint: item.complaint || item.reason_for_visit || item.reason || '',
           symptoms: item.symptoms || '',
           diagnosis: item.diagnosis || '',
           medicines: item.medicines || [],
-          additionalInstructions: item.additionalInstructions || '',
+          additionalInstructions: item.additionalInstructions || item.notes || '',
+          notes: item.notes || item.additionalInstructions || '',
           status: item.status || 'Confirmed',
         }));
         setPrescriptionsData((prev) => {
@@ -769,15 +784,15 @@ const DashboardPage = () => {
 
         {/* Table */}
         <div className="admin-table-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: '680px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '860px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Time</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Patient Name</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Contact</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Reason for Visit</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Status</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b', textAlign: 'center' }}>Action</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Time</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Patient Name</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Contact</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', maxWidth: '240px', minWidth: '150px' }}>Reason for Visit</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Status</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', textAlign: 'center', width: '130px', minWidth: '130px', whiteSpace: 'nowrap' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -810,10 +825,11 @@ const DashboardPage = () => {
                   const badge = getStatusBadge(row.status);
                   return (
                     <tr
-                      key={idx}
+                      key={row.rawId || row.id || idx}
+                      className="admin-table-row"
                       style={{
                         borderBottom: '1px solid #f8fafc',
-                        transition: 'background-color 0.15s ease',
+                        transition: 'all 0.3s ease',
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fafafa')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -821,14 +837,30 @@ const DashboardPage = () => {
                       <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#1e293b' }}>
                         {row.time}
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
-                        {row.name}
+                      <td style={{ padding: '14px 16px', position: 'relative' }}>
+                        <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                          {row.name}
+                        </span>
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#64748b' }}>
                         {row.contact}
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155' }}>
-                        {row.reason}
+                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155', maxWidth: '240px', minWidth: '150px' }}>
+                        <div
+                          title={row.reason || 'General Consultation'}
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            wordBreak: 'break-word',
+                            overflowWrap: 'anywhere',
+                            lineHeight: '1.45',
+                          }}
+                        >
+                          {row.reason || 'General Consultation'}
+                        </div>
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         <span
@@ -849,7 +881,10 @@ const DashboardPage = () => {
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                           <button
                             type="button"
-                            onClick={() => openViewAppointment(row)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openViewAppointment(row);
+                            }}
                             style={{
                               padding: '5px 14px',
                               borderRadius: '6px',
@@ -880,14 +915,47 @@ const DashboardPage = () => {
                                 onClick: () => openViewAppointment(row),
                               },
                               {
-                                label: 'Go to Appointments',
-                                icon: '📅',
-                                onClick: () => navigate('/appointments'),
-                              },
-                              {
                                 label: 'Create Prescription',
                                 icon: '🌿',
                                 onClick: () => openNewPrescription(row),
+                              },
+                              ...(row.status !== 'Complete' && row.status !== 'Completed' ? [{
+                                label: 'Mark as Complete',
+                                icon: '✓',
+                                onClick: async () => {
+                                  try {
+                                    const targetId = row.rawId || row.id;
+                                    const res = await appointmentApi.updateAppointmentStatus(targetId, 'Complete');
+                                    const updatedApt = res || row;
+                                    window.dispatchEvent(new CustomEvent('appointment-updated', {
+                                      detail: { id: targetId, status: 'Complete', appointment: updatedApt }
+                                    }));
+                                    const aptNum = updatedApt.appointment_id || row.appointment_id || (targetId ? `APT-${targetId}` : 'APT-0000');
+                                    const pName = updatedApt.patient_name || row.patient_name || row.name || 'Patient';
+                                    window.dispatchEvent(
+                                      new CustomEvent('prescription-remaining-notification', {
+                                        detail: {
+                                          ...row,
+                                          ...updatedApt,
+                                          id: targetId,
+                                          rawId: targetId,
+                                          appointment_id: aptNum,
+                                          patient_name: pName,
+                                          name: pName,
+                                          status: 'Completed',
+                                          prescriptionStatus: 'Pending',
+                                        },
+                                      })
+                                    );
+                                  } catch (err) {
+                                    console.error('Failed to mark complete from dashboard:', err);
+                                  }
+                                }
+                              }] : []),
+                              {
+                                label: 'Go to Appointments',
+                                icon: '📅',
+                                onClick: () => navigate('/appointments'),
                               },
                             ]}
                           />
@@ -1038,26 +1106,6 @@ const DashboardPage = () => {
               <option value="Pending">Pending</option>
               <option value="Failed">Failed</option>
             </select>
-
-            <button
-              type="button"
-              onClick={() => navigate('/prescriptions')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'none',
-                border: 'none',
-                color: '#1e4620',
-                fontSize: '13.5px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                padding: '6px 8px',
-              }}
-            >
-              <span>View All</span>
-              <span>→</span>
-            </button>
           </div>
         </div>
 
@@ -1142,7 +1190,10 @@ const DashboardPage = () => {
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                         <button
                           type="button"
-                          onClick={() => openViewPrescription(row)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openViewPrescription(row);
+                          }}
                           style={{
                             padding: '5px 14px',
                             borderRadius: '6px',
@@ -1178,20 +1229,9 @@ const DashboardPage = () => {
                               onClick: () => navigate('/prescriptions'),
                             },
                             {
-                              label: 'Resend via WhatsApp',
+                              label: 'Send via WhatsApp',
                               icon: '📲',
-                              onClick: async () => {
-                                const text = encodeURIComponent(
-                                  `Prescription for ${row.name} (${row.rxId}): Diagnosis: ${row.complaint || 'Prescription Details'}. Please follow the prescribed homeopathic treatment.`
-                                );
-                                const phoneDigits = (row.contact || row.mobile || '').replace(/\D/g, '');
-                                if (phoneDigits) {
-                                  window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
-                                }
-                                await appointmentApi.updatePrescriptionStatus(row.rxId, 'Delivered');
-                                fetchPrescriptions(true);
-                                alert(`Prescription ${row.rxId} resent via WhatsApp to ${row.name}! Status updated to Delivered.`);
-                              },
+                              onClick: () => openNewPrescription(row, 2),
                             },
                           ]}
                         />
@@ -1312,7 +1352,8 @@ const DashboardPage = () => {
 
           {/* Action 2: Create Prescription */}
           <div
-            onClick={openNewPrescription}
+            id="dash-create-prescription-quick-action"
+            onClick={() => openNewPrescription(null)}
             style={{
               backgroundColor: '#fbfcfd',
               border: '1px solid #eef2f6',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
@@ -76,7 +76,7 @@ const BookAppointmentPage = () => {
 
     selectedTimeSlot: '09:30 AM',
 
-    appointmentId: 'APT-20261016-001',
+    appointmentId: '',
 
   });
 
@@ -104,11 +104,11 @@ const BookAppointmentPage = () => {
 
         ...prev,
 
-        fullName: prev.fullName === 'Rahul Sharma' && full ? full : (prev.fullName || full),
+        fullName: prev.fullName || full,
 
-        mobileNumber: prev.mobileNumber === '+91 98765 43210' && user.phone_number ? user.phone_number : (prev.mobileNumber || user.phone_number || ''),
+        mobileNumber: prev.mobileNumber || user.phone_number || '',
 
-        email: prev.email === 'rahul.sharma@gmail.com' && user.email ? user.email : (prev.email || user.email || ''),
+        email: prev.email || user.email || '',
 
         gender: prev.gender || user.gender || '',
 
@@ -253,6 +253,36 @@ const BookAppointmentPage = () => {
     return [];
   });
 
+  const [closedDateModal, setClosedDateModal] = useState({
+    isOpen: false,
+    dateFormatted: '',
+    reason: '',
+  });
+
+  const [consultationHours, setConsultationHours] = useState(() => {
+    try {
+      const cached = localStorage.getItem('clinic_appointment_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const ch = parsed.consultationHours || parsed.consultation_hours;
+        if (ch) return ch;
+      }
+    } catch {}
+    return '09:00 AM - 06:00 PM';
+  });
+
+  const [slotDuration, setSlotDuration] = useState(() => {
+    try {
+      const cached = localStorage.getItem('clinic_appointment_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const sd = parsed.slotDuration || parsed.slot_duration;
+        if (sd) return sd;
+      }
+    } catch {}
+    return '30 Minutes';
+  });
+
   const [customWorkingHours, setCustomWorkingHours] = useState(() => {
     try {
       const cached = localStorage.getItem('clinic_appointment_settings');
@@ -267,16 +297,31 @@ const BookAppointmentPage = () => {
 
   // Helper to check if a date is restricted
   const checkDateRestricted = (y, m, d) => {
-    if (!dateRestrictions || dateRestrictions.length === 0) return { isRestricted: false, reason: '' };
+    if (!dateRestrictions || !Array.isArray(dateRestrictions) || dateRestrictions.length === 0) {
+      return { isRestricted: false, reason: '' };
+    }
     const mStr = String(m + 1).padStart(2, '0');
     const dStr = String(d).padStart(2, '0');
     const dateNorm = `${y}-${mStr}-${dStr}`;
+    const monthNorm = `${y}-${mStr}`;
     for (const r of dateRestrictions) {
-      if (r && r.startDate && r.endDate) {
-        if (r.startDate <= dateNorm && dateNorm <= r.endDate) {
+      if (!r || typeof r !== 'object') continue;
+      const start = r.startDate || r.start_date || r.date;
+      const end = r.endDate || r.end_date || start;
+      const rMonth = r.month || (r.type === 'month' ? (start ? String(start).substring(0, 7) : null) : null);
+      if (r.type === 'month' || rMonth) {
+        if (rMonth === monthNorm || (start && end && start <= dateNorm && dateNorm <= end)) {
           return {
             isRestricted: true,
-            reason: r.reason || (r.type === 'month' ? 'Entire month closed' : 'Clinic closed on this date'),
+            reason: r.reason || 'Entire month closed',
+          };
+        }
+      }
+      if (start && end) {
+        if (start <= dateNorm && dateNorm <= end) {
+          return {
+            isRestricted: true,
+            reason: r.reason || 'Clinic closed on this date',
           };
         }
       }
@@ -298,26 +343,125 @@ const BookAppointmentPage = () => {
     return hours * 60 + minutes;
   };
 
+  // Helper to format dynamic clinic schedule rows for the sidebar card
+  const getClinicScheduleRows = () => {
+    const ALL_WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const DAY_LABELS = {
+      Mon: 'Monday',
+      Tue: 'Tuesday',
+      Wed: 'Wednesday',
+      Thu: 'Thursday',
+      Fri: 'Friday',
+      Sat: 'Saturday',
+      Sun: 'Sunday',
+    };
+
+    if (!workingDays || workingDays.length === 0) {
+      return [{ label: 'All Days', timings: 'Closed', isClosed: true }];
+    }
+
+    const cleanHours = (consultationHours || '09:00 AM - 06:00 PM')
+      .replace(/-/g, '–')
+      .replace(/\b0(\d):/g, '$1:');
+
+    const openDays = ALL_WEEKDAYS.filter((d) => workingDays.includes(d));
+    const closedDays = ALL_WEEKDAYS.filter((d) => !workingDays.includes(d));
+
+    const formatDayList = (days) => {
+      if (!days || days.length === 0) return '';
+      if (days.length === 1) return DAY_LABELS[days[0]];
+      if (days.length === 7) return 'Monday – Sunday';
+      const idxs = days.map((d) => ALL_WEEKDAYS.indexOf(d));
+      const isContiguous = idxs.every((val, i, arr) => i === 0 || val === arr[i - 1] + 1);
+      if (isContiguous) {
+        return `${DAY_LABELS[days[0]]} – ${DAY_LABELS[days[days.length - 1]]}`;
+      }
+      return days.map((d) => DAY_LABELS[d]).join(', ');
+    };
+
+    const rows = [];
+    if (openDays.length > 0) {
+      rows.push({
+        label: formatDayList(openDays),
+        timings: cleanHours,
+        isClosed: false,
+      });
+    }
+    if (closedDays.length > 0) {
+      rows.push({
+        label: formatDayList(closedDays),
+        timings: 'Closed',
+        isClosed: true,
+      });
+    }
+    return rows;
+  };
+
+  const getSelectedDateTimingInfo = () => {
+    if (!formData.selectedDay) return null;
+    const dObj = new Date(formData.selectedYear, formData.selectedMonth, formData.selectedDay);
+    const dayOfWeekName = daysOfWeek[dObj.getDay()];
+    const isWorking = workingDays.includes(dayOfWeekName);
+    const { isRestricted, reason: restrictionReason } = checkDateRestricted(
+      formData.selectedYear,
+      formData.selectedMonth,
+      formData.selectedDay
+    );
+    const eff = getEffectiveWorkingHours(
+      formData.selectedYear,
+      formData.selectedMonth,
+      formData.selectedDay
+    );
+
+    const monthShort = months[formData.selectedMonth]?.slice(0, 3) || '';
+    const dateLabel = `${formData.selectedDay} ${monthShort} ${formData.selectedYear}`;
+
+    if (!isWorking || isRestricted) {
+      return {
+        label: `${dateLabel} (Selected)`,
+        timings: 'Closed',
+        isClosed: true,
+      };
+    }
+
+    if (eff.isCustom) {
+      const cleanCustom = `${eff.startTime} – ${eff.endTime}`.replace(/\b0(\d):/g, '$1:');
+      return {
+        label: `${dateLabel} (${eff.reason || 'Special Hours'})`,
+        timings: cleanCustom,
+        isClosed: false,
+      };
+    }
+
+    return null;
+  };
+
   // Helper to determine effective working hours for a specific date
   const getEffectiveWorkingHours = (y, m, d) => {
     const mStr = String(m + 1).padStart(2, '0');
     const dStr = String(d).padStart(2, '0');
     const dateNorm = `${y}-${mStr}-${dStr}`;
-    if (customWorkingHours && customWorkingHours.length > 0) {
+    if (customWorkingHours && Array.isArray(customWorkingHours) && customWorkingHours.length > 0) {
       for (const ch of customWorkingHours) {
-        if (ch && ch.startDate && ch.endDate && ch.startDate <= dateNorm && dateNorm <= ch.endDate) {
+        if (!ch || typeof ch !== 'object') continue;
+        const start = ch.startDate || ch.start_date || ch.date;
+        const end = ch.endDate || ch.end_date || start;
+        if (start && end && start <= dateNorm && dateNorm <= end) {
           return {
-            startTime: ch.startTime || '09:00 AM',
-            endTime: ch.endTime || '06:00 PM',
+            startTime: ch.startTime || ch.start_time || '09:00 AM',
+            endTime: ch.endTime || ch.end_time || '06:00 PM',
             isCustom: true,
             reason: ch.reason || 'Special working hours',
           };
         }
       }
     }
+    const defParts = (consultationHours || '09:00 AM - 06:00 PM').split(' - ');
+    const defStart = defParts[0]?.trim() || '09:00 AM';
+    const defEnd = defParts[1]?.trim() || '06:00 PM';
     return {
-      startTime: '09:00 AM',
-      endTime: '06:00 PM',
+      startTime: defStart,
+      endTime: defEnd,
       isCustom: false,
       reason: '',
     };
@@ -326,16 +470,22 @@ const BookAppointmentPage = () => {
   useEffect(() => {
     const fetchAppointmentSettings = async () => {
       try {
-        const data = await appointmentApi.getClinicSettings();
-        const days = data?.workingDays || data?.working_days;
-        if (Array.isArray(days) && days.length > 0) setWorkingDays(days);
-        const restrs = data?.dateRestrictions || data?.date_restrictions;
-        if (Array.isArray(restrs)) setDateRestrictions(restrs);
-        const cwh = data?.customWorkingHours || data?.custom_working_hours;
-        if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
-        try {
-          localStorage.setItem('clinic_appointment_settings', JSON.stringify(data));
-        } catch {}
+        const data = await appointmentApi.getAppointmentSettings();
+        if (data) {
+          const days = data?.workingDays || data?.working_days;
+          if (Array.isArray(days) && days.length > 0) setWorkingDays(days);
+          const restrs = data?.dateRestrictions || data?.date_restrictions;
+          if (Array.isArray(restrs)) setDateRestrictions(restrs);
+          const cwh = data?.customWorkingHours || data?.custom_working_hours;
+          if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
+          const ch = data?.consultationHours || data?.consultation_hours;
+          if (ch) setConsultationHours(ch);
+          const sd = data?.slotDuration || data?.slot_duration;
+          if (sd) setSlotDuration(sd);
+          try {
+            localStorage.setItem('clinic_appointment_settings', JSON.stringify(data));
+          } catch {}
+        }
       } catch (err) {
         console.log('Using cached or default appointment settings');
       }
@@ -343,15 +493,45 @@ const BookAppointmentPage = () => {
     fetchAppointmentSettings();
 
     const handleSettingsUpdated = (e) => {
-      const days = e?.detail?.workingDays || e?.detail?.working_days;
+      const detail = e?.detail || {};
+      const days = detail?.workingDays || detail?.working_days;
       if (Array.isArray(days)) setWorkingDays(days);
-      const restrs = e?.detail?.dateRestrictions || e?.detail?.date_restrictions;
+      const restrs = detail?.dateRestrictions || detail?.date_restrictions;
       if (Array.isArray(restrs)) setDateRestrictions(restrs);
-      const cwh = e?.detail?.customWorkingHours || e?.detail?.custom_working_hours;
+      const cwh = detail?.customWorkingHours || detail?.custom_working_hours;
       if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
+      const ch = detail?.consultationHours || detail?.consultation_hours;
+      if (ch) setConsultationHours(ch);
+      const sd = detail?.slotDuration || detail?.slot_duration;
+      if (sd) setSlotDuration(sd);
     };
+
+    const handleStorageChange = (e) => {
+      if (e.key === 'clinic_appointment_settings' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          const days = parsed.workingDays || parsed.working_days;
+          if (Array.isArray(days)) setWorkingDays(days);
+          const restrs = parsed.dateRestrictions || parsed.date_restrictions;
+          if (Array.isArray(restrs)) setDateRestrictions(restrs);
+          const cwh = parsed.customWorkingHours || parsed.custom_working_hours;
+          if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
+          const ch = parsed.consultationHours || parsed.consultation_hours;
+          if (ch) setConsultationHours(ch);
+          const sd = parsed.slotDuration || parsed.slot_duration;
+          if (sd) setSlotDuration(sd);
+        } catch {}
+      }
+    };
+
     window.addEventListener('appointment-settings-updated', handleSettingsUpdated);
-    return () => window.removeEventListener('appointment-settings-updated', handleSettingsUpdated);
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('focus', fetchAppointmentSettings);
+    return () => {
+      window.removeEventListener('appointment-settings-updated', handleSettingsUpdated);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', fetchAppointmentSettings);
+    };
   }, []);
 
   // Ensure initially selected day is not on a disabled working day or restricted date
@@ -391,58 +571,53 @@ const BookAppointmentPage = () => {
 
 
 
-  // Base Time Slots list matching reference design
+  // Dynamic Time Slots generator using clinic settings (consultation hours & slot duration)
+  const generateDynamicSlots = useCallback((startStr, endStr, durationStr) => {
+    const match = String(durationStr || '').match(/\d+/);
+    const durationMins = match ? parseInt(match[0], 10) : 30;
+    if (durationMins <= 0) return [];
 
-  const baseTimeSlots = [
-    { time: '09:00 AM', defaultAvailable: true },
-    { time: '09:30 AM', defaultAvailable: true },
-    { time: '10:00 AM', defaultAvailable: true },
-    { time: '10:30 AM', defaultAvailable: true },
-    { time: '11:00 AM', defaultAvailable: true },
-    { time: '11:30 AM', defaultAvailable: true },
-    { time: '12:00 PM', defaultAvailable: true },
-    { time: '12:30 PM', defaultAvailable: true },
-    { time: '01:00 PM', defaultAvailable: true },
-    { time: '04:00 PM', defaultAvailable: true },
-    { time: '04:30 PM', defaultAvailable: true },
-    { time: '05:00 PM', defaultAvailable: true },
-    { time: '05:30 PM', defaultAvailable: true },
-  ];
+    const startMins = timeToMinutes(startStr) ?? (9 * 60);
+    const endMins = timeToMinutes(endStr) ?? (18 * 60);
 
-
+    const generated = [];
+    for (let cur = startMins; cur < endMins; cur += durationMins) {
+      const h = Math.floor(cur / 60);
+      const m = cur % 60;
+      const period = h >= 12 ? 'PM' : 'AM';
+      const dispH = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+      const timeLabel = `${String(dispH).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+      generated.push({ time: timeLabel, defaultAvailable: true });
+    }
+    return generated;
+  }, []);
 
   const [bookedSlotsMap, setBookedSlotsMap] = useState({});
 
-
-
   const normalizeSlotTime = (t) => {
-
     if (!t) return '';
-
     return t.trim().toUpperCase().replace(/^0/, '');
-
   };
 
-
-
   const fetchBookedSlots = async () => {
-
     try {
-
-      const data = await appointmentApi.getBookedSlots();
-
+      const formattedDate = `${formData.selectedYear}-${String(formData.selectedMonth + 1).padStart(2, '0')}-${String(formData.selectedDay).padStart(2, '0')}`;
+      const data = await appointmentApi.getBookedSlots(formattedDate);
       if (data?.all_booked_slots) {
-
         setBookedSlotsMap(data.all_booked_slots);
-
       }
-
+      if (data?.slotDuration || data?.slot_duration) {
+        setSlotDuration(data.slotDuration || data.slot_duration);
+      }
+      if (data?.consultationHours || data?.consultation_hours) {
+        setConsultationHours(data.consultationHours || data.consultation_hours);
+      }
+      if (data?.workingDays || data?.working_days) {
+        setWorkingDays(data.workingDays || data.working_days);
+      }
     } catch (err) {
-
       console.warn('Could not fetch booked slots:', err);
-
     }
-
   };
 
 
@@ -523,58 +698,40 @@ const BookAppointmentPage = () => {
   const startMins = timeToMinutes(effectiveHours.startTime);
   const endMins = timeToMinutes(effectiveHours.endTime);
 
-  const timeSlots = baseTimeSlots.map((slot) => {
+  const baseTimeSlots = useMemo(() => {
+    return generateDynamicSlots(effectiveHours.startTime, effectiveHours.endTime, slotDuration);
+  }, [generateDynamicSlots, effectiveHours.startTime, effectiveHours.endTime, slotDuration]);
 
-    const norm = normalizeSlotTime(slot.time);
+  const timeSlots = useMemo(() => {
+    return baseTimeSlots.map((slot) => {
+      const norm = normalizeSlotTime(slot.time);
+      const isBooked = bookedSet.has(norm);
+      const slotMins = timeToMinutes(slot.time);
+      const isOutsideHours = slotMins !== null && startMins !== null && endMins !== null &&
+        (slotMins < startMins || slotMins >= endMins);
+      const isAvailable = slot.defaultAvailable && !isBooked && !isOutsideHours;
 
-    const isBooked = bookedSet.has(norm);
-
-    const slotMins = timeToMinutes(slot.time);
-
-    const isOutsideHours = slotMins !== null && startMins !== null && endMins !== null &&
-      (slotMins < startMins || slotMins >= endMins);
-
-    const isAvailable = slot.defaultAvailable && !isBooked && !isOutsideHours;
-
-    return {
-
-      ...slot,
-
-      available: isAvailable,
-
-      isBooked,
-
-      isOutsideHours,
-
-    };
-
-  });
-
-
+      return {
+        ...slot,
+        available: isAvailable,
+        isBooked,
+        isOutsideHours,
+      };
+    });
+  }, [baseTimeSlots, bookedSet, startMins, endMins]);
 
   // Automatically select the next available time slot if current selection is booked or unavailable
-
   useEffect(() => {
-
     const currentSlotObj = timeSlots.find(
-
       (s) => normalizeSlotTime(s.time) === normalizeSlotTime(formData.selectedTimeSlot)
-
     );
-
     if (!currentSlotObj || !currentSlotObj.available) {
-
       const nextAvailable = timeSlots.find((s) => s.available);
-
       if (nextAvailable && nextAvailable.time !== formData.selectedTimeSlot) {
-
         setFormData((prev) => ({ ...prev, selectedTimeSlot: nextAvailable.time }));
-
       }
-
     }
-
-  }, [formData.selectedDay, formData.selectedMonth, formData.selectedYear, bookedSlotsMap]);
+  }, [formData.selectedDay, formData.selectedMonth, formData.selectedYear, bookedSlotsMap, timeSlots, formData.selectedTimeSlot]);
 
 
 
@@ -899,18 +1056,25 @@ const BookAppointmentPage = () => {
         return;
 
       }
-
       // Ensure the selected date is on an active working day
       const selectedDayName = daysOfWeek[selectedDateZero.getDay()];
       if (!workingDays.includes(selectedDayName)) {
-        alert(`The clinic is closed on ${selectedDayName}s. Please select an available working day.`);
+        setClosedDateModal({
+          isOpen: true,
+          dateFormatted: `${formData.selectedDay} ${months[formData.selectedMonth]} ${formData.selectedYear}`,
+          reason: `The clinic is closed on ${selectedDayName}s. Please select an open working day.`,
+        });
         return;
       }
 
       // Ensure the selected date is not restricted
       const { isRestricted: isDateRestrictedOnNext, reason: nextRestrReason } = checkDateRestricted(formData.selectedYear, formData.selectedMonth, formData.selectedDay);
       if (isDateRestrictedOnNext) {
-        alert(`Appointments are unavailable on this date (${nextRestrReason || 'Clinic closed'}). Please choose another date.`);
+        setClosedDateModal({
+          isOpen: true,
+          dateFormatted: `${formData.selectedDay} ${months[formData.selectedMonth]} ${formData.selectedYear}`,
+          reason: nextRestrReason || 'Clinic closed on this date',
+        });
         return;
       }
 
@@ -1415,6 +1579,129 @@ const BookAppointmentPage = () => {
         }}
 
       />
+
+      {/* Pop-up dialog when patient clicks a closed or restricted date */}
+      {closedDateModal.isOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="closed-date-modal-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+          onClick={() => setClosedDateModal({ isOpen: false, dateFormatted: '', reason: '' })}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              padding: '28px 24px 22px',
+              width: '100%',
+              maxWidth: '420px',
+              boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.06)',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+
+            <h3
+              style={{
+                fontSize: '20px',
+                fontWeight: '700',
+                color: '#0f172a',
+                margin: '0 0 8px',
+                letterSpacing: '-0.2px',
+              }}
+            >
+              Clinic is closed on this date.
+            </h3>
+
+            {closedDateModal.dateFormatted && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  marginBottom: '12px',
+                }}
+              >
+                📅 {closedDateModal.dateFormatted}
+              </div>
+            )}
+
+            <p
+              style={{
+                fontSize: '13.5px',
+                color: '#64748b',
+                lineHeight: '1.5',
+                margin: '0 0 22px',
+              }}
+            >
+              {closedDateModal.reason
+                ? closedDateModal.reason
+                : 'Appointments cannot be booked for this date as the clinic is closed. Please choose another date.'}
+            </p>
+
+            <button
+              type="button"
+              className="btn-ok-closed-date"
+              onClick={() => setClosedDateModal({ isOpen: false, dateFormatted: '', reason: '' })}
+              style={{
+                width: '100%',
+                padding: '11px 20px',
+                backgroundColor: '#1b4332',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#143326')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b4332')}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
 
 
 
@@ -3197,7 +3484,30 @@ const BookAppointmentPage = () => {
                           <div
                             key={idx}
                             className="booking-calendar-cell"
-                            onClick={() => !isDisabled && handleSelectDate(item.day, item.isCurrentMonth, item.isPast)}
+                            onClick={() => {
+                              if (!item.isCurrentMonth) return;
+                              if (isDisabled) {
+                                const formattedDate = `${item.day} ${months[calendarMonth]} ${calendarYear}`;
+                                let reasonText = item.restrictionReason;
+                                if (!reasonText) {
+                                  if (item.isPast) {
+                                    reasonText = 'Appointments cannot be booked for past dates.';
+                                  } else if (isDayClosed) {
+                                    const dObj = new Date(calendarYear, calendarMonth, item.day);
+                                    reasonText = `The clinic is closed on ${daysOfWeek[dObj.getDay()]}s.`;
+                                  } else {
+                                    reasonText = 'Clinic is closed on this date.';
+                                  }
+                                }
+                                setClosedDateModal({
+                                  isOpen: true,
+                                  dateFormatted: formattedDate,
+                                  reason: reasonText,
+                                });
+                              } else {
+                                handleSelectDate(item.day, item.isCurrentMonth, item.isPast);
+                              }
+                            }}
                             title={
                               !item.isCurrentMonth
                                 ? ''
@@ -4295,23 +4605,52 @@ const BookAppointmentPage = () => {
 
 
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginBottom: '10px' }}>
+                            {/* Dynamic Clinic Timings Schedule Rows */}
+              {getClinicScheduleRows().map((row, idx, arr) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '14px',
+                    marginBottom: idx === arr.length - 1 && !getSelectedDateTimingInfo() ? '0' : '10px',
+                  }}
+                >
+                  <span style={{ color: '#4b5563' }}>{row.label}</span>
+                  {row.isClosed ? (
+                    <span style={{ color: '#dc2626', fontWeight: '700' }}>Closed</span>
+                  ) : (
+                    <strong style={{ color: '#111827', fontWeight: '700' }}>{row.timings}</strong>
+                  )}
+                </div>
+              ))}
 
-                <span style={{ color: '#4b5563' }}>Monday – Saturday</span>
-
-                <strong style={{ color: '#111827', fontWeight: '700' }}>9:00 AM – 6:00 PM</strong>
-
-              </div>
-
-
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px' }}>
-
-                <span style={{ color: '#4b5563' }}>Sunday</span>
-
-                <span style={{ color: '#dc2626', fontWeight: '700' }}>Closed</span>
-
-              </div>
+              {/* Dynamic Selected Date Status if Closed or Special Hours */}
+              {(() => {
+                const selTiming = getSelectedDateTimingInfo();
+                if (!selTiming) return null;
+                return (
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      paddingTop: '10px',
+                      borderTop: '1px dashed #e2e8f0',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '13px',
+                    }}
+                  >
+                    <span style={{ color: '#64748b', fontWeight: '600' }}>{selTiming.label}</span>
+                    {selTiming.isClosed ? (
+                      <span style={{ color: '#dc2626', fontWeight: '700' }}>Closed</span>
+                    ) : (
+                      <strong style={{ color: '#0369a1', fontWeight: '700' }}>{selTiming.timings}</strong>
+                    )}
+                  </div>
+                );
+              })()}
 
             </div>
 

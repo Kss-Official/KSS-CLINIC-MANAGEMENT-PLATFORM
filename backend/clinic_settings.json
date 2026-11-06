@@ -8,15 +8,19 @@
   "profile_image_url": "http://localhost:8000/media/profiles/25eaa2b64eda4e8ad02b4ee49d69f61af74c159c_4.jpg",
   "working_days": [
     "Mon",
+    "Tue",
     "Wed",
-    "Thu",
-    "Tue"
+    "Fri",
+    "Sat",
+    "Thu"
   ],
   "workingDays": [
     "Mon",
+    "Tue",
     "Wed",
-    "Thu",
-    "Tue"
+    "Fri",
+    "Sat",
+    "Thu"
   ],
   "consultation_hours": "09:00 AM - 06:00 PM",
   "consultationHours": "09:00 AM - 06:00 PM",
@@ -24,42 +28,24 @@
   "slotDuration": "30 Minutes",
   "date_restrictions": [
     {
-      "id": "restr_1793863442527",
+      "id": "restr_1793870335372",
       "type": "range",
-      "startDate": "2026-11-06",
-      "endDate": "2026-11-07",
+      "startDate": "2026-11-13",
+      "endDate": "2026-11-13",
       "reason": "Clinic closed"
     }
   ],
   "dateRestrictions": [
     {
-      "id": "restr_1793863442527",
+      "id": "restr_1793870335372",
       "type": "range",
-      "startDate": "2026-11-06",
-      "endDate": "2026-11-07",
+      "startDate": "2026-11-13",
+      "endDate": "2026-11-13",
       "reason": "Clinic closed"
     }
   ],
-  "custom_working_hours": [
-    {
-      "id": "cwh_1793859992693",
-      "startDate": "2026-11-18",
-      "endDate": "2026-11-18",
-      "startTime": "10:00 AM",
-      "endTime": "02:00 PM",
-      "reason": "Midweek Special Shift"
-    }
-  ],
-  "customWorkingHours": [
-    {
-      "id": "cwh_1793859992693",
-      "startDate": "2026-11-18",
-      "endDate": "2026-11-18",
-      "startTime": "10:00 AM",
-      "endTime": "02:00 PM",
-      "reason": "Midweek Special Shift"
-    }
-  ],
+  "custom_working_hours": [],
+  "customWorkingHours": [],
   "notifications": {
     "newAppointment": true,
     "appointmentReminder": true,

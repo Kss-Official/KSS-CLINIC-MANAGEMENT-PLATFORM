@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import appointmentApi from '../../api/appointmentApi';
 import { useAdmin } from '../../components/admin/AdminLayout';
 import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
@@ -8,15 +9,102 @@ import AdminCalendarPopover from '../../components/admin/AdminCalendarPopover';
 import { formatDateForDataset, parseDateString, matchesDateFilter as checkDateFilter } from '../../utils/dateFilterUtils';
 
 const AppointmentsPage = () => {
-  const { openNewAppointment, openViewAppointment, openNewPrescription } = useAdmin();
+  const { openNewAppointment, openViewAppointment, openNewPrescription, openPatientHistory } = useAdmin();
 
   const [dateFilter, setDateFilter] = useState('All Dates');
   const [customDate, setCustomDate] = useState('');
   const [isPickingDate, setIsPickingDate] = useState(false);
   const dateInputRef = useRef(null);
 
+  const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState('All');
   const [prescriptionFilter, setPrescriptionFilter] = useState('All');
+  const [unreadAptIds, setUnreadAptIds] = useState(new Set());
+
+  // Listen for direct custom event filter changes
+  useEffect(() => {
+    const handleFilterEvent = (e) => {
+      const status = e?.detail;
+      if (status) {
+        const norm = String(status).trim().toLowerCase();
+        if (norm === 'confirmed') setStatusFilter('Confirmed');
+        else if (norm === 'new' || norm === 'pending') setStatusFilter('New');
+        else if (norm === 'complete' || norm === 'completed') setStatusFilter('Complete');
+        else if (norm === 'cancelled') setStatusFilter('Cancelled');
+        else if (norm === 'all') setStatusFilter('All');
+        setCurrentPage(1);
+      }
+    };
+    window.addEventListener('filter-appointments-status', handleFilterEvent);
+    return () => window.removeEventListener('filter-appointments-status', handleFilterEvent);
+  }, []);
+
+  // Automatically sync statusFilter when navigated with ?status=... or ?filter=...
+  useEffect(() => {
+    const statusParam = searchParams.get('status') || searchParams.get('filter');
+    if (statusParam) {
+      const norm = statusParam.trim().toLowerCase();
+      if (norm === 'confirmed') {
+        setStatusFilter('Confirmed');
+      } else if (norm === 'new' || norm === 'pending') {
+        setStatusFilter('New');
+      } else if (norm === 'complete' || norm === 'completed') {
+        setStatusFilter('Complete');
+      } else if (norm === 'cancelled') {
+        setStatusFilter('Cancelled');
+      } else if (norm === 'all') {
+        setStatusFilter('All');
+      }
+      setCurrentPage(1);
+    }
+  }, [searchParams]);
+
+  // Load unread appointment IDs for accurate "New" filtering
+  useEffect(() => {
+    const loadUnreadApts = async () => {
+      try {
+        const notifData = await appointmentApi.getNotifications();
+        if (notifData && Array.isArray(notifData.notifications)) {
+          const ids = new Set();
+          notifData.notifications.forEach((n) => {
+            if (!n.is_read || (n.title && n.title.toLowerCase().includes('new'))) {
+              if (n.appointment) {
+                ids.add(n.appointment);
+                ids.add(String(n.appointment));
+                ids.add(Number(n.appointment));
+              }
+              if (n.raw_id) {
+                ids.add(n.raw_id);
+                ids.add(String(n.raw_id));
+              }
+              if (n.appointment_id) {
+                ids.add(n.appointment_id);
+                ids.add(String(n.appointment_id).toLowerCase());
+              }
+              if (n.appointment_details?.appointment_id) {
+                ids.add(n.appointment_details.appointment_id);
+                ids.add(String(n.appointment_details.appointment_id).toLowerCase());
+              }
+              if (n.appointment_details?.id) {
+                ids.add(n.appointment_details.id);
+                ids.add(String(n.appointment_details.id));
+              }
+            }
+          });
+          setUnreadAptIds(ids);
+        }
+      } catch (e) {}
+    };
+    loadUnreadApts();
+    window.addEventListener('appointment-updated', loadUnreadApts);
+    window.addEventListener('appointment-booked', loadUnreadApts);
+    return () => {
+      window.removeEventListener('appointment-updated', loadUnreadApts);
+      window.removeEventListener('appointment-booked', loadUnreadApts);
+    };
+  }, []);
+
+
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,11 +115,7 @@ const AppointmentsPage = () => {
 
   const mapApiAppointment = (item) => {
     const rxStatus = item.prescription_status || item.prescriptionStatus || 'Pending';
-    const isRxComplete = ['complete', 'completed'].includes(String(rxStatus).trim().toLowerCase());
-    let aptStatus = item.status || 'Confirmed';
-    if (isRxComplete && String(aptStatus).toLowerCase() !== 'cancelled') {
-      aptStatus = 'Complete';
-    }
+    const aptStatus = item.status || 'Confirmed';
 
     return {
       id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
@@ -46,7 +130,7 @@ const AppointmentsPage = () => {
       status: aptStatus,
       prescriptionStatus: rxStatus,
       ageGender: item.age_gender || item.ageGender || 'Adult',
-      notes: item.notes || item.reason_for_visit || '',
+      notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
       doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
     };
   };
@@ -109,11 +193,37 @@ const AppointmentsPage = () => {
   }, [fetchAppointments]);
 
   const handleUpdateStatus = async (aptId, newStatus) => {
+    const targetApt = appointmentsList.find((apt) => apt.id === aptId) || appointmentsList.find((apt) => apt.rawId === aptId);
     setAppointmentsList((prev) =>
       prev.map((apt) => (apt.id === aptId ? { ...apt, status: newStatus } : apt))
     );
     try {
-      await appointmentApi.updateAppointmentStatus(aptId, newStatus);
+      const res = await appointmentApi.updateAppointmentStatus(aptId, newStatus);
+      const updatedApt = res || targetApt || { id: aptId, status: newStatus };
+      window.dispatchEvent(
+        new CustomEvent('appointment-updated', {
+          detail: { id: aptId, status: newStatus, appointment: updatedApt },
+        })
+      );
+      if (newStatus === 'Complete' || newStatus === 'Completed') {
+        const aptNum = updatedApt.appointment_id || targetApt?.appointment_id || (aptId ? `APT-${aptId}` : 'APT-0000');
+        const pName = updatedApt.patient_name || targetApt?.patient_name || targetApt?.name || 'Patient';
+        window.dispatchEvent(
+          new CustomEvent('prescription-remaining-notification', {
+            detail: {
+              ...(targetApt || {}),
+              ...(updatedApt || {}),
+              id: aptId,
+              rawId: targetApt?.rawId || aptId,
+              appointment_id: aptNum,
+              patient_name: pName,
+              name: pName,
+              status: 'Completed',
+              prescriptionStatus: 'Pending',
+            },
+          })
+        );
+      }
     } catch (err) {
       console.error('Failed to update status on server:', err);
       fetchAppointments();
@@ -195,8 +305,12 @@ const AppointmentsPage = () => {
       if (targetStatus === 'complete' || targetStatus === 'completed') {
         return aptStatus === 'complete' || aptStatus === 'completed';
       }
-      if (targetStatus === 'pending' || targetStatus === 'confirmed') {
-        return aptStatus === 'pending' || aptStatus === 'confirmed';
+      if (targetStatus === 'confirmed') {
+        return aptStatus === 'confirmed';
+      }
+      if (targetStatus === 'new' || targetStatus === 'pending') {
+        // Include all records so New appears at the top, and other categories appear below it
+        return true;
       }
       return aptStatus === targetStatus;
     })();
@@ -225,10 +339,36 @@ const AppointmentsPage = () => {
   const pendingCount = appointmentsList.filter((a) => ['pending', 'confirmed'].includes((a.status || '').toLowerCase())).length;
   const cancelledCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'cancelled').length;
 
+  const isItemNew = useCallback((item) => {
+    if (!item) return false;
+    const aptStatus = String(item.status || '').trim().toLowerCase();
+    if (aptStatus === 'pending' || aptStatus === 'new') return true;
+    if (unreadAptIds.has(item.rawId) || unreadAptIds.has(String(item.rawId)) || unreadAptIds.has(Number(item.rawId))) return true;
+    if (unreadAptIds.has(item.id) || unreadAptIds.has(String(item.id).toLowerCase())) return true;
+    return false;
+  }, [unreadAptIds]);
+
+  // Sort appointments so when statusFilter is 'New', New appointments appear at the top and other categories below
+  const sortedAppointments = useMemo(() => {
+    if (statusFilter === 'New') {
+      return [...filteredAppointments].sort((a, b) => {
+        const aNew = isItemNew(a);
+        const bNew = isItemNew(b);
+        if (aNew && !bNew) return -1;
+        if (!aNew && bNew) return 1;
+        const statusOrder = { confirmed: 1, complete: 2, completed: 2, cancelled: 3 };
+        const aOrder = statusOrder[String(a.status || '').toLowerCase()] || 4;
+        const bOrder = statusOrder[String(b.status || '').toLowerCase()] || 4;
+        return aOrder - bOrder;
+      });
+    }
+    return filteredAppointments;
+  }, [filteredAppointments, statusFilter, isItemNew]);
+
   const limit = parseInt(pageSize, 10) || 10;
-  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / limit));
+  const totalPages = Math.max(1, Math.ceil(sortedAppointments.length / limit));
   const validPage = Math.min(Math.max(1, currentPage), totalPages);
-  const paginatedAppointments = filteredAppointments.slice((validPage - 1) * limit, validPage * limit);
+  const paginatedAppointments = sortedAppointments.slice((validPage - 1) * limit, validPage * limit);
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
@@ -747,17 +887,17 @@ const AppointmentsPage = () => {
 
         {/* Appointments Table */}
         <div className="admin-table-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>APPOINTMENT ID</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>PATIENT NAME</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>CONTACT</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>DATE & TIME</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>REASON FOR VISIT</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>PRESCRIPTION</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>STATUS</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textAlign: 'center' }}>ACTION</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>APPOINTMENT ID</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>PATIENT NAME</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>CONTACT</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>DATE & TIME</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', maxWidth: '200px', minWidth: '130px' }}>REASON FOR VISIT</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>PRESCRIPTION</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>STATUS</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', textAlign: 'center', width: '110px', minWidth: '110px', whiteSpace: 'nowrap' }}>ACTION</th>
               </tr>
             </thead>
             <tbody>
@@ -809,57 +949,144 @@ const AppointmentsPage = () => {
                   </td>
                 </tr>
               ) : (
-                paginatedAppointments.map((row, idx) => {
+                <>
+                  {statusFilter === 'New' && sortedAppointments.filter(isItemNew).length === 0 && (
+                    <tr key="sec-hdr-empty-new" style={{ backgroundColor: '#f0fdf4', borderBottom: '1px solid #bbf7d0' }}>
+                      <td colSpan={8} style={{ padding: '12px 18px', borderLeft: '5px solid #16a34a' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '14px' }}>✨</span>
+                            <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#166534', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                              New Appointments Section
+                            </span>
+                            <span style={{ fontSize: '11.5px', color: '#15803d', fontWeight: '500', marginLeft: '6px' }}>
+                              (0 new pending appointments — all other appointment categories listed below)
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#15803d', backgroundColor: '#dcfce7', border: '1px solid #86efac', padding: '2px 10px', borderRadius: '9999px' }}>
+                            0 New
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {paginatedAppointments.map((row, idx) => {
                   const badge = getStatusBadge(row.status);
                   const rxBadge = getPrescriptionBadge(row.prescriptionStatus);
+                  const isNew = isItemNew(row);
+                  const showNewSectionHdr = statusFilter === 'New' && isNew && idx === 0;
+                  const showOtherSectionHdr = statusFilter === 'New' && !isNew && (idx === 0 || isItemNew(paginatedAppointments[idx - 1]));
+
                   return (
-                    <tr
-                      key={idx}
-                      style={{
-                        borderBottom: '1px solid #f8fafc',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fafafa')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                    <React.Fragment key={row.rawId || row.id || idx}>
+                      {showNewSectionHdr && (
+                        <tr key="sec-hdr-new" style={{ backgroundColor: '#f0fdf4', borderBottom: '1px solid #bbf7d0' }}>
+                          <td colSpan={8} style={{ padding: '11px 18px', borderLeft: '5px solid #16a34a' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '14px' }}>✨</span>
+                                <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#166534', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                                  New Appointments Section
+                                </span>
+                                <span style={{ fontSize: '11.5px', color: '#15803d', fontWeight: '600' }}>
+                                  (Prioritized at Top)
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#15803d', backgroundColor: '#dcfce7', border: '1px solid #86efac', padding: '2px 10px', borderRadius: '9999px' }}>
+                                {sortedAppointments.filter(isItemNew).length} New Appointments
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      {showOtherSectionHdr && (
+                        <tr key="sec-hdr-other" style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                          <td colSpan={8} style={{ padding: '11px 18px', borderLeft: '5px solid #64748b', borderTop: '2px solid #e2e8f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '14px' }}>📋</span>
+                                <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#334155', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                                  Other Appointment Categories
+                                </span>
+                                <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '500' }}>
+                                  (Confirmed, Complete, Cancelled)
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569', backgroundColor: '#e2e8f0', padding: '2px 10px', borderRadius: '9999px' }}>
+                                {sortedAppointments.filter((it) => !isItemNew(it)).length} Appointments
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      <tr
+                        className="admin-table-row"
+                        style={{
+                          borderBottom: '1px solid #f8fafc',
+                          transition: 'all 0.3s ease',
+                          backgroundColor: (statusFilter === 'New' && isNew) ? '#fbfdfc' : 'transparent',
+                          borderLeft: (statusFilter === 'New' && isNew) ? '3px solid #16a34a' : '3px solid transparent',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = (statusFilter === 'New' && isNew) ? '#f0fdf4' : '#fafafa')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = (statusFilter === 'New' && isNew) ? '#fbfdfc' : 'transparent')}
+                      >
+                      <td style={{ padding: '13px 10px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
                         {row.id}
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155' }}>
-                        {row.name}
+                      <td style={{ padding: '13px 10px', position: 'relative' }}>
+                        <span style={{ fontSize: '13.5px', color: '#334155', fontWeight: '600' }}>
+                          {row.name}
+                        </span>
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#64748b' }}>
+                      <td style={{ padding: '13px 10px', fontSize: '13.5px', color: '#64748b' }}>
                         {row.contact}
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155', lineHeight: 1.35 }}>
+                      <td style={{ padding: '13px 10px', fontSize: '13.5px', color: '#334155', lineHeight: 1.35 }}>
                         <div>{row.date}</div>
                         <div style={{ fontSize: '12px', color: '#64748b' }}>{row.time}</div>
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155' }}>
-                        {row.reason}
+                      <td style={{ padding: '13px 10px', fontSize: '13.5px', color: '#334155', maxWidth: '200px', minWidth: '130px' }}>
+                        <div
+                          title={row.reason || 'General Consultation'}
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            wordBreak: 'break-word',
+                            overflowWrap: 'anywhere',
+                            lineHeight: '1.45',
+                          }}
+                        >
+                          {row.reason || 'General Consultation'}
+                        </div>
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
+                      <td style={{ padding: '13px 10px' }}>
                         <span
                           style={{
-                            display: 'inline-block',
-                            padding: '4px 12px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
                             borderRadius: '9999px',
-                            fontSize: '12px',
+                            fontSize: '11.5px',
                             fontWeight: '600',
                             backgroundColor: rxBadge.bg,
                             color: rxBadge.color,
+                            border: 'none',
                           }}
                         >
                           {row.prescriptionStatus || 'Pending'}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
+                      <td style={{ padding: '13px 10px' }}>
                         <span
                           style={{
                             display: 'inline-block',
-                            padding: '4px 12px',
+                            padding: '4px 10px',
                             borderRadius: '9999px',
-                            fontSize: '12px',
+                            fontSize: '11.5px',
                             fontWeight: '600',
                             backgroundColor: badge.bg,
                             color: badge.color,
@@ -868,11 +1095,14 @@ const AppointmentsPage = () => {
                           {row.status}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      <td style={{ padding: '13px 10px', textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                           <button
                             type="button"
-                            onClick={() => openViewAppointment(row)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openViewAppointment(row);
+                            }}
                             style={{
                               padding: '5px 14px',
                               borderRadius: '6px',
@@ -903,6 +1133,25 @@ const AppointmentsPage = () => {
                                 onClick: () => openViewAppointment(row),
                               },
                               {
+                                label: 'View Patient History',
+                                icon: '👤',
+                                onClick: () =>
+                                  openPatientHistory({
+                                    id: row.patientId || row.patient_id || (row.patient?.id ? `PAT-${row.patient.id}` : (row.rawId ? `PAT-${row.rawId}` : '')),
+                                    name: row.name || row.patientName,
+                                    ageGender: row.ageGender || row.age_gender,
+                                    mobile: row.contact || row.mobile || '',
+                                    email: row.email || row.patientEmail,
+                                    address: row.address,
+                                    bloodGroup: row.bloodGroup || row.blood_group,
+                                    knownAllergies: row.knownAllergies || row.known_allergies,
+                                    primaryConcern: row.reason || row.reason_for_visit,
+                                    notes: row.clinicalRemarks || row.notes,
+                                    appointments: row.patient?.appointments || row.appointments,
+                                    prescriptions: row.patient?.prescriptions || row.prescriptions,
+                                  }),
+                              },
+                              {
                                 label: 'Create Prescription',
                                 icon: '🌿',
                                 onClick: () => openNewPrescription(row),
@@ -918,11 +1167,6 @@ const AppointmentsPage = () => {
                                 onClick: () => handleUpdateStatus(row.id, 'Confirmed'),
                               },
                               {
-                                label: 'Mark as Pending',
-                                icon: '⏳',
-                                onClick: () => handleUpdateStatus(row.id, 'Pending'),
-                              },
-                              {
                                 label: 'Cancel Appointment',
                                 icon: '✕',
                                 danger: true,
@@ -933,8 +1177,10 @@ const AppointmentsPage = () => {
                         </div>
                       </td>
                     </tr>
+                    </React.Fragment>
                   );
-                })
+                })}
+                </>
               )}
             </tbody>
           </table>
@@ -943,7 +1189,7 @@ const AppointmentsPage = () => {
         {/* Dynamic Pagination Footer */}
         <AdminPagination
           currentPage={validPage}
-          totalRecords={filteredAppointments.length}
+          totalRecords={sortedAppointments.length}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
           onPageSizeChange={(newPageSize) => {

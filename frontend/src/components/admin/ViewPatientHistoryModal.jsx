@@ -56,7 +56,7 @@ const ViewPatientHistoryModal = ({
     };
   }, [isOpen, onClose]);
 
-  // Handle tab switching with reset to top of scroll container
+  // Handle tab switching with smooth scroll to top of container
   const handleTabClick = (tabId) => {
     setActiveTab(tabId);
     if (scrollContainerRef.current) {
@@ -66,69 +66,60 @@ const ViewPatientHistoryModal = ({
 
   if (!isOpen) return null;
 
-  // Patient data fallback to Rahul Sharma if none passed
+  // Real patient data from database
   const currentPatient = patient || {
-    id: 'PAT-1001',
-    name: 'Rahul Sharma',
-    initials: 'RS',
-    ageGender: '28 Years / Male',
-    mobile: '+91 98765 43210',
-    email: 'rahul.sharma@gmail.com',
-    address: '12, Green Park, MG Road, Bangalore, Karnataka - 560001',
-    bloodGroup: 'O+',
-    knownAllergies: 'Skin Allergy',
-    primaryConcern: 'Chronic Skin Allergy',
-    notes: 'Prefers WhatsApp communication for reports.',
+    id: '',
+    name: '',
+    initials: '',
+    ageGender: '',
+    mobile: '',
+    email: '',
+    address: '',
+    bloodGroup: '',
+    knownAllergies: '',
+    primaryConcern: '',
+    notes: '',
   };
 
-  const appointmentsList = patient?.appointments || [
-    { date: '28 Oct 2026', time: '09:45 AM', reason: 'Skin Allergy', status: 'Completed' },
-    { date: '12 Oct 2026', time: '04:00 PM', reason: 'Follow-up', status: 'Completed' },
-    { date: '25 Sep 2026', time: '10:30 AM', reason: 'Chronic Migraine', status: 'Completed' },
-    { date: '10 Sep 2026', time: '11:00 AM', reason: 'Consultation', status: 'Completed' },
-    { date: '22 Aug 2026', time: '03:30 PM', reason: 'Digestive Issue', status: 'Completed' },
-    { date: '08 Aug 2026', time: '02:00 PM', reason: 'Follow-up', status: 'Completed' },
-    { date: '19 Jul 2026', time: '11:15 AM', reason: 'Skin Allergy', status: 'Completed' },
-    { date: '03 Jul 2026', time: '10:30 AM', reason: 'Consultation', status: 'Completed' },
-    { date: '15 Jun 2026', time: '04:45 PM', reason: 'Allergy Check', status: 'Completed' },
-    { date: '28 May 2026', time: '09:30 AM', reason: 'Initial Consultation', status: 'Completed' },
-  ];
-
-  const prescriptionsList = patient?.prescriptions || [
-    { id: 'RX-2026-1016', date: '28 Oct 2026', complaint: 'Skin Allergy', status: 'Delivered' },
-    { id: 'RX-2026-1015', date: '12 Oct 2026', complaint: 'Follow-up', status: 'Sent' },
-    { id: 'RX-2026-1014', date: '25 Sep 2026', complaint: 'Chronic Migraine', status: 'Delivered' },
-    { id: 'RX-2026-1013', date: '10 Sep 2026', complaint: 'Consultation', status: 'Delivered' },
-    { id: 'RX-2026-1012', date: '22 Aug 2026', complaint: 'Digestive Issue', status: 'Failed' },
-    { id: 'RX-2026-1011', date: '08 Aug 2026', complaint: 'Follow-up', status: 'Delivered' },
-    { id: 'RX-2026-1010', date: '19 Jul 2026', complaint: 'Skin Allergy', status: 'Delivered' },
-    { id: 'RX-2026-1009', date: '03 Jul 2026', complaint: 'Consultation', status: 'Sent' },
-    { id: 'RX-2026-1008', date: '15 Jun 2026', complaint: 'Allergy Check', status: 'Delivered' },
-    { id: 'RX-2026-1007', date: '28 May 2026', complaint: 'Initial Consultation', status: 'Delivered' },
-  ];
+  const appointmentsList = patient?.appointments || [];
+  const prescriptionsList = patient?.prescriptions || [];
 
   const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Completed':
-      case 'Delivered':
-        return { bg: '#e8f7ee', color: '#1e7e34' };
-      case 'Sent':
-        return { bg: '#eaf2ff', color: '#2563eb' };
-      case 'Failed':
-        return { bg: '#fee2e2', color: '#dc2626' };
+    const s = String(status || '').trim().toLowerCase();
+    switch (s) {
+      case 'confirmed':
+        return { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' };
+      case 'complete':
+      case 'completed':
+        return { bg: '#eaf2ff', color: '#1d4ed8', border: '#bfdbfe' };
+      case 'delivered':
+        return { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' };
+      case 'sent':
+        return { bg: '#eaf2ff', color: '#1d4ed8', border: '#bfdbfe' };
+      case 'pending':
+        return { bg: '#fffbeb', color: '#b45309', border: '#fde68a' };
+      case 'cancelled':
+      case 'failed':
+        return { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' };
       default:
-        return { bg: '#f1f5f9', color: '#475569' };
+        return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' };
     }
   };
 
   const filteredAppointments = appointmentsList.filter((item) => {
     if (appointmentFilter === 'All') return true;
-    return item.status.toLowerCase() === appointmentFilter.toLowerCase();
+    const itemStatus = String(item.status || '').toLowerCase();
+    const filter = appointmentFilter.toLowerCase();
+    if (filter === 'complete' || filter === 'completed') {
+      return itemStatus === 'complete' || itemStatus === 'completed';
+    }
+    return itemStatus === filter;
   });
 
   const filteredPrescriptions = prescriptionsList.filter((item) => {
     if (prescriptionFilter === 'All') return true;
-    return item.status.toLowerCase() === prescriptionFilter.toLowerCase();
+    const itemStatus = String(item.status || '').toLowerCase();
+    return itemStatus === prescriptionFilter.toLowerCase();
   });
 
   // Dynamic pagination calculation for Appointments
@@ -151,17 +142,38 @@ const ViewPatientHistoryModal = ({
       style={{
         backgroundColor: '#ffffff',
         border: '1px solid #e2e8f0',
-        borderRadius: '14px',
-        padding: '20px',
+        borderRadius: '16px',
+        padding: '22px 24px',
         marginBottom: 0,
-        boxShadow: activeTab === 'appointments' ? '0 4px 12px rgba(30, 70, 32, 0.05)' : 'none',
+        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)',
         transition: 'all 0.2s ease',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ color: '#1e4620' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '18px',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              backgroundColor: '#e8f5ec',
+              color: '#166534',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
               <line x1="16" y1="2" x2="16" y2="6" />
               <line x1="8" y1="2" x2="8" y2="6" />
@@ -169,10 +181,10 @@ const ViewPatientHistoryModal = ({
             </svg>
           </div>
           <div>
-            <h4 style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a', margin: '0 0 2px 0' }}>
+            <h4 style={{ fontSize: '15.5px', fontWeight: '700', color: '#0f172a', margin: '0 0 2px 0' }}>
               Appointment History
             </h4>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+            <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
               List of all appointments for this patient.
             </p>
           </div>
@@ -182,85 +194,157 @@ const ViewPatientHistoryModal = ({
           value={appointmentFilter}
           onChange={(e) => { setAppointmentFilter(e.target.value); setAppointmentCurrentPage(1); }}
           style={{
-            padding: '6px 12px',
-            borderRadius: '6px',
+            padding: '7px 14px',
+            borderRadius: '8px',
             border: '1px solid #e2e8f0',
-            fontSize: '12px',
-            color: '#475569',
-            backgroundColor: '#fff',
+            fontSize: '12.5px',
+            fontWeight: '500',
+            color: '#334155',
+            backgroundColor: '#ffffff',
             cursor: 'pointer',
             outline: 'none',
           }}
         >
           <option value="All">All Status</option>
-          <option value="Completed">Completed</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="Complete">Complete</option>
+          <option value="Cancelled">Cancelled</option>
         </select>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>
+      <div
+        className="admin-table-container"
+        style={{
+          borderRadius: '10px',
+          border: '1px solid #e2e8f0',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          marginBottom: '16px',
+        }}
+      >
+        <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-              <th style={{ padding: '8px 10px', color: '#64748b', fontWeight: '600' }}>Date</th>
-              <th style={{ padding: '8px 10px', color: '#64748b', fontWeight: '600' }}>Time</th>
-              <th style={{ padding: '8px 10px', color: '#64748b', fontWeight: '600' }}>Reason for Visit</th>
-              <th style={{ padding: '8px 10px', color: '#64748b', fontWeight: '600' }}>Status</th>
-              <th style={{ padding: '8px 10px', color: '#64748b', fontWeight: '600', textAlign: 'center' }}>Action</th>
+            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <th style={{ padding: '11px 14px', color: '#475569', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap', width: '150px' }}>Date</th>
+              <th style={{ padding: '11px 14px', color: '#475569', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap', width: '100px' }}>Time</th>
+              <th style={{ padding: '11px 14px', color: '#475569', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', minWidth: '180px' }}>Reason for Visit</th>
+              <th style={{ padding: '11px 14px', color: '#475569', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', textAlign: 'center', width: '110px' }}>Status</th>
+              <th style={{ padding: '11px 14px', color: '#475569', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', textAlign: 'center', width: '90px' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {filteredAppointments.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                  No appointments found for this patient.
+                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '13px' }}>
+                  No appointments found matching your filter.
                 </td>
               </tr>
             ) : (
               paginatedAppointments.map((row, idx) => {
-              const badge = getStatusBadge(row.status);
-              return (
-                <tr key={idx} style={{ borderBottom: '1px solid #f8fafc' }}>
-                  <td style={{ padding: '10px 10px', fontWeight: '600', color: '#0f172a' }}>{row.date}</td>
-                  <td style={{ padding: '10px 10px', color: '#64748b' }}>{row.time}</td>
-                  <td style={{ padding: '10px 10px', color: '#334155' }}>{row.reason}</td>
-                  <td style={{ padding: '10px 10px' }}>
-                    <span style={{ padding: '3px 10px', borderRadius: '9999px', fontSize: '11px', fontWeight: '600', backgroundColor: badge.bg, color: badge.color }}>
-                      {row.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onViewAppointment &&
-                        onViewAppointment({
-                          name: currentPatient.name,
-                          contact: currentPatient.mobile,
-                          date: row.date,
-                          time: row.time,
-                          reason: row.reason,
-                          status: row.status,
-                          id: `APT-${idx + 1001}`,
-                          consultationType: 'In clinic Visit',
-                          ageGender: currentPatient.ageGender,
-                        })
-                      }
-                      style={{
-                        padding: '3px 10px',
-                        borderRadius: '5px',
-                        border: '1px solid #e2e8f0',
-                        backgroundColor: '#fff',
-                        fontSize: '11.5px',
-                        cursor: 'pointer',
-                        color: '#334155',
-                      }}
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              );
-            })
+                const badge = getStatusBadge(row.status);
+                return (
+                  <tr
+                    key={row.id || idx}
+                    className="admin-table-row"
+                    style={{
+                      borderBottom: '1px solid #f1f5f9',
+                      backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafcfb',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = idx % 2 === 0 ? '#ffffff' : '#fafcfb')}
+                  >
+                    <td style={{ padding: '12px 14px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                      {row.date}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: '#475569', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                      {row.time}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: '#334155' }}>
+                      <div
+                        title={row.reason}
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          wordBreak: 'break-word',
+                          overflowWrap: 'anywhere',
+                          lineHeight: '1.45',
+                        }}
+                      >
+                        {row.reason}
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '4px 11px',
+                          borderRadius: '9999px',
+                          fontSize: '11.5px',
+                          fontWeight: '700',
+                          backgroundColor: badge.bg,
+                          color: badge.color,
+                          border: `1px solid ${badge.border}`,
+                          textTransform: 'capitalize',
+                        }}
+                      >
+                        {row.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onViewAppointment &&
+                          onViewAppointment({
+                            name: currentPatient.name,
+                            patient_name: currentPatient.name,
+                            contact: currentPatient.mobile,
+                            patient_phone: currentPatient.mobile,
+                            date: row.date,
+                            appointment_date: row.date,
+                            time: row.time,
+                            time_slot: row.time,
+                            reason: row.reason,
+                            reason_for_visit: row.reason,
+                            status: row.status,
+                            id: row.id || `APT-${idx + 1001}`,
+                            appointment_id: row.id || (row.appointment_id || `APT-${idx + 1001}`),
+                            consultationType: 'In clinic Visit',
+                            ageGender: currentPatient.ageGender,
+                          })
+                        }
+                        style={{
+                          padding: '5px 14px',
+                          borderRadius: '6px',
+                          border: '1px solid #e2e8f0',
+                          backgroundColor: '#ffffff',
+                          fontSize: '12.5px',
+                          fontWeight: '600',
+                          color: '#334155',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#f8fafc';
+                          e.currentTarget.style.borderColor = '#cbd5e1';
+                          e.currentTarget.style.color = '#0f172a';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#ffffff';
+                          e.currentTarget.style.borderColor = '#e2e8f0';
+                          e.currentTarget.style.color = '#334155';
+                        }}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -289,17 +373,38 @@ const ViewPatientHistoryModal = ({
       style={{
         backgroundColor: '#ffffff',
         border: '1px solid #e2e8f0',
-        borderRadius: '14px',
-        padding: '20px',
+        borderRadius: '16px',
+        padding: '22px 24px',
         marginBottom: 0,
-        boxShadow: activeTab === 'prescriptions' ? '0 4px 12px rgba(30, 70, 32, 0.05)' : 'none',
+        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)',
         transition: 'all 0.2s ease',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ color: '#1e4620' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '18px',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              backgroundColor: '#e8f5ec',
+              color: '#166534',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
               <line x1="16" y1="13" x2="8" y2="13" />
@@ -307,10 +412,10 @@ const ViewPatientHistoryModal = ({
             </svg>
           </div>
           <div>
-            <h4 style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a', margin: '0 0 2px 0' }}>
+            <h4 style={{ fontSize: '15.5px', fontWeight: '700', color: '#0f172a', margin: '0 0 2px 0' }}>
               Prescription History
             </h4>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+            <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
               List of all prescriptions issued to this patient.
             </p>
           </div>
@@ -320,12 +425,13 @@ const ViewPatientHistoryModal = ({
           value={prescriptionFilter}
           onChange={(e) => { setPrescriptionFilter(e.target.value); setPrescriptionCurrentPage(1); }}
           style={{
-            padding: '6px 12px',
-            borderRadius: '6px',
+            padding: '7px 14px',
+            borderRadius: '8px',
             border: '1px solid #e2e8f0',
-            fontSize: '12px',
-            color: '#475569',
-            backgroundColor: '#fff',
+            fontSize: '12.5px',
+            fontWeight: '500',
+            color: '#334155',
+            backgroundColor: '#ffffff',
             cursor: 'pointer',
             outline: 'none',
           }}
@@ -333,83 +439,148 @@ const ViewPatientHistoryModal = ({
           <option value="All">All Status</option>
           <option value="Delivered">Delivered</option>
           <option value="Sent">Sent</option>
+          <option value="Pending">Pending</option>
           <option value="Failed">Failed</option>
         </select>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>
+      <div
+        className="admin-table-container"
+        style={{
+          borderRadius: '10px',
+          border: '1px solid #e2e8f0',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          marginBottom: '16px',
+        }}
+      >
+        <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-              <th style={{ padding: '8px 10px', color: '#64748b', fontWeight: '600' }}>Prescription ID</th>
-              <th style={{ padding: '8px 10px', color: '#64748b', fontWeight: '600' }}>Date</th>
-              <th style={{ padding: '8px 10px', color: '#64748b', fontWeight: '600' }}>Main Complaint</th>
-              <th style={{ padding: '8px 10px', color: '#64748b', fontWeight: '600' }}>Status</th>
-              <th style={{ padding: '8px 10px', color: '#64748b', fontWeight: '600', textAlign: 'center' }}>Action</th>
+            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <th style={{ padding: '11px 14px', color: '#475569', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap', width: '150px' }}>Prescription ID</th>
+              <th style={{ padding: '11px 14px', color: '#475569', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap', width: '130px' }}>Date</th>
+              <th style={{ padding: '11px 14px', color: '#475569', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', minWidth: '180px' }}>Main Complaint</th>
+              <th style={{ padding: '11px 14px', color: '#475569', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', textAlign: 'center', width: '110px' }}>Status</th>
+              <th style={{ padding: '11px 14px', color: '#475569', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.4px', textAlign: 'center', width: '90px' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {filteredPrescriptions.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                  No prescriptions found for this patient.
+                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '13px' }}>
+                  No prescriptions found matching your filter.
                 </td>
               </tr>
             ) : (
               paginatedPrescriptions.map((row, idx) => {
-              const badge = getStatusBadge(row.status);
-              return (
-                <tr key={idx} style={{ borderBottom: '1px solid #f8fafc' }}>
-                  <td style={{ padding: '10px 10px', fontWeight: '600', color: '#0f172a' }}>{row.id}</td>
-                  <td style={{ padding: '10px 10px', color: '#64748b' }}>{row.date}</td>
-                  <td style={{ padding: '10px 10px', color: '#334155' }}>{row.complaint}</td>
-                  <td style={{ padding: '10px 10px' }}>
-                    <span style={{ padding: '3px 10px', borderRadius: '9999px', fontSize: '11px', fontWeight: '600', backgroundColor: badge.bg, color: badge.color }}>
-                      {row.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onViewPrescription &&
-                        onViewPrescription({
-                          ...row,
-                          id: row.id || row.rxId,
-                          rxId: row.id || row.rxId,
-                          name: currentPatient.name,
-                          patientName: currentPatient.name,
-                          patientId: currentPatient.id || row.patientId || row.patient_id_ref || 'PAT-1001',
-                          date: row.date,
-                          time: row.time,
-                          complaint: row.complaint,
-                          status: row.status,
-                          ageGender: currentPatient.ageGender || row.ageGender,
-                          mobile: currentPatient.mobile || row.mobile,
-                          contact: currentPatient.mobile || row.mobile,
-                          diagnosis: row.diagnosis || row.complaint || 'General Consultation',
-                          medicines: row.medicines && row.medicines.length > 0 ? row.medicines : [],
-                          symptoms: row.symptoms || '',
-                          additionalInstructions: row.additionalInstructions || row.notes || '',
-                          notes: row.additionalInstructions || row.notes || '',
-                        })
-                      }
-                      style={{
-                        padding: '3px 10px',
-                        borderRadius: '5px',
-                        border: '1px solid #e2e8f0',
-                        backgroundColor: '#fff',
-                        fontSize: '11.5px',
-                        cursor: 'pointer',
-                        color: '#334155',
-                      }}
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              );
-            })
+                const badge = getStatusBadge(row.status);
+                return (
+                  <tr
+                    key={row.id || idx}
+                    className="admin-table-row"
+                    style={{
+                      borderBottom: '1px solid #f1f5f9',
+                      backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafcfb',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = idx % 2 === 0 ? '#ffffff' : '#fafcfb')}
+                  >
+                    <td style={{ padding: '12px 14px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                      {row.id}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: '#475569', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                      {row.date}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: '#334155' }}>
+                      <div
+                        title={row.complaint}
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          wordBreak: 'break-word',
+                          overflowWrap: 'anywhere',
+                          lineHeight: '1.45',
+                        }}
+                      >
+                        {row.complaint}
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '4px 11px',
+                          borderRadius: '9999px',
+                          fontSize: '11.5px',
+                          fontWeight: '700',
+                          backgroundColor: badge.bg,
+                          color: badge.color,
+                          border: `1px solid ${badge.border}`,
+                          textTransform: 'capitalize',
+                        }}
+                      >
+                        {row.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onViewPrescription &&
+                          onViewPrescription({
+                            ...row,
+                            id: row.id || row.rxId,
+                            rxId: row.id || row.rxId,
+                            appointment_id: row.appointment_id || row.appointmentId || row.apt_number || row.aptNumber,
+                            name: currentPatient.name,
+                            patientName: currentPatient.name,
+                            patientId: currentPatient.id || row.patientId || row.patient_id_ref || '',
+                            date: row.date,
+                            time: row.time,
+                            complaint: row.complaint,
+                            status: row.status,
+                            ageGender: currentPatient.ageGender || row.ageGender,
+                            mobile: currentPatient.mobile || row.mobile,
+                            contact: currentPatient.mobile || row.mobile,
+                            diagnosis: row.diagnosis || row.complaint || 'General Consultation',
+                            medicines: row.medicines && row.medicines.length > 0 ? row.medicines : [],
+                            symptoms: row.symptoms || '',
+                            additionalInstructions: row.additionalInstructions || row.notes || '',
+                            notes: row.additionalInstructions || row.notes || '',
+                          })
+                        }
+                        style={{
+                          padding: '5px 14px',
+                          borderRadius: '6px',
+                          border: '1px solid #e2e8f0',
+                          backgroundColor: '#ffffff',
+                          fontSize: '12.5px',
+                          fontWeight: '600',
+                          color: '#334155',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#f8fafc';
+                          e.currentTarget.style.borderColor = '#cbd5e1';
+                          e.currentTarget.style.color = '#0f172a';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#ffffff';
+                          e.currentTarget.style.borderColor = '#e2e8f0';
+                          e.currentTarget.style.color = '#334155';
+                        }}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -445,7 +616,7 @@ const ViewPatientHistoryModal = ({
         backgroundColor: 'rgba(15, 23, 42, 0.45)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
-        zIndex: 1000,
+        zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -462,7 +633,7 @@ const ViewPatientHistoryModal = ({
           backgroundColor: '#ffffff',
           borderRadius: '24px',
           width: '100%',
-          maxWidth: '1100px',
+          maxWidth: '1160px',
           boxShadow: '0 25px 70px rgba(0, 0, 0, 0.25)',
           boxSizing: 'border-box',
           position: 'relative',
@@ -478,16 +649,16 @@ const ViewPatientHistoryModal = ({
           style={{
             overflowY: 'auto',
             overscrollBehavior: 'contain',
-            padding: '32px 36px',
+            padding: '28px 32px',
             flex: 1,
             width: '100%',
             boxSizing: 'border-box',
           }}
         >
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '22px' }}>
             <div>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0f172a', margin: '0 0 4px 0' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: '0 0 4px 0' }}>
                 Patient History
               </h2>
               <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0 }}>
@@ -500,20 +671,28 @@ const ViewPatientHistoryModal = ({
               onClick={onClose}
               aria-label="Close modal"
               style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '20px',
+                width: '34px',
+                height: '34px',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
                 color: '#64748b',
                 cursor: 'pointer',
-                padding: '4px',
-                lineHeight: 1,
-                borderRadius: '6px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f1f5f9';
+                e.currentTarget.style.color = '#0f172a';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.color = '#64748b';
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -521,99 +700,181 @@ const ViewPatientHistoryModal = ({
           </div>
 
           {/* 2-Column Grid Layout */}
-          <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px', alignItems: 'start' }}>
+          <div
+            className="patient-history-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '320px minmax(0, 1fr)',
+              gap: '24px',
+              alignItems: 'start',
+            }}
+          >
             {/* Left Column: Patient Profile Card */}
             <div
               style={{
                 backgroundColor: '#ffffff',
                 border: '1px solid #e2e8f0',
-                borderRadius: '16px',
-                padding: '24px',
+                borderRadius: '18px',
+                padding: '24px 22px',
                 boxSizing: 'border-box',
+                boxShadow: '0 2px 10px rgba(15, 23, 42, 0.03)',
               }}
             >
-              {/* Avatar & Name */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '22px', paddingBottom: '18px', borderBottom: '1px solid #f1f5f9' }}>
+              {/* Avatar & Patient Header */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  marginBottom: '20px',
+                  paddingBottom: '18px',
+                  borderBottom: '1px solid #f1f5f9',
+                }}
+              >
                 <div
                   style={{
-                    width: '48px',
-                    height: '48px',
+                    width: '50px',
+                    height: '50px',
                     borderRadius: '50%',
-                    backgroundColor: '#bbf7d0',
+                    backgroundColor: '#dcfce7',
+                    border: '1.5px solid #bbf7d0',
                     color: '#166534',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontWeight: '700',
-                    fontSize: '16px',
+                    fontWeight: '800',
+                    fontSize: '18px',
                     flexShrink: 0,
+                    letterSpacing: '0.5px',
                   }}
                 >
-                  {currentPatient.initials || currentPatient.name?.slice(0, 2).toUpperCase()}
+                  {currentPatient.initials || currentPatient.name?.slice(0, 1).toUpperCase()}
                 </div>
-                <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 2px 0' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <h3
+                    style={{
+                      fontSize: '17px',
+                      fontWeight: '800',
+                      color: '#0f172a',
+                      margin: '0 0 4px 0',
+                      lineHeight: 1.25,
+                      wordBreak: 'break-word',
+                    }}
+                  >
                     {currentPatient.name}
                   </h3>
-                  <div style={{ fontSize: '12.5px', color: '#64748b' }}>
-                    {currentPatient.id}
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <span
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: '700',
+                        color: '#475569',
+                        backgroundColor: '#f1f5f9',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        letterSpacing: '0.3px',
+                      }}
+                    >
+                      {currentPatient.id}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Information Rows */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <span style={{ color: '#64748b', fontWeight: '500' }}>Age / Gender</span>
-                  <span style={{ color: '#0f172a', fontWeight: '600', textAlign: 'right' }}>{currentPatient.ageGender}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <span style={{ color: '#64748b', fontWeight: '500' }}>Mobile Number</span>
-                  <span style={{ color: '#0f172a', fontWeight: '600', textAlign: 'right' }}>{currentPatient.mobile}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <span style={{ color: '#64748b', fontWeight: '500' }}>Email</span>
-                  <span style={{ color: '#0f172a', fontWeight: '600', textAlign: 'right', wordBreak: 'break-all' }}>{currentPatient.email}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <span style={{ color: '#64748b', fontWeight: '500' }}>Address</span>
-                  <span style={{ color: '#0f172a', fontWeight: '600', textAlign: 'right', lineHeight: 1.35 }}>{currentPatient.address}</span>
-                </div>
+              {/* Information Rows with Aligned Colons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', fontSize: '13px' }}>
+                {[
+                  { label: 'Age / Gender', val: currentPatient.ageGender },
+                  { label: 'Mobile Number', val: currentPatient.mobile },
+                  { label: 'Email', val: currentPatient.email, breakAll: true },
+                  { label: 'Address', val: currentPatient.address },
+                ].map((row, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    <span style={{ width: '105px', minWidth: '105px', color: '#64748b', fontWeight: '500', fontSize: '12.5px' }}>
+                      {row.label}
+                    </span>
+                    <span style={{ color: '#94a3b8', fontWeight: '600' }}>:</span>
+                    <span
+                      style={{
+                        flex: 1,
+                        color: '#0f172a',
+                        fontWeight: '600',
+                        wordBreak: row.breakAll ? 'break-all' : 'break-word',
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
+                      {row.val || '—'}
+                    </span>
+                  </div>
+                ))}
 
                 <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '4px 0' }} />
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <span style={{ color: '#64748b', fontWeight: '500' }}>Blood Group</span>
-                  <span style={{ color: '#0f172a', fontWeight: '700', textAlign: 'right' }}>{currentPatient.bloodGroup || 'O+'}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <span style={{ color: '#64748b', fontWeight: '500' }}>Known Allergies</span>
-                  <span style={{ color: '#0f172a', fontWeight: '600', textAlign: 'right' }}>{currentPatient.knownAllergies || 'Skin Allergy'}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <span style={{ color: '#64748b', fontWeight: '500' }}>Primary Concern</span>
-                  <span style={{ color: '#0f172a', fontWeight: '600', textAlign: 'right' }}>{currentPatient.primaryConcern || 'Chronic Skin Allergy'}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <span style={{ color: '#64748b', fontWeight: '500' }}>Notes</span>
-                  <span style={{ color: '#0f172a', fontWeight: '500', textAlign: 'right', lineHeight: 1.35 }}>{currentPatient.notes || 'Prefers WhatsApp communication for reports.'}</span>
-                </div>
+                {[
+                  { label: 'Blood Group', val: currentPatient.bloodGroup || 'O+', isBadge: true },
+                  { label: 'Known Allergies', val: currentPatient.knownAllergies || 'Skin Allergy' },
+                  { label: 'Primary Concern', val: currentPatient.primaryConcern || 'General Consultation' },
+                  { label: 'Notes', val: currentPatient.notes || 'Registered via Appointment Booking.' },
+                ].map((row, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    <span style={{ width: '105px', minWidth: '105px', color: '#64748b', fontWeight: '500', fontSize: '12.5px' }}>
+                      {row.label}
+                    </span>
+                    <span style={{ color: '#94a3b8', fontWeight: '600' }}>:</span>
+                    <span
+                      style={{
+                        flex: 1,
+                        color: '#0f172a',
+                        fontWeight: '600',
+                        wordBreak: 'break-word',
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
+                      {row.isBadge ? (
+                        <span style={{ display: 'inline-block', backgroundColor: '#fee2e2', color: '#991b1b', fontSize: '11.5px', fontWeight: '700', padding: '1px 8px', borderRadius: '4px' }}>
+                          {row.val}
+                        </span>
+                      ) : (
+                        row.val || '—'
+                      )}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
             {/* Right Column: Tabs & Records */}
-            <div>
+            <div style={{ minWidth: 0, width: '100%' }}>
               {/* Tabs */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '32px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderBottom: '2px solid #f1f5f9',
+                  marginBottom: '20px',
+                  paddingBottom: '2px',
+                }}
+              >
                 {[
-                  { id: 'appointments', label: 'Appointments', icon: '📅' },
-                  { id: 'prescriptions', label: 'Prescriptions', icon: '📄' },
+                  { id: 'appointments', label: 'Appointments', icon: '📅', count: filteredAppointments.length },
+                  { id: 'prescriptions', label: 'Prescriptions', icon: '📄', count: filteredPrescriptions.length },
                 ].map((tab) => {
                   const isActive = activeTab === tab.id;
                   return (
@@ -622,35 +883,47 @@ const ViewPatientHistoryModal = ({
                       type="button"
                       onClick={() => handleTabClick(tab.id)}
                       style={{
-                        background: 'none',
+                        background: isActive ? '#f0fdf4' : 'transparent',
                         border: 'none',
-                        padding: '10px 4px 14px 4px',
-                        fontSize: '14.5px',
-                        fontWeight: isActive ? '700' : '500',
-                        color: isActive ? '#1e4620' : '#64748b',
+                        borderBottom: isActive ? '2.5px solid #166534' : '2.5px solid transparent',
+                        padding: '10px 16px 12px 16px',
+                        fontSize: '14px',
+                        fontWeight: isActive ? '700' : '600',
+                        color: isActive ? '#166534' : '#64748b',
                         cursor: 'pointer',
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
                         gap: '8px',
-                        position: 'relative',
-                        transition: 'color 0.15s ease',
+                        borderRadius: '8px 8px 0 0',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.color = '#0f172a';
+                          e.currentTarget.style.backgroundColor = '#f8fafc';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.color = '#64748b';
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }
                       }}
                     >
                       <span style={{ fontSize: '15px' }}>{tab.icon}</span>
                       <span>{tab.label}</span>
-                      {isActive && (
-                        <span
-                          style={{
-                            position: 'absolute',
-                            bottom: '-1px',
-                            left: 0,
-                            right: 0,
-                            height: '2.5px',
-                            backgroundColor: '#1e4620',
-                            borderRadius: '2px 2px 0 0',
-                          }}
-                        />
-                      )}
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          backgroundColor: isActive ? '#dcfce7' : '#e2e8f0',
+                          color: isActive ? '#15803d' : '#64748b',
+                          padding: '1px 7px',
+                          borderRadius: '9999px',
+                        }}
+                      >
+                        {tab.count}
+                      </span>
                     </button>
                   );
                 })}
@@ -672,6 +945,14 @@ const ViewPatientHistoryModal = ({
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .patient-history-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

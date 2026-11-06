@@ -10,8 +10,10 @@ from rest_framework import status, permissions
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from apps.core.permissions import IsStaffOrAdmin, IsPatientUser
 from .models import Appointment, Notification, Prescription, Patient
+from apps.users.models import User
 from .serializers import AppointmentSerializer, NotificationSerializer, ClinicSettingsSerializer, AppointmentSettingsSerializer
 from datetime import datetime
+from django.utils import timezone
 from .services.whatsapp_service import whatsapp_service
 from .services.prescription_pdf import generate_prescription_pdf_bytes
 
@@ -140,6 +142,46 @@ def get_working_hours_for_date(date_str_or_obj, clinic_settings):
     return def_start, def_end, False, None
 
 
+def generate_time_slots(start_time_str, end_time_str, slot_duration_str):
+    try:
+        duration_mins = int(''.join(c for c in str(slot_duration_str) if c.isdigit())) or 30
+    except Exception:
+        duration_mins = 30
+    if duration_mins <= 0:
+        duration_mins = 30
+
+    def _to_mins(t_str):
+        if not t_str:
+            return None
+        t_clean = str(t_str).strip().upper()
+        for fmt in ('%I:%M %p', '%I:%M%p', '%H:%M'):
+            try:
+                dt = datetime.strptime(t_clean, fmt)
+                return dt.hour * 60 + dt.minute
+            except Exception:
+                pass
+        return None
+
+    s_mins = _to_mins(start_time_str)
+    e_mins = _to_mins(end_time_str)
+    if s_mins is None:
+        s_mins = 9 * 60
+    if e_mins is None:
+        e_mins = 18 * 60
+
+    slots = []
+    curr = s_mins
+    while curr < e_mins:
+        h = curr // 60
+        m = curr % 60
+        period = 'AM' if h < 12 else 'PM'
+        display_h = h if 1 <= h <= 12 else (h - 12 if h > 12 else 12)
+        slot_str = f"{display_h:02d}:{m:02d} {period}"
+        slots.append(slot_str)
+        curr += duration_mins
+    return slots
+
+
 class AppointmentSlotsView(APIView):
     permission_classes = [AllowAny]
 
@@ -193,6 +235,9 @@ class AppointmentSlotsView(APIView):
         custom_hours = clinic_settings.get('customWorkingHours') or clinic_settings.get('custom_working_hours') or []
         is_restricted, restriction_reason = check_date_restriction(target_norm, restrictions)
         effective_start, effective_end, is_custom_hours, custom_hours_reason = get_working_hours_for_date(target_norm, clinic_settings)
+        slot_duration = clinic_settings.get('slotDuration') or clinic_settings.get('slot_duration') or '30 Minutes'
+        consultation_hours = clinic_settings.get('consultationHours') or clinic_settings.get('consultation_hours') or '09:00 AM - 06:00 PM'
+        generated_slots = generate_time_slots(effective_start, effective_end, slot_duration)
 
         return Response({
             'date': date_param,
@@ -212,6 +257,12 @@ class AppointmentSlotsView(APIView):
             'dateRestrictions': restrictions,
             'custom_working_hours': custom_hours,
             'customWorkingHours': custom_hours,
+            'slot_duration': slot_duration,
+            'slotDuration': slot_duration,
+            'consultation_hours': consultation_hours,
+            'consultationHours': consultation_hours,
+            'slots': generated_slots,
+            'available_slots': generated_slots,
         })
 
 
@@ -354,7 +405,7 @@ class AppointmentListCreateView(APIView):
             if req_dob:
                 save_kwargs['patient_dob'] = req_dob
             if not serializer.validated_data.get('status'):
-                save_kwargs['status'] = 'Pending'
+                save_kwargs['status'] = 'Confirmed'
             if not serializer.validated_data.get('prescription_status'):
                 save_kwargs['prescription_status'] = 'Pending'
             appointment = serializer.save(**save_kwargs)
@@ -428,16 +479,21 @@ class AppointmentListCreateView(APIView):
             appointment.patient_record = patient
             appointment.save(update_fields=['patient_record'])
 
-            # Automatically create notification for the Admin Portal
-            notification = Notification.objects.create(
-                appointment=appointment,
-                title='New Appointment Booked',
-                patient_name=appointment.patient_name,
-                appointment_date=appointment.appointment_date,
-                booking_time=appointment.time_slot,
-                message=f"New appointment booked by {appointment.patient_name} for {appointment.appointment_date} at {appointment.time_slot}.",
-                is_read=False
-            )
+            # Automatically create notification for the Admin Portal if newAppointment is enabled
+            clinic_settings = load_clinic_settings()
+            notif_settings = clinic_settings.get('notifications') or {}
+            new_apt_enabled = bool(notif_settings.get('newAppointment', True))
+            notification = None
+            if new_apt_enabled:
+                notification = Notification.objects.create(
+                    appointment=appointment,
+                    title='New Appointment Booked',
+                    patient_name=appointment.patient_name,
+                    appointment_date=appointment.appointment_date,
+                    booking_time=appointment.time_slot,
+                    message=f"New appointment booked by {appointment.patient_name} for {appointment.appointment_date} at {appointment.time_slot}.",
+                    is_read=False
+                )
 
             # Automatically deliver Appointment Confirmation PDF via Meta WhatsApp Cloud API in background
             def _async_send_whatsapp_confirmation(apt_id_val):
@@ -460,7 +516,7 @@ class AppointmentListCreateView(APIView):
 
             return Response({
                 'appointment': AppointmentSerializer(appointment).data,
-                'notification': NotificationSerializer(notification).data
+                'notification': NotificationSerializer(notification).data if notification else None
             }, status=status.HTTP_201_CREATED)
 
         first_err = None
@@ -552,6 +608,46 @@ class AppointmentDetailView(APIView):
         if new_status:
             apt.status = new_status
             fields_to_update.append('status')
+
+            # When an appointment is marked as completed:
+            if str(new_status).strip().lower() in ['complete', 'completed']:
+                Notification.objects.filter(
+                    appointment=apt,
+                    title__in=['New Appointment Booked', 'Confirmed Appointment Reminder']
+                ).update(is_read=True)
+
+                clinic_settings = load_clinic_settings()
+                notif_settings = clinic_settings.get('notifications') or {}
+                rx_updates_enabled = bool(notif_settings.get('prescriptionUpdates', True))
+
+                has_rx = (
+                    Prescription.objects.filter(appointment=apt).exists() or
+                    (apt.prescription_status and str(apt.prescription_status).strip().lower() in ['complete', 'completed'])
+                )
+                if rx_updates_enabled and not has_rx:
+                    msg = f"Appointment {apt.appointment_id} for {apt.patient_name} marked as Completed. Prescription remaining to be created."
+                    rx_notif = Notification.objects.filter(
+                        appointment=apt,
+                        title='Prescription Remaining',
+                    ).first()
+                    if not rx_notif:
+                        Notification.objects.create(
+                            appointment=apt,
+                            title='Prescription Remaining',
+                            patient_name=apt.patient_name,
+                            appointment_date=apt.appointment_date,
+                            booking_time=apt.time_slot,
+                            message=msg,
+                            is_read=False,
+                        )
+                    else:
+                        rx_notif.is_read = False
+                        rx_notif.message = msg
+                        rx_notif.patient_name = apt.patient_name
+                        rx_notif.appointment_date = apt.appointment_date
+                        rx_notif.booking_time = apt.time_slot
+                        rx_notif.created_at = timezone.now()
+                        rx_notif.save()
         elif is_rescheduled and apt.status != 'Cancelled':
             apt.status = 'Rescheduled'
             fields_to_update.append('status')
@@ -559,10 +655,6 @@ class AppointmentDetailView(APIView):
         if new_prescription_status:
             apt.prescription_status = new_prescription_status
             fields_to_update.append('prescription_status')
-            if str(new_prescription_status).strip().lower() in ['complete', 'completed'] and apt.status != 'Cancelled':
-                apt.status = 'Complete'
-                if 'status' not in fields_to_update:
-                    fields_to_update.append('status')
 
         apt.save(update_fields=fields_to_update)
 
@@ -616,12 +708,83 @@ class NotificationListView(APIView):
     def get(self, request):
         clinic_settings = load_clinic_settings()
         notif_settings = clinic_settings.get('notifications') or {}
-        # appointmentReminder is True by default unless explicitly disabled
+        new_appointment_enabled = bool(notif_settings.get('newAppointment', True))
         reminder_enabled = bool(notif_settings.get('appointmentReminder', True))
+        prescription_updates_enabled = bool(notif_settings.get('prescriptionUpdates', True))
 
-        notifications = Notification.objects.all().order_by('-created_at')
+        if prescription_updates_enabled:
+            # Ensure completed appointments without prescriptions have Prescription Remaining notification
+            completed_apts = Appointment.objects.filter(models.Q(status__iexact='Complete') | models.Q(status__iexact='Completed'))
+            rx_apt_ids = set(Prescription.objects.filter(appointment__isnull=False).values_list('appointment_id', flat=True))
+            existing_rx_notifs = {
+                n.appointment_id: n for n in Notification.objects.filter(title='Prescription Remaining')
+            }
+            to_create = []
+            for c_apt in completed_apts:
+                has_rx = (
+                    (c_apt.id in rx_apt_ids) or
+                    (c_apt.prescription_status and str(c_apt.prescription_status).strip().lower() in ['complete', 'completed'])
+                )
+                if not has_rx:
+                    if c_apt.id not in existing_rx_notifs:
+                        to_create.append(Notification(
+                            appointment=c_apt,
+                            title='Prescription Remaining',
+                            patient_name=c_apt.patient_name,
+                            appointment_date=c_apt.appointment_date,
+                            booking_time=c_apt.time_slot,
+                            message=f"Appointment {c_apt.appointment_id} for {c_apt.patient_name} marked as Completed. Prescription remaining to be created.",
+                            is_read=False,
+                        ))
+                else:
+                    existing = existing_rx_notifs.get(c_apt.id)
+                    if existing and not existing.is_read:
+                        existing.is_read = True
+                        existing.save(update_fields=['is_read'])
+            if to_create:
+                Notification.objects.bulk_create(to_create)
+
+        notifications_qs = Notification.objects.all()
+        unread_count = notifications_qs.filter(is_read=False).count()
+        notifications = notifications_qs.order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
-        unread_count = Notification.objects.filter(is_read=False).count()
+
+        # Query all appointments that are Confirmed
+        confirmed_apts = Appointment.objects.filter(status__iexact='Confirmed').order_by('appointment_date', 'time_slot', '-created_at')
+
+        # Count total distinct patients with confirmed appointments
+        confirmed_patient_keys = set()
+        for apt in confirmed_apts:
+            p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
+            if apt.patient_record_id:
+                p_key = f"rec_{apt.patient_record_id}"
+            confirmed_patient_keys.add(p_key)
+
+        confirmed_patients_count = len(confirmed_patient_keys)
+        confirmed_appointments_count = len(confirmed_apts)
+
+        # Build confirmed reminders list
+        confirmed_reminders = []
+        if reminder_enabled:
+            for apt in confirmed_apts:
+                confirmed_reminders.append({
+                    'id': f"confirmed-reminder-{apt.id}",
+                    'raw_id': apt.id,
+                    'appointment': apt.id,
+                    'appointment_id': apt.appointment_id or f"APT-{apt.id}",
+                    'title': 'Confirmed Appointment Reminder',
+                    'message': f"Confirmed appointment for {apt.patient_name} on {apt.appointment_date} at {apt.time_slot}.",
+                    'patient_name': apt.patient_name,
+                    'patient_phone': apt.patient_phone,
+                    'patient_email': apt.patient_email or '',
+                    'appointment_date': apt.appointment_date,
+                    'booking_time': apt.time_slot,
+                    'status': 'Confirmed',
+                    'is_reminder': True,
+                    'is_read': False,
+                    'created_at_formatted': 'Confirmed Appointment',
+                    'appointment_details': AppointmentSerializer(apt).data,
+                })
 
         # Query all upcoming appointments that are still Pending
         pending_apts = Appointment.objects.filter(status__iexact='Pending').order_by('created_at')
@@ -664,9 +827,14 @@ class NotificationListView(APIView):
         return Response({
             'notifications': serializer.data,
             'unread_count': unread_count,
+            'new_appointment_enabled': new_appointment_enabled,
+            'appointment_reminder_enabled': reminder_enabled,
+            'prescription_updates_enabled': prescription_updates_enabled,
+            'confirmed_patients_count': confirmed_patients_count if reminder_enabled else 0,
+            'confirmed_appointments_count': confirmed_appointments_count if reminder_enabled else 0,
+            'confirmed_reminders': confirmed_reminders if reminder_enabled else [],
             'pending_patients_count': pending_patients_count if reminder_enabled else 0,
             'pending_appointments_count': pending_appointments_count if reminder_enabled else 0,
-            'appointment_reminder_enabled': reminder_enabled,
             'pending_reminders': pending_reminders if reminder_enabled else [],
         })
 
@@ -676,7 +844,7 @@ class NotificationMarkReadView(APIView):
 
     def post(self, request, pk):
         try:
-            if isinstance(pk, str) and pk.startswith('pending-reminder-'):
+            if isinstance(pk, str) and (pk.startswith('confirmed-reminder-') or pk.startswith('pending-reminder-')):
                 return Response({'status': 'success', 'id': pk})
             notification = Notification.objects.get(pk=pk)
             notification.is_read = True
@@ -711,8 +879,9 @@ class PatientHistoryListView(APIView):
             if not patient and p_name:
                 patient = Patient.objects.filter(name__iexact=p_name).first()
             if not patient and p_name:
+                p_user = unlinked_apt.user if (unlinked_apt.user and getattr(unlinked_apt.user, 'role', '') == User.Role.PATIENT) else None
                 patient = Patient.objects.create(
-                    user=unlinked_apt.user,
+                    user=p_user,
                     name=p_name,
                     phone=p_phone,
                     email=unlinked_apt.patient_email or f"{p_name.lower().replace(' ', '.')}@gmail.com",
@@ -739,7 +908,7 @@ class PatientHistoryListView(APIView):
                 unlinked_rx.patient_record = patient
                 unlinked_rx.save(update_fields=['patient_record'])
 
-        patients = Patient.objects.all().prefetch_related('appointments', 'prescriptions').order_by('-created_at', '-id')
+        patients = Patient.objects.filter(user__isnull=False, user__role=User.Role.PATIENT).prefetch_related('appointments', 'prescriptions').order_by('-created_at', '-id')
         data = []
 
         for p in patients:
@@ -913,7 +1082,7 @@ class PrescriptionListView(APIView):
 
         data = []
         for rx in prescriptions:
-            pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else 'PAT-1001')
+            pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else '')
             complaint_val = (rx.complaint or '').strip()
             if not complaint_val or complaint_val.lower() == 'consultation':
                 if rx.appointment and rx.appointment.reason_for_visit and rx.appointment.reason_for_visit.strip():
@@ -929,6 +1098,18 @@ class PrescriptionListView(APIView):
                     if linked_apt and linked_apt.reason_for_visit and linked_apt.reason_for_visit.strip():
                         complaint_val = linked_apt.reason_for_visit.strip()
 
+            apt_num = ''
+            if rx.appointment and rx.appointment.appointment_id:
+                apt_num = rx.appointment.appointment_id
+            elif rx.patient_record:
+                linked_apt = rx.patient_record.appointments.exclude(status='Cancelled').order_by('-created_at').first()
+                if linked_apt and linked_apt.appointment_id:
+                    apt_num = linked_apt.appointment_id
+            if not apt_num and rx.patient_name:
+                linked_apt = Appointment.objects.filter(patient_name__iexact=rx.patient_name).exclude(status='Cancelled').order_by('-created_at').first()
+                if linked_apt and linked_apt.appointment_id:
+                    apt_num = linked_apt.appointment_id
+
             data.append({
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -937,6 +1118,11 @@ class PrescriptionListView(APIView):
                 'patientName': rx.patient_name,
                 'patientId': pid,
                 'patient_id_ref': pid,
+                'appointment_id': apt_num,
+                'appointmentId': apt_num,
+                'apt_number': apt_num,
+                'aptNumber': apt_num,
+                'appointment_number': apt_num,
                 'mobile': rx.patient_phone,
                 'contact': rx.patient_phone,
                 'ageGender': rx.age_gender,
@@ -1052,6 +1238,12 @@ class PrescriptionListView(APIView):
             # Match only the exact appointment for this patient on this specific date
             matched_apt = Appointment.objects.filter(patient_q).filter(date_q).exclude(status='Cancelled').order_by('-created_at').first()
 
+        # 3. Fallback to latest appointment for patient if not matched by date
+        if not matched_apt and patient:
+            matched_apt = patient.appointments.exclude(status='Cancelled').order_by('-created_at').first()
+        if not matched_apt and patient_name:
+            matched_apt = Appointment.objects.filter(patient_name__iexact=patient_name).exclude(status='Cancelled').order_by('-created_at').first()
+
         # Resolve actual Reason for Visit entered during appointment booking
         raw_complaint = (
             payload.get('complaint') or
@@ -1092,11 +1284,38 @@ class PrescriptionListView(APIView):
             status=payload.get('status') or 'Pending',
         )
 
-        # Update ONLY the exact matched appointment's status and prescription status to Complete
+        # Update matched appointment's prescription status to Complete (appointment status remains until admin manually marks Complete)
         if matched_apt and matched_apt.status != 'Cancelled':
             matched_apt.prescription_status = 'Complete'
-            matched_apt.status = 'Complete'
-            matched_apt.save(update_fields=['prescription_status', 'status'])
+            matched_apt.save(update_fields=['prescription_status'])
+            Notification.objects.filter(
+                appointment=matched_apt,
+                title__icontains='Prescription Remaining'
+            ).update(is_read=True)
+
+        if rx.patient_name:
+            Notification.objects.filter(
+                patient_name__iexact=rx.patient_name,
+                title__icontains='Prescription Remaining'
+            ).update(is_read=True)
+
+        # Create notification if prescriptionUpdates setting is enabled (or by default True)
+        clinic_settings = load_clinic_settings()
+        notif_settings = clinic_settings.get('notifications') or {}
+        rx_notif_enabled = bool(notif_settings.get('prescriptionUpdates', True))
+        if rx_notif_enabled:
+            try:
+                Notification.objects.create(
+                    appointment=matched_apt,
+                    title='Prescription Updated',
+                    patient_name=rx.patient_name,
+                    appointment_date=rx.date,
+                    booking_time=rx.time,
+                    message=f"Prescription {rx.prescription_id} issued for {rx.patient_name}",
+                    is_read=False,
+                )
+            except Exception as e:
+                print('Error creating Prescription Updated notification:', e)
 
         return Response({
             'id': rx.prescription_id,
@@ -1107,6 +1326,13 @@ class PrescriptionListView(APIView):
             'patientId': rx.patient_id_ref,
             'patient_id_ref': rx.patient_id_ref,
             'mobile': rx.patient_phone,
+            'contact': rx.patient_phone,
+            'appointment_id': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId') or ''),
+            'appointmentId': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId') or ''),
+            'apt_number': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId') or ''),
+            'aptNumber': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId') or ''),
+            'appointment_number': matched_apt.appointment_id if matched_apt else (payload.get('appointment_id') or payload.get('appointmentId') or ''),
+            'appointment_database_id': matched_apt.id if matched_apt else None,
             'ageGender': rx.age_gender,
             'date': rx.date,
             'time': rx.time,
@@ -1156,7 +1382,7 @@ class PrescriptionDetailView(APIView):
                 rx = Prescription.objects.get(pk=int(pk_or_id))
             else:
                 rx = Prescription.objects.get(prescription_id=pk_or_id)
-            pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else 'PAT-1001')
+            pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else '')
             complaint_val = (rx.complaint or '').strip()
             if not complaint_val or complaint_val.lower() == 'consultation':
                 if rx.appointment and rx.appointment.reason_for_visit and rx.appointment.reason_for_visit.strip():
@@ -1165,6 +1391,19 @@ class PrescriptionDetailView(APIView):
                     matched_apt = Appointment.objects.filter(patient_name__iexact=rx.patient_name).exclude(status='Cancelled').order_by('-created_at').first()
                     if matched_apt and matched_apt.reason_for_visit and matched_apt.reason_for_visit.strip():
                         complaint_val = matched_apt.reason_for_visit.strip()
+
+            apt_num = ''
+            if rx.appointment and rx.appointment.appointment_id:
+                apt_num = rx.appointment.appointment_id
+            elif rx.patient_record:
+                linked_apt = rx.patient_record.appointments.exclude(status='Cancelled').order_by('-created_at').first()
+                if linked_apt and linked_apt.appointment_id:
+                    apt_num = linked_apt.appointment_id
+            if not apt_num and rx.patient_name:
+                linked_apt = Appointment.objects.filter(patient_name__iexact=rx.patient_name).exclude(status='Cancelled').order_by('-created_at').first()
+                if linked_apt and linked_apt.appointment_id:
+                    apt_num = linked_apt.appointment_id
+
             return Response({
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -1172,6 +1411,11 @@ class PrescriptionDetailView(APIView):
                 'name': rx.patient_name,
                 'patientName': rx.patient_name,
                 'patientId': pid,
+                'appointment_id': apt_num,
+                'appointmentId': apt_num,
+                'apt_number': apt_num,
+                'aptNumber': apt_num,
+                'appointment_number': apt_num,
                 'status': rx.status,
                 'date': rx.date,
                 'time': rx.time,
@@ -1409,8 +1653,8 @@ class PatientMyProfileView(APIView):
                 'time': r.time,
                 'patientName': r.patient_name,
                 'name': r.patient_name,
-                'patientId': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
-                'patient_id_ref': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
+                'patientId': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else ''),
+                'patient_id_ref': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else ''),
                 'ageGender': r.age_gender or (r.patient_record.age_gender if r.patient_record else ''),
                 'contact': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
                 'mobile': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
@@ -1425,7 +1669,7 @@ class PatientMyProfileView(APIView):
                 'created_at': r.created_at.isoformat() if r.created_at else None,
                 'patient': {
                     'name': r.patient_name,
-                    'id': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
+                    'id': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else ''),
                     'ageGender': r.age_gender or (r.patient_record.age_gender if r.patient_record else ''),
                     'phone': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
                     'contact': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
@@ -1785,7 +2029,7 @@ class SendPrescriptionWhatsAppView(APIView):
             rx_data = {
                 'rxId': payload.get('rxId') or payload.get('prescription_id') or 'RX-2026',
                 'patientName': payload.get('patientName') or payload.get('name') or 'Patient',
-                'patientId': payload.get('patientId') or 'PAT-1001',
+                'patientId': payload.get('patientId') or payload.get('patient_id_ref') or '',
                 'mobile': payload.get('phone') or payload.get('mobile') or payload.get('contact'),
                 'ageGender': payload.get('ageGender') or 'Adult',
                 'date': payload.get('date') or datetime.now().strftime('%d %b %Y'),
@@ -1898,10 +2142,24 @@ class PrescriptionPdfDownloadView(APIView):
         if not rx:
             return Response({'error': f'Prescription {rx_id} not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        apt_num = ''
+        if rx.appointment and rx.appointment.appointment_id:
+            apt_num = rx.appointment.appointment_id
+        elif rx.patient_record:
+            linked_apt = rx.patient_record.appointments.exclude(status='Cancelled').order_by('-created_at').first()
+            if linked_apt and linked_apt.appointment_id:
+                apt_num = linked_apt.appointment_id
+        if not apt_num and rx.patient_name:
+            linked_apt = Appointment.objects.filter(patient_name__iexact=rx.patient_name).exclude(status='Cancelled').order_by('-created_at').first()
+            if linked_apt and linked_apt.appointment_id:
+                apt_num = linked_apt.appointment_id
+
         rx_data = {
             'rxId': rx.prescription_id,
             'patientName': rx.patient_name,
             'patientId': rx.patient_id_ref,
+            'aptNumber': apt_num,
+            'appointment_id': apt_num,
             'mobile': rx.patient_phone or getattr(rx.patient_record, 'phone', ''),
             'ageGender': rx.age_gender,
             'date': rx.date,
@@ -1949,7 +2207,7 @@ class AppointmentPdfDownloadView(APIView):
             rx_data = {
                 'rxId': rx.prescription_id,
                 'patientName': rx.patient_name or apt.patient_name,
-                'patientId': rx.patient_id_ref or (apt.patient_record.patient_id if apt.patient_record else 'PAT-1001'),
+                'patientId': rx.patient_id_ref or (apt.patient_record.patient_id if apt.patient_record else ''),
                 'mobile': rx.patient_phone or apt.patient_phone or '',
                 'ageGender': rx.age_gender or (f"{apt.patient_gender}" if apt.patient_gender else 'Adult'),
                 'date': rx.date or apt.appointment_date,
@@ -1960,7 +2218,7 @@ class AppointmentPdfDownloadView(APIView):
                 'additionalInstructions': rx.additional_instructions or f"Appointment ID: {apt.appointment_id} • Time: {apt.time_slot}",
             }
         else:
-            p_id = apt.patient_record.patient_id if apt.patient_record else 'PAT-1001'
+            p_id = apt.patient_record.patient_id if apt.patient_record else ''
             rx_data = {
                 'rxId': apt.appointment_id,
                 'patientName': apt.patient_name or 'Patient',

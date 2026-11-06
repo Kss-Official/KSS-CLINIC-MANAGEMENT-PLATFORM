@@ -33,37 +33,69 @@ const AppointmentModal = ({ isOpen, onClose }) => {
   const [workingDays, setWorkingDays] = useState(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
   const [dateRestrictions, setDateRestrictions] = useState([]);
   const [customWorkingHours, setCustomWorkingHours] = useState([]);
+  const [slotDuration, setSlotDuration] = useState('30 Minutes');
+  const [consultationHours, setConsultationHours] = useState('09:00 AM - 06:00 PM');
+  const [closedDatePopup, setClosedDatePopup] = useState({
+    isOpen: false,
+    dateFormatted: '',
+    reason: '',
+  });
 
   useEffect(() => {
-    appointmentApi.getClinicSettings().then((data) => {
+    appointmentApi.getAppointmentSettings().then((data) => {
       const days = data?.workingDays || data?.working_days;
       if (Array.isArray(days) && days.length > 0) setWorkingDays(days);
       const restrs = data?.dateRestrictions || data?.date_restrictions;
       if (Array.isArray(restrs)) setDateRestrictions(restrs);
       const cwh = data?.customWorkingHours || data?.custom_working_hours;
       if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
+      const ch = data?.consultationHours || data?.consultation_hours;
+      if (ch) setConsultationHours(ch);
+      const sd = data?.slotDuration || data?.slot_duration;
+      if (sd) setSlotDuration(sd);
     }).catch(() => {});
 
     const handleSettingsUpdated = (e) => {
-      const days = e?.detail?.workingDays || e?.detail?.working_days;
+      const detail = e?.detail || {};
+      const days = detail?.workingDays || detail?.working_days;
       if (Array.isArray(days)) setWorkingDays(days);
-      const restrs = e?.detail?.dateRestrictions || e?.detail?.date_restrictions;
+      const restrs = detail?.dateRestrictions || detail?.date_restrictions;
       if (Array.isArray(restrs)) setDateRestrictions(restrs);
-      const cwh = e?.detail?.customWorkingHours || e?.detail?.custom_working_hours;
+      const cwh = detail?.customWorkingHours || detail?.custom_working_hours;
       if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
+      const ch = detail?.consultationHours || detail?.consultation_hours;
+      if (ch) setConsultationHours(ch);
+      const sd = detail?.slotDuration || detail?.slot_duration;
+      if (sd) setSlotDuration(sd);
     };
     window.addEventListener('appointment-settings-updated', handleSettingsUpdated);
     return () => window.removeEventListener('appointment-settings-updated', handleSettingsUpdated);
   }, []);
 
   const checkDateRestriction = (dateStr) => {
-    if (!dateStr || !dateRestrictions || dateRestrictions.length === 0) return { isRestricted: false, reason: '' };
+    if (!dateStr || !dateRestrictions || !Array.isArray(dateRestrictions) || dateRestrictions.length === 0) {
+      return { isRestricted: false, reason: '' };
+    }
+    const dateNorm = String(dateStr).trim();
+    const monthNorm = dateNorm.substring(0, 7);
     for (const r of dateRestrictions) {
-      if (r && r.startDate && r.endDate) {
-        if (r.startDate <= dateStr && dateStr <= r.endDate) {
+      if (!r || typeof r !== 'object') continue;
+      const start = r.startDate || r.start_date || r.date;
+      const end = r.endDate || r.end_date || start;
+      const rMonth = r.month || (r.type === 'month' ? (start ? String(start).substring(0, 7) : null) : null);
+      if (r.type === 'month' || rMonth) {
+        if (rMonth === monthNorm || (start && end && start <= dateNorm && dateNorm <= end)) {
           return {
             isRestricted: true,
-            reason: r.reason || (r.type === 'month' ? 'Entire month closed' : 'Clinic closed on this date'),
+            reason: r.reason || 'Entire month closed',
+          };
+        }
+      }
+      if (start && end) {
+        if (start <= dateNorm && dateNorm <= end) {
+          return {
+            isRestricted: true,
+            reason: r.reason || 'Clinic closed on this date',
           };
         }
       }
@@ -206,14 +238,26 @@ const AppointmentModal = ({ isOpen, onClose }) => {
       const { isRestricted, reason } = checkDateRestriction(value);
 
       if (!workingDays.includes(dayName)) {
+        const msg = `The clinic is closed on ${dayName}s. Please select an open working day (${workingDays.join(', ')}).`;
+        setClosedDatePopup({
+          isOpen: true,
+          dateFormatted: value,
+          reason: msg,
+        });
         setModalErrors((prev) => ({
           ...prev,
-          date: `The clinic is closed on ${dayName}s. Please select an open working day (${workingDays.join(', ')}).`,
+          date: `Clinic is closed on this date. ${msg}`,
         }));
       } else if (isRestricted) {
+        const msg = reason || 'Clinic closed on this date';
+        setClosedDatePopup({
+          isOpen: true,
+          dateFormatted: value,
+          reason: msg,
+        });
         setModalErrors((prev) => ({
           ...prev,
-          date: `Appointments are disabled on this date (${reason}). Please select another date.`,
+          date: `Clinic is closed on this date (${msg}). Please select another date.`,
         }));
       } else {
         setModalErrors((prev) => {
@@ -296,11 +340,11 @@ const AppointmentModal = ({ isOpen, onClose }) => {
       .then((res) => {
         setIsSubmitted(true);
         if (typeof window !== 'undefined') {
-          if (formData.phone) localStorage.setItem('kss_patient_phone', formData.phone);
-          if (formData.email) localStorage.setItem('kss_patient_email', formData.email);
-          if (formData.name) localStorage.setItem('kss_patient_name', formData.name);
+          if (formData.phone) sessionStorage.setItem('kss_patient_phone', formData.phone);
+          if (formData.email) sessionStorage.setItem('kss_patient_email', formData.email);
+          if (formData.name) sessionStorage.setItem('kss_patient_name', formData.name);
           const newAptId = res?.appointment?.appointment_id || res?.appointment_id;
-          if (newAptId) localStorage.setItem('kss_last_appointment_id', newAptId);
+          if (newAptId) sessionStorage.setItem('kss_last_appointment_id', newAptId);
           window.dispatchEvent(new CustomEvent('appointment-booked', { detail: res }));
         }
       })
@@ -584,31 +628,32 @@ const AppointmentModal = ({ isOpen, onClose }) => {
                     </label>
                     {(() => {
                       const eff = getEffectiveHoursForDate(formData.date);
-                      const sMins = parseTimeStrToMinutes(eff.startTime);
-                      const eMins = parseTimeStrToMinutes(eff.endTime);
-                      const standardSlots = [
-                        { value: '09:00 AM', label: '09:00 AM - 09:30 AM', mins: 9 * 60 },
-                        { value: '09:30 AM', label: '09:30 AM - 10:00 AM', mins: 9 * 60 + 30 },
-                        { value: '10:00 AM', label: 'Morning (10:00 AM - 12:00 PM)', mins: 10 * 60 },
-                        { value: '11:00 AM', label: '11:00 AM - 11:30 AM', mins: 11 * 60 },
-                        { value: '11:30 AM', label: '11:30 AM - 12:00 PM', mins: 11 * 60 + 30 },
-                        { value: '12:00 PM', label: '12:00 PM - 12:30 PM', mins: 12 * 60 },
-                        { value: '12:30 PM', label: 'Afternoon (12:30 PM - 03:00 PM)', mins: 12 * 60 + 30 },
-                        { value: '01:00 PM', label: '01:00 PM - 01:30 PM', mins: 13 * 60 },
-                        { value: '02:00 PM', label: '02:00 PM - 02:30 PM', mins: 14 * 60 },
-                        { value: '03:00 PM', label: '03:00 PM - 03:30 PM', mins: 15 * 60 },
-                        { value: '04:00 PM', label: '04:00 PM - 04:30 PM', mins: 16 * 60 },
-                        { value: '04:30 PM', label: 'Evening (04:30 PM - 07:00 PM)', mins: 16 * 60 + 30 },
-                        { value: '05:00 PM', label: '05:00 PM - 05:30 PM', mins: 17 * 60 },
-                        { value: '05:30 PM', label: '05:30 PM - 06:00 PM', mins: 17 * 60 + 30 },
-                      ];
-                      const availableSlots = standardSlots.filter((slot) => {
-                        if (sMins !== null && eMins !== null) {
-                          return slot.mins >= sMins && slot.mins < eMins;
-                        }
-                        return true;
-                      });
-                      const slotsToRender = availableSlots.length > 0 ? availableSlots : standardSlots.slice(2, 5);
+                      const sMins = parseTimeStrToMinutes(eff.startTime) ?? (9 * 60);
+                      const eMins = parseTimeStrToMinutes(eff.endTime) ?? (18 * 60);
+                      const durMatch = String(slotDuration || '').match(/\d+/);
+                      const durMins = durMatch ? parseInt(durMatch[0], 10) : 30;
+
+                      const slotsToRender = [];
+                      for (let cur = sMins; cur < eMins; cur += durMins) {
+                        const h = Math.floor(cur / 60);
+                        const m = cur % 60;
+                        const period = h >= 12 ? 'PM' : 'AM';
+                        const dispH = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+                        const timeLabel = `${String(dispH).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+                        
+                        const endCur = cur + durMins;
+                        const endH = Math.floor(endCur / 60);
+                        const endM = endCur % 60;
+                        const endPeriod = endH >= 12 ? 'PM' : 'AM';
+                        const endDispH = endH === 0 ? 12 : (endH > 12 ? endH - 12 : endH);
+                        const endLabel = `${String(endDispH).padStart(2, '0')}:${String(endM).padStart(2, '0')} ${endPeriod}`;
+                        
+                        slotsToRender.push({
+                          value: timeLabel,
+                          label: `${timeLabel} - ${endLabel}`,
+                          mins: cur,
+                        });
+                      }
 
                       return (
                         <div>
@@ -675,6 +720,126 @@ const AppointmentModal = ({ isOpen, onClose }) => {
           </div>
         )}
       </div>
+
+      {/* Closed Date Pop-up Modal */}
+      {closedDatePopup.isOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10001,
+            padding: '16px',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+          onClick={() => setClosedDatePopup({ isOpen: false, dateFormatted: '', reason: '' })}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              padding: '28px 24px 22px',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.06)',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+
+            <h3
+              style={{
+                fontSize: '19px',
+                fontWeight: '700',
+                color: '#0f172a',
+                margin: '0 0 8px',
+                letterSpacing: '-0.2px',
+              }}
+            >
+              Clinic is closed on this date.
+            </h3>
+
+            {closedDatePopup.dateFormatted && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  marginBottom: '12px',
+                }}
+              >
+                📅 {closedDatePopup.dateFormatted}
+              </div>
+            )}
+
+            <p
+              style={{
+                fontSize: '13.5px',
+                color: '#64748b',
+                lineHeight: '1.5',
+                margin: '0 0 20px',
+              }}
+            >
+              {closedDatePopup.reason
+                ? closedDatePopup.reason
+                : 'Appointments cannot be booked for this date as the clinic is closed. Please choose another date.'}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setClosedDatePopup({ isOpen: false, dateFormatted: '', reason: '' })}
+              style={{
+                width: '100%',
+                padding: '11px 20px',
+                backgroundColor: '#1b4332',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#143326')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b4332')}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </dialog>
   );
 };

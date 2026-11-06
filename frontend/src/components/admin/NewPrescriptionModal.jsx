@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import PrescriptionPreviewCard from './PrescriptionPreviewCard';
 import appointmentApi from '../../api/appointmentApi';
 import AdminCalendarPopover from './AdminCalendarPopover';
@@ -47,13 +47,35 @@ const parseDisplayDateToIso = (dateStr) => {
   return '';
 };
 
-const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
-  const [step, setStep] = useState(1);
+// Helper: Check if initialPatient is a genuine, non-synthetic patient/appointment object
+const isValidInitialPatient = (p) => {
+  if (!p || typeof p !== 'object') return false;
+  // Guard against synthetic DOM/React events (e.g., from onClick={openNewPrescription})
+  if (p.nativeEvent || p._reactName || p.target || p.currentTarget || typeof p.preventDefault === 'function') {
+    return false;
+  }
+  const name = p.patient_name || p.name || p.patientName;
+  const hasApt = Boolean(p.appointment_id || (p.id && String(p.id).startsWith('APT-')) || p.rawId);
+  const hasPatId = Boolean(p.patient_id_ref || p.patient_record_id || p.patient_id || (p.id && String(p.id).startsWith('PAT-')));
+  const hasRx = Boolean(p.rxId || (p.id && String(p.id).startsWith('RX-')) || p.prescriptionId);
+  
+  // Must have a real non-placeholder name, or real appointment / patient ID / prescription ID
+  if (typeof name === 'string' && name.trim() && name.trim().toLowerCase() !== 'patient') {
+    return true;
+  }
+  return Boolean(hasApt || hasPatId || hasRx);
+};
+
+const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initialStep = 1 }) => {
+  const [step, setStep] = useState(initialStep || 1);
+  const [existingRxId, setExistingRxId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [availablePatients, setAvailablePatients] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState(initialPatient || null);
+  const [selectedPatient, setSelectedPatient] = useState(() => (
+    isValidInitialPatient(initialPatient) ? initialPatient : null
+  ));
   const [selectedAppointment, setSelectedAppointment] = useState(null);
 
   const [appointmentDate, setAppointmentDate] = useState(getTodayIso);
@@ -79,64 +101,274 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
     'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'
   );
 
+  const prevIsOpenRef = useRef(false);
+
   useEffect(() => {
-    if (!isOpen) {
-      setStep(1);
+    // When modal transitions from closed to open:
+    if (isOpen && !prevIsOpenRef.current) {
+      setStep(initialStep || 1);
       setSearchQuery('');
-      if (!initialPatient) {
+      setSuccessMessage('');
+      setIsSaving(false);
+
+      if (isValidInitialPatient(initialPatient)) {
+        const isPrescription = Boolean(
+          initialPatient.rxId ||
+          initialPatient.prescriptionId ||
+          (initialPatient.id && String(initialPatient.id).startsWith('RX-'))
+        );
+        const rxIdVal = isPrescription ? (initialPatient.rxId || initialPatient.id || initialPatient.prescriptionId) : null;
+        setExistingRxId(rxIdVal);
+
+        if (isPrescription) {
+          const pName = initialPatient.patientName || initialPatient.name || initialPatient.patient_name || 'Patient';
+          const pPhone = initialPatient.contact || initialPatient.mobile || initialPatient.phone || initialPatient.patient_phone || '';
+          const pId = initialPatient.patientId || initialPatient.patient_id_ref || (initialPatient.patient_id ? (String(initialPatient.patient_id).startsWith('PAT-') ? initialPatient.patient_id : `PAT-${initialPatient.patient_id}`) : '') || (initialPatient.patient?.id ? `PAT-${initialPatient.patient.id}` : (initialPatient.patient?.patient_id ? `PAT-${initialPatient.patient.patient_id}` : ''));
+          const pAge = initialPatient.age || (initialPatient.ageGender ? initialPatient.ageGender.split('/')[0].trim() : '30');
+          const pGender = initialPatient.gender || (initialPatient.ageGender ? initialPatient.ageGender.split('/')[1]?.trim() : 'Adult');
+
+          setSelectedPatient({
+            id: pId,
+            name: pName,
+            phone: pPhone,
+            ageGender: initialPatient.ageGender || `${pAge} | ${pGender}`,
+            age: pAge,
+            gender: pGender,
+            initials:
+              pName
+                .split(' ')
+                .filter(Boolean)
+                .map((n) => n[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase() || 'PT',
+            rxId: rxIdVal,
+          });
+
+          const aptNum =
+            initialPatient.appointment_id ||
+            initialPatient.appointmentId ||
+            initialPatient.apt_number ||
+            initialPatient.aptNumber ||
+            '';
+          if (aptNum) {
+            setSelectedAppointment({
+              id: aptNum,
+              appointment_id: aptNum,
+              appointmentId: aptNum,
+              date: initialPatient.date,
+              time: initialPatient.time,
+              reason: initialPatient.complaint || initialPatient.diagnosis || '',
+              reason_for_visit: initialPatient.complaint || initialPatient.diagnosis || '',
+            });
+          } else {
+            setSelectedAppointment(null);
+          }
+
+          if (initialPatient.date || initialPatient.appointment_date || initialPatient.appointmentDate) {
+            const iso = parseDisplayDateToIso(initialPatient.date || initialPatient.appointment_date || initialPatient.appointmentDate);
+            if (iso) setAppointmentDate(iso);
+          }
+
+          if (initialPatient.consultationType || initialPatient.consultation_type) {
+            setConsultationType(initialPatient.consultationType || initialPatient.consultation_type);
+          }
+
+          if (initialPatient.complaint || initialPatient.mainComplaint || initialPatient.reason) {
+            setMainComplaint(initialPatient.complaint || initialPatient.mainComplaint || initialPatient.reason);
+          }
+
+          if (initialPatient.symptoms) {
+            setSymptoms(initialPatient.symptoms);
+          }
+          if (initialPatient.diagnosis) {
+            setDiagnosis(initialPatient.diagnosis);
+          } else if (initialPatient.complaint) {
+            setDiagnosis(initialPatient.complaint);
+          }
+
+          if (Array.isArray(initialPatient.medicines) && initialPatient.medicines.length > 0) {
+            setMedicines(
+              initialPatient.medicines.map((m, idx) => ({
+                id: m.id || idx + 1,
+                name: m.name || m.medicine_name || '',
+                potency: m.potency || '',
+                dosage: m.dosage || '',
+                duration: m.duration || '',
+                instructions: m.instructions || '',
+              }))
+            );
+          } else if (rxIdVal) {
+            // Asynchronously fetch prescription details to populate medicines/diagnosis if not fully in row
+            appointmentApi.getPrescriptions().then((list) => {
+              if (Array.isArray(list)) {
+                const found = list.find((item) => item.id === rxIdVal || item.rxId === rxIdVal);
+                if (found) {
+                  if (found.medicines && found.medicines.length > 0) {
+                    setMedicines(
+                      found.medicines.map((m, idx) => ({
+                        id: m.id || idx + 1,
+                        name: m.name || m.medicine_name || '',
+                        potency: m.potency || '',
+                        dosage: m.dosage || '',
+                        duration: m.duration || '',
+                        instructions: m.instructions || '',
+                      }))
+                    );
+                  }
+                  if (found.diagnosis) setDiagnosis(found.diagnosis);
+                  if (found.symptoms) setSymptoms(found.symptoms);
+                  if (found.additionalInstructions) setAdditionalInstructions(found.additionalInstructions);
+                  const fApt = found.appointment_id || found.apt_number || found.aptNumber;
+                  if (fApt) {
+                    setSelectedAppointment((prev) => prev || { id: fApt, appointment_id: fApt, appointmentId: fApt });
+                  }
+                }
+              }
+            }).catch((err) => console.error('Failed to load prescription medicines for workflow:', err));
+          }
+
+          if (initialPatient.additionalInstructions || initialPatient.notes) {
+            setAdditionalInstructions(initialPatient.additionalInstructions || initialPatient.notes);
+          }
+        } else {
+          // Pre-fill ONLY when a valid appointment/patient is provided (e.g. from Prescription Remaining notification)
+          const isAppointment = Boolean(
+            initialPatient.appointment_id ||
+            (initialPatient.id && String(initialPatient.id).startsWith('APT-')) ||
+            initialPatient.appointmentId ||
+            initialPatient.timeSlot
+          );
+          if (isAppointment) {
+            setSelectedAppointment(initialPatient);
+            const pName = initialPatient.patient_name || initialPatient.name || initialPatient.patientName || 'Patient';
+            const pPhone = initialPatient.patient_phone || initialPatient.contact || initialPatient.phone || initialPatient.mobile || '';
+            const pAge = initialPatient.age || initialPatient.patient_age || (initialPatient.ageGender ? initialPatient.ageGender.split('/')[0].trim() : '30');
+            const pGender = initialPatient.gender || initialPatient.patient_gender || (initialPatient.ageGender ? initialPatient.ageGender.split('/')[1]?.trim() : 'Adult');
+            const pId = initialPatient.patient_id_ref || initialPatient.patient_record_id || (initialPatient.patient_record?.patient_id) || (initialPatient.patient_id ? `PAT-${initialPatient.patient_id}` : null) || initialPatient.patientId || (initialPatient.id && String(initialPatient.id).startsWith('PAT-') ? initialPatient.id : '');
+
+            setSelectedPatient({
+              id: pId,
+              name: pName,
+              phone: pPhone,
+              ageGender: `${pAge} | ${pGender}`,
+              age: pAge,
+              gender: pGender,
+              initials:
+                pName
+                  .split(' ')
+                  .filter(Boolean)
+                  .map((n) => n[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase() || 'PT',
+            });
+            if (initialPatient.date || initialPatient.appointment_date) {
+              const iso = parseDisplayDateToIso(initialPatient.date || initialPatient.appointment_date);
+              if (iso) setAppointmentDate(iso);
+            }
+            if (initialPatient.reason || initialPatient.reason_for_visit) {
+              setMainComplaint(initialPatient.reason || initialPatient.reason_for_visit);
+            }
+            if (initialPatient.consultationType || initialPatient.consultation_type) {
+              setConsultationType(initialPatient.consultationType || initialPatient.consultation_type);
+            }
+          } else {
+            const pName = initialPatient.name || initialPatient.patient_name || 'Patient';
+            const pPhone = initialPatient.phone || initialPatient.mobile || initialPatient.contact || initialPatient.patient_phone || '';
+            const pAge = initialPatient.age || initialPatient.patient_age || '30';
+            const pGender = initialPatient.gender || initialPatient.patient_gender || 'Adult';
+            const pId = initialPatient.id || initialPatient.patient_id || initialPatient.patient_id_ref || '';
+            setSelectedPatient({
+              ...initialPatient,
+              id: pId,
+              name: pName,
+              phone: pPhone,
+              age: pAge,
+              gender: pGender,
+              ageGender: initialPatient.ageGender || `${pAge} | ${pGender}`,
+              initials:
+                initialPatient.initials ||
+                pName
+                  .split(' ')
+                  .filter(Boolean)
+                  .map((n) => n[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase() ||
+                'PT',
+            });
+            setSelectedAppointment(null);
+          }
+        }
+      } else {
+        // Direct open: Patient MUST be empty until user searches and selects a patient!
+        setExistingRxId(null);
         setSelectedPatient(null);
         setSelectedAppointment(null);
         setAppointmentDate(getTodayIso());
+        setMainComplaint('');
       }
-    } else if (initialPatient) {
-      const isAppointment = Boolean(
-        initialPatient.appointment_id ||
-        (initialPatient.id && String(initialPatient.id).startsWith('APT-')) ||
-        initialPatient.appointmentId ||
-        initialPatient.timeSlot
-      );
-      if (isAppointment) {
-        setSelectedAppointment(initialPatient);
-        setSelectedPatient({
-          id: initialPatient.patient_id_ref || initialPatient.patientId || initialPatient.id,
-          name: initialPatient.patient_name || initialPatient.name || initialPatient.patientName,
-          phone: initialPatient.patient_phone || initialPatient.contact || initialPatient.phone || initialPatient.mobile,
-          ageGender: initialPatient.age_gender || initialPatient.ageGender || '30 / Adult',
-          age: initialPatient.age || '30 Years',
-          gender: initialPatient.gender || 'Adult',
-          initials: (initialPatient.patient_name || initialPatient.name || initialPatient.patientName || 'PT')
-            .split(' ')
-            .map((n) => n[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase(),
-        });
-        if (initialPatient.date || initialPatient.appointment_date) {
-          const iso = parseDisplayDateToIso(initialPatient.date || initialPatient.appointment_date);
-          if (iso) setAppointmentDate(iso);
-        }
-        if (initialPatient.reason || initialPatient.reason_for_visit) {
-          setMainComplaint(initialPatient.reason || initialPatient.reason_for_visit);
-        }
-        if (initialPatient.consultationType || initialPatient.consultation_type) {
-          setConsultationType(initialPatient.consultationType || initialPatient.consultation_type);
-        }
-      } else {
-        setSelectedPatient(initialPatient);
-        setSelectedAppointment(null);
+    } else if (!isOpen && prevIsOpenRef.current) {
+      // When modal closes: clean up completely
+      setStep(1);
+      setSearchQuery('');
+      setExistingRxId(null);
+      setSelectedPatient(null);
+      setSelectedAppointment(null);
+      setAppointmentDate(getTodayIso());
+      setMainComplaint('');
+      setSymptoms('');
+      setDiagnosis('Skin allergy due to seasonal change.');
+      setMedicines([
+        {
+          id: 1,
+          name: '',
+          potency: '',
+          dosage: '',
+          duration: '',
+          instructions: '',
+        },
+      ]);
+      setSuccessMessage('');
+      setIsSaving(false);
+    }
+
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, initialPatient, initialStep]);
+
+  // Keep step synced if initialStep changes while open
+  useEffect(() => {
+    if (isOpen && initialStep) {
+      setStep(initialStep);
+    }
+  }, [isOpen, initialStep]);
+
+  const patientAppointments = useMemo(() => {
+    const list = [
+      ...(availablePatients.find((p) => p.id === selectedPatient?.id || (p.name && p.name.toLowerCase() === selectedPatient?.name?.toLowerCase()))?.appointments || []),
+      ...(selectedPatient?.appointments || []),
+    ];
+    if (selectedAppointment && selectedAppointment.id) {
+      if (!list.some((a) => (a.id === selectedAppointment.id || a.appointment_id === selectedAppointment.id))) {
+        list.unshift(selectedAppointment);
       }
     }
-  }, [isOpen, initialPatient]);
-
-  const patientAppointments = (
-    availablePatients.find((p) => p.id === selectedPatient?.id || (p.name && p.name.toLowerCase() === selectedPatient?.name?.toLowerCase()))?.appointments ||
-    selectedPatient?.appointments ||
-    []
-  );
+    const seen = new Set();
+    return list.filter((a) => {
+      const id = a.id || a.appointment_id;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }, [availablePatients, selectedPatient, selectedAppointment]);
 
   useEffect(() => {
     if (!selectedPatient) {
       setSelectedAppointment(null);
+      return;
+    }
+    if (existingRxId && selectedAppointment) {
       return;
     }
     if (patientAppointments && patientAppointments.length > 0) {
@@ -154,7 +386,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         }
       }
     }
-  }, [selectedPatient, appointmentDate, patientAppointments]);
+  }, [selectedPatient, appointmentDate, patientAppointments, existingRxId, selectedAppointment]);
 
   // Fetch real patients from Neon PostgreSQL database on modal open
   useEffect(() => {
@@ -164,6 +396,26 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         const data = await appointmentApi.getPatients();
         if (Array.isArray(data) && data.length > 0) {
           setAvailablePatients(data);
+          setSelectedPatient((prev) => {
+            if (!prev || !prev.name) return prev;
+            const match = data.find((p) =>
+              (p.mobile && prev.phone && (p.mobile === prev.phone || p.mobile.endsWith(prev.phone.slice(-10)))) ||
+              (p.name && prev.name && p.name.trim().toLowerCase() === prev.name.trim().toLowerCase())
+            );
+            if (match) {
+              return {
+                ...prev,
+                id: match.id || prev.id,
+                name: match.name || prev.name,
+                phone: match.mobile || prev.phone,
+                age: match.ageGender?.split('/')[0]?.trim() || prev.age || '30',
+                gender: match.ageGender?.split('/')[1]?.trim() || prev.gender || 'Adult',
+                ageGender: match.ageGender || prev.ageGender || '30 | Adult',
+                initials: match.initials || prev.initials,
+              };
+            }
+            return prev;
+          });
         }
       } catch (err) {
         console.error('Failed to load database patients for prescription:', err);
@@ -272,8 +524,10 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         patient_name: selectedPatient.name,
         patient_phone: selectedPatient.phone,
         patient_id_ref: selectedPatient.id,
-        appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
-        appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+        appointment_id: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+        appointmentId: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+        apt_number: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+        aptNumber: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
@@ -311,13 +565,25 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
     if (isSaving) return;
     setIsSaving(true);
     try {
+      const effectiveAptNum =
+        selectedAppointment?.appointment_id ||
+        selectedAppointment?.id ||
+        selectedPatient?.appointmentId ||
+        selectedPatient?.appointment_id ||
+        selectedPatient?.aptNumber ||
+        initialPatient?.appointment_id ||
+        initialPatient?.aptNumber ||
+        '';
+
       const payload = {
         patient: selectedPatient,
         patient_name: selectedPatient.name,
         patient_phone: selectedPatient.phone,
         patient_id_ref: selectedPatient.id,
-        appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
-        appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+        appointment_id: effectiveAptNum || null,
+        appointmentId: effectiveAptNum || null,
+        apt_number: effectiveAptNum || null,
+        aptNumber: effectiveAptNum || null,
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
@@ -330,6 +596,17 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         additionalInstructions,
         status: deliveryMethod === 'WhatsApp' ? 'Delivered' : 'Pending',
       };
+
+      if (existingRxId) {
+        if (deliveryMethod === 'WhatsApp') {
+          await appointmentApi.updatePrescriptionStatus(existingRxId, 'Delivered');
+        }
+        if (onSave) {
+          onSave({ id: existingRxId, rxId: existingRxId, ...payload, status: deliveryMethod === 'WhatsApp' ? 'Delivered' : 'Pending' });
+        }
+        onClose();
+        return;
+      }
 
       const savedRx = await appointmentApi.createPrescription(payload);
       if (onSave) {
@@ -401,10 +678,12 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '22px' }}>
           <div>
             <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0f172a', margin: '0 0 4px 0' }}>
-              New Prescription
+              {step === 2 ? 'Prescription Details' : 'New Prescription'}
             </h2>
             <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0 }}>
-              Create a new prescription for the selected patient.
+              {step === 2
+                ? 'View and review the prescription for the selected patient.'
+                : 'Create a new prescription for the selected patient.'}
             </p>
           </div>
           {/* Close X Button */}
@@ -459,7 +738,24 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
             </div>
 
             <PrescriptionPreviewCard
-              patient={selectedPatient}
+              prescriptionId={existingRxId}
+              patient={{
+                ...selectedPatient,
+                appointment_id: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
+                appointmentId: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
+                aptNumber: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
+                apt_number: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
+              }}
+              aptNumber={
+                selectedAppointment?.appointment_id ||
+                selectedAppointment?.id ||
+                selectedPatient?.appointmentId ||
+                selectedPatient?.appointment_id ||
+                selectedPatient?.aptNumber ||
+                initialPatient?.appointment_id ||
+                initialPatient?.aptNumber ||
+                ''
+              }
               date={formatDateForDisplay(appointmentDate)}
               consultationType={consultationType}
               diagnosis={diagnosis || mainComplaint || 'Skin allergy due to seasonal change.'}
@@ -469,13 +765,24 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'
               }
               onSendWhatsApp={async (extraData = {}) => {
+                const effectiveAptNum =
+                  selectedAppointment?.appointment_id ||
+                  selectedAppointment?.id ||
+                  selectedPatient?.appointmentId ||
+                  selectedPatient?.appointment_id ||
+                  selectedPatient?.aptNumber ||
+                  initialPatient?.appointment_id ||
+                  initialPatient?.aptNumber ||
+                  '';
                 const payload = {
                   patient: selectedPatient,
                   patient_name: selectedPatient?.name || 'Patient',
                   patient_phone: selectedPatient?.phone,
                   patient_id_ref: selectedPatient?.id,
-                  appointment_id: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
-                  appointmentId: selectedAppointment?.id || selectedAppointment?.appointment_id || (selectedPatient?.appointmentId) || null,
+                  appointment_id: effectiveAptNum || null,
+                  appointmentId: effectiveAptNum || null,
+                  apt_number: effectiveAptNum || null,
+                  aptNumber: effectiveAptNum || null,
                   age_gender: selectedPatient?.ageGender || `${selectedPatient?.age} / ${selectedPatient?.gender}`,
                   date: formatDateForDisplay(appointmentDate),
                   appointmentDate,
@@ -487,9 +794,15 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                   additionalInstructions: additionalInstructions || 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.',
                   status: 'Pending',
                 };
-                const savedRx = await appointmentApi.createPrescription(payload);
+
+                let rxIdToSend = existingRxId;
+                if (!rxIdToSend) {
+                  const savedRx = await appointmentApi.createPrescription(payload);
+                  rxIdToSend = savedRx.id || savedRx.rxId;
+                }
+
                 try {
-                  const res = await appointmentApi.sendPrescriptionWhatsApp(savedRx.id, {
+                  const res = await appointmentApi.sendPrescriptionWhatsApp(rxIdToSend, {
                     phone: selectedPatient?.phone,
                     patientName: selectedPatient?.name,
                     patientId: selectedPatient?.id,
@@ -499,15 +812,20 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                     diagnosis: payload.diagnosis,
                     medicines: payload.medicines,
                     additionalInstructions: payload.additionalInstructions,
+                    aptNumber: effectiveAptNum,
                     pdf_base64: extraData.pdf_base64,
                   });
+                  await appointmentApi.updatePrescriptionStatus(rxIdToSend, 'Delivered');
                   if (onSave) {
-                    onSave({ ...savedRx, status: 'Delivered' });
+                    onSave({ id: rxIdToSend, rxId: rxIdToSend, status: 'Delivered', ...payload });
                   }
+                  window.dispatchEvent(new CustomEvent('prescription-whatsapp-sent', {
+                    detail: { rxId: rxIdToSend, status: 'Delivered' }
+                  }));
                   return res;
                 } catch (sendErr) {
                   if (onSave) {
-                    onSave({ ...savedRx, status: 'Pending' });
+                    onSave({ id: rxIdToSend, rxId: rxIdToSend, status: 'Pending', ...payload });
                   }
                   throw sendErr;
                 }
@@ -549,6 +867,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
               </div>
               <input
                 type="text"
+                id="prescription-modal-patient-search-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by patient name, mobile number or patient ID..."
@@ -606,6 +925,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                     return filtered.map((p) => (
                       <div
                         key={p.id}
+                        className="patient-search-result-item"
                         onClick={() => {
                           setSelectedPatient({
                             id: p.id,
@@ -658,6 +978,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
             {/* Selected Patient Card */}
             {selectedPatient && (
               <div
+                id="new-prescription-selected-patient-card"
                 style={{
                   backgroundColor: '#edf7ed',
                   border: '1px solid #c7e6c9',
@@ -762,11 +1083,14 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                   }}
                 >
                   <option value="">-- Match appointment automatically by date --</option>
-                  {patientAppointments.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.id} — {a.date} ({a.time || '10:00 AM'}) - {a.reason || 'Consultation'} [{a.status}]
-                    </option>
-                  ))}
+                  {patientAppointments.map((a) => {
+                    const timeStr = a.time ? ` (${a.time})` : '';
+                    return (
+                      <option key={a.id} value={a.id}>
+                        {a.id} — {a.date}{timeStr}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}

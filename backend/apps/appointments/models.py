@@ -102,10 +102,6 @@ class Appointment(TimeStampedModel):
     def save(self, *args, **kwargs):
         if not self.appointment_id:
             self.appointment_id = f"APT-{uuid.uuid4().hex[:6].upper()}"
-        # Ensure that whenever prescription is Complete, appointment status is also Complete
-        if self.prescription_status and str(self.prescription_status).strip().lower() in ['complete', 'completed']:
-            if str(self.status).strip().lower() != 'cancelled':
-                self.status = 'Complete'
         super().save(*args, **kwargs)
 
     def __str__(self):

@@ -90,6 +90,7 @@ export const useAuth = () => {
     register,
     logout,
     updateUser,
+    clearAuth,
   };
 };
 
