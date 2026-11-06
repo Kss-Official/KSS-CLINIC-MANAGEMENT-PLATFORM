@@ -37,22 +37,24 @@ import UserDetailPage from '../features/users/UserDetailPage';
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* 1. Protected Website & Marketing Routes (Requires login to access website) */}
+      {/* 1. Public Website & Marketing Routes (Home Page with Login & Book Appointment) */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/services" element={<ServicesPage />} />
+      <Route path="/stories" element={<StoriesPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+
+      {/* 2. Book Appointment Page (Protected - requires patient/user authentication) */}
       <Route element={<ProtectedRoute redirectPath="/login" allowedRoles={['PATIENT', 'ADMIN', 'DOCTOR', 'RECEPTIONIST']} />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/services" element={<ServicesPage />} />
-        <Route path="/stories" element={<StoriesPage />} />
-        <Route path="/contact" element={<ContactPage />} />
         <Route path="/book-appointment" element={<BookAppointmentPage />} />
       </Route>
 
-      {/* 2. Protected Patient Portal (Only accessible by authenticated patients) */}
+      {/* 3. Protected Patient Portal (Only accessible by authenticated patients) */}
       <Route element={<ProtectedRoute redirectPath="/login" allowedRoles={['PATIENT']} />}>
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
 
-      {/* 3. Separate Patient and Admin Authentication */}
+      {/* 4. Separate Patient and Admin Authentication */}
       <Route path="/login" element={<LoginPage initialMode="login" />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/admin-login" element={<AdminLoginPage />} />
@@ -118,8 +120,8 @@ const AppRoutes = () => {
         />
       </Route>
 
-      {/* Fallback to Login */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Fallback to Home Page */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };
