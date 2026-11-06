@@ -155,9 +155,9 @@ const PrescriptionPreviewCard = ({
           backgroundColor: '#ffffff',
           borderRadius: '16px',
           border: '1px solid #e2e8f0',
-          padding: '24px 28px',
+          padding: '24px 28px 28px',
           boxSizing: 'border-box',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
         }}
       >
         {/* Clinic Header */}
@@ -181,7 +181,7 @@ const PrescriptionPreviewCard = ({
           <div style={{ flex: 1, minWidth: 0 }}>
             <h4
               style={{
-                fontSize: '15.5px',
+                fontSize: '16px',
                 fontWeight: '700',
                 color: '#0f172a',
                 margin: '0 0 2px 0',
@@ -195,7 +195,7 @@ const PrescriptionPreviewCard = ({
                 fontSize: '11px',
                 fontWeight: '800',
                 color: '#15803d',
-                letterSpacing: '0.4px',
+                letterSpacing: '0.5px',
                 marginBottom: '4px',
               }}
             >
@@ -226,8 +226,8 @@ const PrescriptionPreviewCard = ({
         <div
           style={{
             height: '1px',
-            backgroundColor: '#cbd5e1',
-            margin: '14px 0 16px 0',
+            backgroundColor: '#e2e8f0',
+            margin: '16px 0 16px 0',
           }}
         />
 
@@ -236,57 +236,57 @@ const PrescriptionPreviewCard = ({
           className="prescription-meta-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: '1.2fr 1fr',
-            gap: '8px 24px',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: '9px 28px',
             fontSize: '12px',
             lineHeight: 1.45,
           }}
         >
           {/* Row 1 */}
           <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
+            <span style={{ color: '#64748b', width: '100px', flexShrink: 0, fontWeight: '500' }}>
               Patient Name
             </span>
-            <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
-            <span style={{ color: '#0f172a', fontWeight: '700' }}>{patientName}</span>
+            <span style={{ color: '#64748b', marginRight: '8px' }}>:</span>
+            <span style={{ color: '#0f172a', fontWeight: '700', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{patientName}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '90px', flexShrink: 0, fontWeight: '500' }}>
+            <span style={{ color: '#64748b', width: '100px', flexShrink: 0, fontWeight: '500' }}>
               Patient ID
             </span>
-            <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
+            <span style={{ color: '#64748b', marginRight: '8px' }}>:</span>
             <span style={{ color: '#0f172a', fontWeight: '700' }}>{patientId}</span>
           </div>
 
           {/* Row 2 */}
           <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
+            <span style={{ color: '#64748b', width: '100px', flexShrink: 0, fontWeight: '500' }}>
               Age / Gender
             </span>
-            <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
+            <span style={{ color: '#64748b', marginRight: '8px' }}>:</span>
             <span style={{ color: '#0f172a', fontWeight: '700' }}>{ageGender}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '90px', flexShrink: 0, fontWeight: '500' }}>
+            <span style={{ color: '#64748b', width: '100px', flexShrink: 0, fontWeight: '500' }}>
               Date
             </span>
-            <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
+            <span style={{ color: '#64748b', marginRight: '8px' }}>:</span>
             <span style={{ color: '#0f172a', fontWeight: '700' }}>{date}</span>
           </div>
 
           {/* Row 3 */}
           <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
+            <span style={{ color: '#64748b', width: '100px', flexShrink: 0, fontWeight: '500' }}>
               Contact
             </span>
-            <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
+            <span style={{ color: '#64748b', marginRight: '8px' }}>:</span>
             <span style={{ color: '#0f172a', fontWeight: '700' }}>{contact}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '90px', flexShrink: 0, fontWeight: '500' }}>
+            <span style={{ color: '#64748b', width: '100px', flexShrink: 0, fontWeight: '500' }}>
               Consultation
             </span>
-            <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
+            <span style={{ color: '#64748b', marginRight: '8px' }}>:</span>
             <span style={{ color: '#0f172a', fontWeight: '700' }}>{consultationType}</span>
           </div>
 
@@ -294,10 +294,10 @@ const PrescriptionPreviewCard = ({
           {aptNumber ? (
             <>
               <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                <span style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
+                <span style={{ color: '#64748b', width: '100px', flexShrink: 0, fontWeight: '500' }}>
                   APT Number
                 </span>
-                <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
+                <span style={{ color: '#64748b', marginRight: '8px' }}>:</span>
                 <span style={{ color: '#0f172a', fontWeight: '700' }}>{aptNumber}</span>
               </div>
               <div />
@@ -312,7 +312,7 @@ const PrescriptionPreviewCard = ({
               fontSize: '12.5px',
               fontWeight: '700',
               color: '#0f172a',
-              marginBottom: '3px',
+              marginBottom: '4px',
             }}
           >
             Diagnosis
@@ -321,7 +321,9 @@ const PrescriptionPreviewCard = ({
             style={{
               fontSize: '12.5px',
               color: '#334155',
-              lineHeight: 1.4,
+              lineHeight: 1.5,
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
             }}
           >
             {diagnosis || 'Skin allergy due to seasonal change.'}
@@ -329,40 +331,47 @@ const PrescriptionPreviewCard = ({
         </div>
 
         {/* Medicines Table */}
-        <div style={{ marginTop: '14px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div
+          style={{
+            marginTop: '16px',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+          }}
+        >
           <table
             style={{
               width: '100%',
-              minWidth: '460px',
+              minWidth: '480px',
               borderCollapse: 'collapse',
               textAlign: 'left',
-              fontSize: '11.5px',
+              fontSize: '12px',
             }}
           >
             <thead>
               <tr
                 style={{
                   backgroundColor: '#f0fdf4',
-                  borderTop: '1px solid #e2e8f0',
-                  borderBottom: '1px solid #e2e8f0',
+                  borderBottom: '1px solid #dcfce7',
                 }}
               >
-                <th style={{ padding: '8px 10px', fontWeight: '700', color: '#166534', width: '36px', textAlign: 'center' }}>
+                <th style={{ padding: '9px 12px', fontWeight: '700', color: '#166534', width: '38px', textAlign: 'center' }}>
                   No.
                 </th>
-                <th style={{ padding: '8px 10px', fontWeight: '700', color: '#166534' }}>
+                <th style={{ padding: '9px 12px', fontWeight: '700', color: '#166534' }}>
                   Medicine Name
                 </th>
-                <th style={{ padding: '8px 10px', fontWeight: '700', color: '#166534', textAlign: 'center' }}>
+                <th style={{ padding: '9px 12px', fontWeight: '700', color: '#166534', textAlign: 'center' }}>
                   Potency
                 </th>
-                <th style={{ padding: '8px 10px', fontWeight: '700', color: '#166534', textAlign: 'center' }}>
+                <th style={{ padding: '9px 12px', fontWeight: '700', color: '#166534', textAlign: 'center' }}>
                   Dosage
                 </th>
-                <th style={{ padding: '8px 10px', fontWeight: '700', color: '#166534', textAlign: 'center' }}>
+                <th style={{ padding: '9px 12px', fontWeight: '700', color: '#166534', textAlign: 'center' }}>
                   Duration
                 </th>
-                <th style={{ padding: '8px 10px', fontWeight: '700', color: '#166534' }}>
+                <th style={{ padding: '9px 12px', fontWeight: '700', color: '#166534' }}>
                   Instructions
                 </th>
               </tr>
@@ -372,25 +381,26 @@ const PrescriptionPreviewCard = ({
                 <tr
                   key={idx}
                   style={{
-                    borderBottom: '1px solid #f1f5f9',
+                    borderBottom: idx === medicineList.length - 1 ? 'none' : '1px solid #f1f5f9',
+                    backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafcfb',
                   }}
                 >
-                  <td style={{ padding: '8px 10px', textAlign: 'center', color: '#64748b' }}>
+                  <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b' }}>
                     {idx + 1}
                   </td>
-                  <td style={{ padding: '8px 10px', fontWeight: '700', color: '#0f172a' }}>
+                  <td style={{ padding: '9px 12px', fontWeight: '700', color: '#0f172a' }}>
                     {med.name}
                   </td>
-                  <td style={{ padding: '8px 10px', textAlign: 'center', color: '#334155' }}>
+                  <td style={{ padding: '9px 12px', textAlign: 'center', color: '#334155' }}>
                     {med.potency}
                   </td>
-                  <td style={{ padding: '8px 10px', textAlign: 'center', color: '#334155' }}>
+                  <td style={{ padding: '9px 12px', textAlign: 'center', color: '#334155' }}>
                     {med.dosage}
                   </td>
-                  <td style={{ padding: '8px 10px', textAlign: 'center', color: '#334155' }}>
+                  <td style={{ padding: '9px 12px', textAlign: 'center', color: '#334155' }}>
                     {med.duration}
                   </td>
-                  <td style={{ padding: '8px 10px', color: '#334155' }}>
+                  <td style={{ padding: '9px 12px', color: '#334155' }}>
                     {med.instructions || med.timing}
                   </td>
                 </tr>
@@ -406,16 +416,18 @@ const PrescriptionPreviewCard = ({
               fontSize: '12px',
               fontWeight: '700',
               color: '#0f172a',
-              marginBottom: '3px',
+              marginBottom: '4px',
             }}
           >
             Additional Instructions
           </div>
           <div
             style={{
-              fontSize: '11.5px',
+              fontSize: '12px',
               color: '#475569',
-              lineHeight: 1.45,
+              lineHeight: 1.55,
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
             }}
           >
             {additionalInstructions || 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'}
@@ -425,7 +437,8 @@ const PrescriptionPreviewCard = ({
         {/* Doctor Signature Block (Bottom Right) */}
         <div
           style={{
-            marginTop: '18px',
+            marginTop: '22px',
+            paddingBottom: '4px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-end',
@@ -435,12 +448,12 @@ const PrescriptionPreviewCard = ({
           <div
             style={{
               fontFamily: "'Caveat', 'Dancing Script', 'Brush Script MT', cursive, sans-serif",
-              fontSize: '24px',
+              fontSize: '26px',
               fontWeight: '600',
               color: '#0f172a',
               letterSpacing: '1px',
               lineHeight: 1,
-              marginBottom: '2px',
+              marginBottom: '3px',
               userSelect: 'none',
             }}
           >
@@ -452,8 +465,8 @@ const PrescriptionPreviewCard = ({
             style={{
               width: '180px',
               height: '1.5px',
-              backgroundColor: '#334155',
-              marginBottom: '4px',
+              backgroundColor: '#1e293b',
+              marginBottom: '5px',
             }}
           />
 

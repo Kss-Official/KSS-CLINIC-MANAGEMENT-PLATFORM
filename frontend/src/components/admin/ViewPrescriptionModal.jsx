@@ -204,8 +204,8 @@ const ViewPrescriptionModal = ({
           backgroundColor: '#ffffff',
           borderRadius: '24px',
           width: '100%',
-          maxWidth: '680px',
-          maxHeight: 'calc(100vh - 40px)',
+          maxWidth: '720px',
+          maxHeight: '92vh',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           display: 'flex',
           flexDirection: 'column',
@@ -218,6 +218,7 @@ const ViewPrescriptionModal = ({
           className="admin-modal-scroll"
           style={{
             overflowY: 'auto',
+            overflowX: 'hidden',
             overscrollBehavior: 'contain',
             padding: '24px 28px',
             flex: 1,

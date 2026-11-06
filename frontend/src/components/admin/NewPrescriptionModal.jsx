@@ -889,11 +889,14 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                   }}
                 >
                   <option value="">-- Match appointment automatically by date --</option>
-                  {patientAppointments.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.id} — {a.date} ({a.time || '10:00 AM'}) - {a.reason || 'Consultation'} [{a.status}]
-                    </option>
-                  ))}
+                  {patientAppointments.map((a) => {
+                    const timeStr = a.time ? ` (${a.time})` : '';
+                    return (
+                      <option key={a.id} value={a.id}>
+                        {a.id} — {a.date}{timeStr}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}
