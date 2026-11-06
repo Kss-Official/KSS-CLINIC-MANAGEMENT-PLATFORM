@@ -135,6 +135,7 @@ const PrescriptionPreviewCard = ({
       <div
         id={cardId}
         ref={cardRef}
+        className="prescription-paper-card"
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '16px',
@@ -146,6 +147,7 @@ const PrescriptionPreviewCard = ({
       >
         {/* Clinic Header */}
         <div
+          className="prescription-clinic-header"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -155,6 +157,7 @@ const PrescriptionPreviewCard = ({
           <img
             src={doctorLogoImg}
             alt="Homeopathy Clinic Logo"
+            className="prescription-clinic-logo"
             style={{
               width: '54px',
               height: '54px',
@@ -162,8 +165,9 @@ const PrescriptionPreviewCard = ({
               flexShrink: 0,
             }}
           />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="prescription-clinic-details" style={{ flex: 1, minWidth: 0 }}>
             <h4
+              className="prescription-clinic-doctor"
               style={{
                 fontSize: '15.5px',
                 fontWeight: '700',
@@ -175,6 +179,7 @@ const PrescriptionPreviewCard = ({
               Dr. Kumar Tripathi Ampeh (Pat.)
             </h4>
             <div
+              className="prescription-clinic-tag"
               style={{
                 fontSize: '11px',
                 fontWeight: '800',
@@ -186,6 +191,7 @@ const PrescriptionPreviewCard = ({
               HOMEOPATHY CLINIC
             </div>
             <div
+              className="prescription-clinic-address"
               style={{
                 fontSize: '11.5px',
                 color: '#64748b',
@@ -195,6 +201,7 @@ const PrescriptionPreviewCard = ({
               12, Green Park, MG Road, Bangalore, Karnataka - 560001
             </div>
             <div
+              className="prescription-clinic-contact"
               style={{
                 fontSize: '11.5px',
                 color: '#64748b',
@@ -208,6 +215,7 @@ const PrescriptionPreviewCard = ({
 
         {/* Divider Line */}
         <div
+          className="prescription-divider"
           style={{
             height: '1px',
             backgroundColor: '#cbd5e1',
@@ -227,56 +235,56 @@ const PrescriptionPreviewCard = ({
           }}
         >
           {/* Row 1 */}
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
+          <div className="prescription-meta-item" style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span className="prescription-meta-label" style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
               Patient Name
             </span>
             <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
-            <span style={{ color: '#0f172a', fontWeight: '700' }}>{patientName}</span>
+            <span className="prescription-meta-value" style={{ color: '#0f172a', fontWeight: '700' }}>{patientName}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '90px', flexShrink: 0, fontWeight: '500' }}>
+          <div className="prescription-meta-item" style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span className="prescription-meta-label" style={{ color: '#64748b', width: '90px', flexShrink: 0, fontWeight: '500' }}>
               Patient ID
             </span>
             <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
-            <span style={{ color: '#0f172a', fontWeight: '700' }}>{patientId}</span>
+            <span className="prescription-meta-value" style={{ color: '#0f172a', fontWeight: '700' }}>{patientId}</span>
           </div>
 
           {/* Row 2 */}
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
+          <div className="prescription-meta-item" style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span className="prescription-meta-label" style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
               Age / Gender
             </span>
             <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
-            <span style={{ color: '#0f172a', fontWeight: '700' }}>{ageGender}</span>
+            <span className="prescription-meta-value" style={{ color: '#0f172a', fontWeight: '700' }}>{ageGender}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '90px', flexShrink: 0, fontWeight: '500' }}>
+          <div className="prescription-meta-item" style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span className="prescription-meta-label" style={{ color: '#64748b', width: '90px', flexShrink: 0, fontWeight: '500' }}>
               Date
             </span>
             <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
-            <span style={{ color: '#0f172a', fontWeight: '700' }}>{date}</span>
+            <span className="prescription-meta-value" style={{ color: '#0f172a', fontWeight: '700' }}>{date}</span>
           </div>
 
           {/* Row 3 */}
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
+          <div className="prescription-meta-item" style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span className="prescription-meta-label" style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
               Contact
             </span>
             <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
-            <span style={{ color: '#0f172a', fontWeight: '700' }}>{contact}</span>
+            <span className="prescription-meta-value" style={{ color: '#0f172a', fontWeight: '700' }}>{contact}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <span style={{ color: '#64748b', width: '90px', flexShrink: 0, fontWeight: '500' }}>
+          <div className="prescription-meta-item" style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span className="prescription-meta-label" style={{ color: '#64748b', width: '90px', flexShrink: 0, fontWeight: '500' }}>
               Consultation
             </span>
             <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
-            <span style={{ color: '#0f172a', fontWeight: '700' }}>{consultationType}</span>
+            <span className="prescription-meta-value" style={{ color: '#0f172a', fontWeight: '700' }}>{consultationType}</span>
           </div>
         </div>
 
         {/* Diagnosis */}
-        <div style={{ marginTop: '16px' }}>
+        <div className="prescription-diagnosis-box" style={{ marginTop: '16px' }}>
           <div
             style={{
               fontSize: '12.5px',
@@ -292,6 +300,7 @@ const PrescriptionPreviewCard = ({
               fontSize: '12.5px',
               color: '#334155',
               lineHeight: 1.4,
+              wordBreak: 'break-word',
             }}
           >
             {diagnosis || 'Skin allergy due to seasonal change.'}
@@ -299,8 +308,9 @@ const PrescriptionPreviewCard = ({
         </div>
 
         {/* Medicines Table */}
-        <div style={{ marginTop: '14px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div className="prescription-table-container" style={{ marginTop: '14px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table
+            className="prescription-table"
             style={{
               width: '100%',
               minWidth: '460px',
@@ -370,7 +380,7 @@ const PrescriptionPreviewCard = ({
         </div>
 
         {/* Additional Instructions */}
-        <div style={{ marginTop: '16px' }}>
+        <div className="prescription-instructions-box" style={{ marginTop: '16px' }}>
           <div
             style={{
               fontSize: '12px',
@@ -386,6 +396,7 @@ const PrescriptionPreviewCard = ({
               fontSize: '11.5px',
               color: '#475569',
               lineHeight: 1.45,
+              wordBreak: 'break-word',
             }}
           >
             {additionalInstructions || 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'}
@@ -394,6 +405,7 @@ const PrescriptionPreviewCard = ({
 
         {/* Doctor Signature Block (Bottom Right) */}
         <div
+          className="prescription-signature-block"
           style={{
             marginTop: '18px',
             display: 'flex',
@@ -419,6 +431,7 @@ const PrescriptionPreviewCard = ({
 
           {/* Underline */}
           <div
+            className="prescription-signature-line"
             style={{
               width: '180px',
               height: '1.5px',
@@ -429,6 +442,7 @@ const PrescriptionPreviewCard = ({
 
           {/* Doctor Name & Title */}
           <div
+            className="prescription-doctor-name"
             style={{
               fontSize: '11.5px',
               fontWeight: '700',
@@ -439,6 +453,7 @@ const PrescriptionPreviewCard = ({
             Dr. K. Tripathi Ampeh (Pat.)
           </div>
           <div
+            className="prescription-doctor-title"
             style={{
               fontSize: '10.5px',
               color: '#64748b',
@@ -765,14 +780,160 @@ const PrescriptionPreviewCard = ({
       </div>
 
       <style>{`
-        @media (max-width: 540px) {
-          .prescription-action-buttons-grid {
-            grid-template-columns: 1fr !important;
+        @media (max-width: 640px) {
+          .prescription-paper-card {
+            padding: 14px 10px !important;
+            border-radius: 12px !important;
+            box-sizing: border-box !important;
+            width: 100% !important;
+          }
+
+          .prescription-clinic-header {
             gap: 10px !important;
           }
+
+          .prescription-clinic-logo {
+            width: 44px !important;
+            height: 44px !important;
+          }
+
+          .prescription-clinic-doctor {
+            font-size: 14px !important;
+            line-height: 1.25 !important;
+          }
+
+          .prescription-clinic-tag {
+            font-size: 10px !important;
+            margin-bottom: 2px !important;
+          }
+
+          .prescription-clinic-address,
+          .prescription-clinic-contact {
+            font-size: 10.5px !important;
+            line-height: 1.35 !important;
+            word-break: break-word !important;
+          }
+
+          .prescription-divider {
+            margin: 10px 0 12px 0 !important;
+          }
+
           .prescription-meta-grid {
             grid-template-columns: 1fr !important;
-            gap: 6px !important;
+            gap: 5px !important;
+            font-size: 11.5px !important;
+            width: 100% !important;
+          }
+
+          .prescription-meta-item {
+            display: flex !important;
+            align-items: baseline !important;
+            min-width: 0 !important;
+          }
+
+          .prescription-meta-label {
+            width: 90px !important;
+            flex-shrink: 0 !important;
+            font-size: 11px !important;
+          }
+
+          .prescription-meta-value {
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            word-break: break-word !important;
+            font-size: 11.5px !important;
+          }
+
+          .prescription-diagnosis-box {
+            margin-top: 12px !important;
+          }
+
+          .prescription-table-container {
+            margin-top: 10px !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 8px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+
+          .prescription-table {
+            min-width: 420px !important;
+            width: 100% !important;
+            font-size: 11px !important;
+          }
+
+          .prescription-table th,
+          .prescription-table td {
+            padding: 6px 8px !important;
+          }
+
+          .prescription-instructions-box {
+            margin-top: 12px !important;
+          }
+
+          .prescription-signature-block {
+            margin-top: 12px !important;
+          }
+
+          .prescription-signature-line {
+            width: 150px !important;
+          }
+
+          .prescription-action-buttons-grid {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            margin-top: 14px !important;
+            width: 100% !important;
+          }
+
+          .prescription-action-buttons-grid button {
+            width: 100% !important;
+            min-height: 40px !important;
+            justify-content: center !important;
+            font-size: 13px !important;
+            padding: 9px 14px !important;
+            box-sizing: border-box !important;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .prescription-paper-card {
+            padding: 10px 8px !important;
+          }
+
+          .prescription-clinic-header {
+            gap: 8px !important;
+          }
+
+          .prescription-clinic-logo {
+            width: 38px !important;
+            height: 38px !important;
+          }
+
+          .prescription-clinic-doctor {
+            font-size: 13px !important;
+          }
+
+          .prescription-meta-label {
+            width: 82px !important;
+            font-size: 10px !important;
+          }
+
+          .prescription-meta-value {
+            font-size: 11px !important;
+          }
+
+          .prescription-table {
+            min-width: 390px !important;
+            font-size: 10.5px !important;
+          }
+
+          .prescription-table th,
+          .prescription-table td {
+            padding: 5px 6px !important;
           }
         }
       `}</style>

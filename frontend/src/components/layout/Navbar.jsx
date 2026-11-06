@@ -179,7 +179,14 @@ const Navbar = ({ onOpenBooking }) => {
       navigate('/login', { state: { from: '/book-appointment' } });
       return;
     }
-    navigate('/book-appointment');
+    if (onOpenBooking) {
+      onOpenBooking();
+    }
+    if (location.pathname === '/book-appointment') {
+      window.dispatchEvent(new CustomEvent('reset-booking-form'));
+    } else {
+      navigate('/book-appointment');
+    }
   };
 
   return (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 import useAuth from '../../hooks/useAuth';
 
@@ -10,7 +10,7 @@ import Navbar from '../../components/layout/Navbar';
 
 import bookingBannerClean from '../../assets/booking-banner-clean.jpg';
 
-import confirmedIllustration from '../../assets/confirmed-illustration.png';
+import confirmedIllustration from '../../assets/confirmed-illustration.png?v=v2_hd_3d';
 
 import appointmentApi from '../../api/appointmentApi';
 import { downloadAppointmentConfirmationPdf } from '../../utils/appointmentPdf';
@@ -20,12 +20,31 @@ import { downloadAppointmentConfirmationPdf } from '../../utils/appointmentPdf';
 const BookAppointmentPage = () => {
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { user, isAuthenticated } = useAuth();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const [rescheduleData, setRescheduleData] = useState(() => {
+    if (location.state?.rescheduleAppointment) return location.state.rescheduleAppointment;
+    try {
+      const cached = localStorage.getItem('kss_reschedule_appointment');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return null;
+  });
+
+  const [isRescheduledSuccess, setIsRescheduledSuccess] = useState(false);
+
+  const [currentStep, setCurrentStep] = useState(() => {
+    if (location.state?.rescheduleAppointment) return 2;
+    try {
+      const cached = localStorage.getItem('kss_reschedule_appointment');
+      if (cached) return 2;
+    } catch {}
+    return 1;
+  });
 
 
 
@@ -111,6 +130,81 @@ const BookAppointmentPage = () => {
     }
 
   }, [user, isAuthenticated]);
+
+  // Synchronize appointment details when in Reschedule mode
+  useEffect(() => {
+    if (rescheduleData) {
+      setFormData((prev) => ({
+        ...prev,
+        fullName: rescheduleData.patientName || prev.fullName,
+        mobileNumber: rescheduleData.patientPhone || prev.mobileNumber,
+        email: rescheduleData.patientEmail || prev.email,
+        gender: rescheduleData.patientGender || prev.gender,
+        age: rescheduleData.patientAge ? String(rescheduleData.patientAge) : prev.age,
+        city: rescheduleData.city || prev.city,
+        reasonForVisit: rescheduleData.reason || rescheduleData.title
+          ? String(rescheduleData.reason || rescheduleData.title).replace(/[^a-zA-Z\s]/g, '').slice(0, 35)
+          : prev.reasonForVisit,
+        appointmentId: rescheduleData.appointmentId || rescheduleData.id || prev.appointmentId,
+      }));
+    }
+  }, [rescheduleData]);
+
+  const handleCancelReschedule = () => {
+    setRescheduleData(null);
+    setIsRescheduledSuccess(false);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('kss_reschedule_appointment');
+      } catch {}
+    }
+    setCurrentStep(1);
+  };
+
+  const handleStartNewBooking = () => {
+    setCurrentStep(1);
+    setIsRescheduledSuccess(false);
+    setRescheduleData(null);
+    setErrors({});
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('kss_reschedule_appointment');
+      } catch {}
+    }
+
+    const full = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.name || user?.full_name || user?.username || '';
+    setFormData((prev) => ({
+      ...prev,
+      reasonForVisit: '',
+      selectedDay: new Date().getDate(),
+      selectedMonth: new Date().getMonth(),
+      selectedYear: new Date().getFullYear(),
+      selectedTimeSlot: '09:30 AM',
+      appointmentId: '',
+      fullName: prev.fullName || full,
+      mobileNumber: prev.mobileNumber || user?.phone_number || user?.phone || '',
+      email: prev.email || user?.email || '',
+    }));
+
+    setTimeout(() => {
+      const formEl = document.getElementById('booking-form-section') || document.querySelector('.booking-card');
+      if (formEl) {
+        formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 320, behavior: 'smooth' });
+      }
+    }, 50);
+  };
+
+  useEffect(() => {
+    const handleReset = () => {
+      handleStartNewBooking();
+    };
+    window.addEventListener('reset-booking-form', handleReset);
+    return () => {
+      window.removeEventListener('reset-booking-form', handleReset);
+    };
+  }, [user]);
 
 
 
@@ -300,33 +394,19 @@ const BookAppointmentPage = () => {
   // Base Time Slots list matching reference design
 
   const baseTimeSlots = [
-
     { time: '09:00 AM', defaultAvailable: true },
-
     { time: '09:30 AM', defaultAvailable: true },
-
+    { time: '10:00 AM', defaultAvailable: true },
     { time: '10:30 AM', defaultAvailable: true },
-
-    { time: '10:30 AM', defaultAvailable: true },
-
     { time: '11:00 AM', defaultAvailable: true },
-
     { time: '11:30 AM', defaultAvailable: true },
-
     { time: '12:00 PM', defaultAvailable: true },
-
-    { time: '12:30 PM', defaultAvailable: false }, // unavailable in design
-
+    { time: '12:30 PM', defaultAvailable: true },
     { time: '01:00 PM', defaultAvailable: true },
-
     { time: '04:00 PM', defaultAvailable: true },
-
     { time: '04:30 PM', defaultAvailable: true },
-
     { time: '05:00 PM', defaultAvailable: true },
-
     { time: '05:30 PM', defaultAvailable: true },
-
   ];
 
 
@@ -647,7 +727,20 @@ const BookAppointmentPage = () => {
 
 
 
-    if (name === 'reasonForVisit' && value.length > 500) return;
+    if (name === 'reasonForVisit') {
+      // Rule: Limit 35 characters, only alphabetic characters and spaces
+      const cleaned = value.replace(/[^a-zA-Z\s]/g, '').slice(0, 35);
+      if (/[^a-zA-Z\s]/.test(value)) {
+        setErrors((prev) => ({
+          ...prev,
+          reasonForVisit: 'Only alphabets and spaces are allowed',
+        }));
+      } else if (errors.reasonForVisit) {
+        setErrors((prev) => ({ ...prev, reasonForVisit: '' }));
+      }
+      setFormData((prev) => ({ ...prev, reasonForVisit: cleaned }));
+      return;
+    }
 
 
 
@@ -743,6 +836,26 @@ const BookAppointmentPage = () => {
 
 
 
+    // 5. Reason for Visit (Optional): if provided, max 35 characters, alphabets & spaces only
+
+    const reasonTrimmed = (formData.reasonForVisit || '').trim();
+
+    if (reasonTrimmed) {
+
+      if (reasonTrimmed.length > 35) {
+
+        newErrors.reasonForVisit = 'Reason cannot exceed 35 characters';
+
+      } else if (!/^[a-zA-Z\s]+$/.test(reasonTrimmed)) {
+
+        newErrors.reasonForVisit = 'Only alphabets and spaces are allowed';
+
+      }
+
+    }
+
+
+
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
@@ -828,6 +941,50 @@ const BookAppointmentPage = () => {
       const formattedDate = `${formData.selectedDay} ${months[formData.selectedMonth]} ${formData.selectedYear}`;
 
       try {
+        if (rescheduleData) {
+          const targetId = rescheduleData.appointmentId || rescheduleData.id;
+          const res = await appointmentApi.rescheduleAppointment(targetId, {
+            appointment_date: formattedDate,
+            time_slot: formData.selectedTimeSlot,
+            reason_for_visit: formData.reasonForVisit || 'Homeopathic Consultation',
+            status: 'Rescheduled',
+          });
+
+          const realId = res?.appointment?.appointment_id || res?.appointment_id || targetId;
+          setFormData((prev) => ({ ...prev, appointmentId: realId }));
+          setIsRescheduledSuccess(true);
+
+          // Immediately update bookedSlotsMap so slot is disabled
+          const [normK, rawK] = getSelectedDateKeys();
+          setBookedSlotsMap((prev) => ({
+            ...prev,
+            [normK]: [...(prev[normK] || []), formData.selectedTimeSlot],
+            [rawK]: [...(prev[rawK] || []), formData.selectedTimeSlot],
+          }));
+
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.removeItem('kss_reschedule_appointment');
+            } catch {}
+            if (formData.mobileNumber) localStorage.setItem('kss_patient_phone', formData.mobileNumber);
+            if (formData.email) localStorage.setItem('kss_patient_email', formData.email);
+            if (formData.fullName) localStorage.setItem('kss_patient_name', formData.fullName);
+            if (realId) localStorage.setItem('kss_last_appointment_id', realId);
+            window.dispatchEvent(new CustomEvent('appointment-updated', { detail: res }));
+            window.dispatchEvent(new CustomEvent('appointment-booked', { detail: res }));
+          }
+
+          setCurrentStep(3);
+          setTimeout(() => {
+            const bookingCardEl = document.querySelector('.booking-card');
+            if (bookingCardEl) {
+              bookingCardEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+              window.scrollTo({ top: 200, behavior: 'smooth' });
+            }
+          }, 50);
+          return;
+        }
 
         const res = await appointmentApi.bookAppointment({
 
@@ -1166,16 +1323,18 @@ const BookAppointmentPage = () => {
   // Handle PDF Download / Print
   const handleDownloadPdf = () => {
     try {
+      const reasonVal = formData.reasonForVisit?.trim();
       downloadAppointmentConfirmationPdf({
         appointmentId: formData.appointmentId,
         fullName: formData.fullName,
         mobileNumber: formData.mobileNumber,
         email: formData.email,
         doctorName: 'Dr. K. Tripathi Ampeh (Pat.)',
-        service: 'Homeopathy Consultation',
+        service: reasonVal || 'Homeopathy Consultation',
+        reason: reasonVal,
         date: formatSelectedFullDate(),
         time: formData.selectedTimeSlot,
-        clinicAddress: '123 Clinic Street, Your City, Your State - 123456',
+        clinicAddress: '123 Clinic Street, Your City,\nYour State - 123456',
         clinicPhone: '+91 98765 43210',
       });
     } catch (err) {
@@ -1235,25 +1394,8 @@ const BookAppointmentPage = () => {
     >
 
       {/* Top Navbar */}
-
       <Navbar
-
-        onOpenBooking={() => {
-
-          const formEl = document.getElementById('booking-form-section');
-
-          if (formEl) {
-
-            formEl.scrollIntoView({ behavior: 'smooth' });
-
-          } else {
-
-            window.scrollTo({ top: 280, behavior: 'smooth' });
-
-          }
-
-        }}
-
+        onOpenBooking={handleStartNewBooking}
       />
 
 
@@ -1351,7 +1493,7 @@ const BookAppointmentPage = () => {
         {/* Soft, light gradient overlay: luminous and natural without heavy dark shadow */}
 
         <div
-
+          className="booking-hero-banner-overlay"
           style={{
 
             position: 'absolute',
@@ -1852,6 +1994,73 @@ const BookAppointmentPage = () => {
 
               </div>
 
+            )}
+
+            {/* Rescheduling Active Notice Banner */}
+            {rescheduleData && currentStep !== 3 && (
+              <div
+                className="booking-reschedule-banner"
+                style={{
+                  marginBottom: '24px',
+                  padding: '14px 18px',
+                  borderRadius: '12px',
+                  backgroundColor: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '8px',
+                      backgroundColor: '#dbeafe',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#1d4ed8',
+                      fontSize: '18px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    🔄
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e40af', fontFamily: "'Manrope', sans-serif" }}>
+                      Rescheduling Appointment: {rescheduleData.appointmentId || rescheduleData.id}
+                    </div>
+                    <div style={{ fontSize: '12.5px', color: '#3b82f6', marginTop: '2px', fontFamily: "'Manrope', sans-serif" }}>
+                      Current: {rescheduleData.fullDate || rescheduleData.date} at {rescheduleData.time || 'Scheduled slot'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="booking-cancel-reschedule-btn"
+                  onClick={handleCancelReschedule}
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #93c5fd',
+                    color: '#1e40af',
+                    borderRadius: '8px',
+                    padding: '7px 14px',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    fontFamily: "'Manrope', sans-serif",
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                >
+                  Cancel Reschedule
+                </button>
+              </div>
             )}
 
 
@@ -2534,6 +2743,8 @@ const BookAppointmentPage = () => {
 
                       onChange={handleChange}
 
+                      maxLength={35}
+
                       rows="4"
 
                       placeholder="Briefly mention your health concern (optional)"
@@ -2550,7 +2761,7 @@ const BookAppointmentPage = () => {
 
                         borderRadius: '10px',
 
-                        border: '1px solid #e2e8f0',
+                        border: errors.reasonForVisit ? '1px solid #ef4444' : '1px solid #e2e8f0',
 
                         fontSize: '14px',
 
@@ -2568,9 +2779,9 @@ const BookAppointmentPage = () => {
 
                       }}
 
-                      onFocus={(e) => (e.target.style.borderColor = '#265e38')}
+                      onFocus={(e) => (e.target.style.borderColor = errors.reasonForVisit ? '#ef4444' : '#265e38')}
 
-                      onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
+                      onBlur={(e) => (e.target.style.borderColor = errors.reasonForVisit ? '#ef4444' : '#e2e8f0')}
 
                     />
 
@@ -2586,17 +2797,21 @@ const BookAppointmentPage = () => {
 
                         fontSize: '12px',
 
-                        color: '#9ca3af',
+                        color: (formData.reasonForVisit || '').length >= 35 ? '#ef4444' : '#9ca3af',
 
                       }}
 
                     >
 
-                      {formData.reasonForVisit.length}/500
+                      {(formData.reasonForVisit || '').length}/35
 
                     </span>
 
                   </div>
+
+                  {errors.reasonForVisit && (
+                    <p style={{ fontSize: '12px', color: '#ef4444', margin: '4px 0 0' }}>{errors.reasonForVisit}</p>
+                  )}
 
                 </div>
 
@@ -2939,83 +3154,50 @@ const BookAppointmentPage = () => {
                     {/* Weekday Names */}
 
                     <div
-
+                      className="booking-calendar-weekdays"
                       style={{
-
                         display: 'grid',
-
                         gridTemplateColumns: 'repeat(7, 1fr)',
-
                         textAlign: 'center',
-
                         fontSize: '12px',
-
                         fontWeight: '600',
-
                         color: '#6b7280',
-
                         marginBottom: '12px',
-
                       }}
-
                     >
-
                       {daysOfWeek.map((d) => (
-
                         <div key={d}>{d}</div>
-
                       ))}
-
                     </div>
-
-
 
                     {/* Calendar Days Matrix */}
 
                     <div
-
+                      className="booking-calendar-matrix"
                       style={{
-
                         display: 'grid',
-
                         gridTemplateColumns: 'repeat(7, 1fr)',
-
                         gap: '6px',
-
                         textAlign: 'center',
-
                       }}
-
                     >
-
                       {generateCalendarDays().map((item, idx) => {
-
                         const isDayClosed = item.isCurrentMonth && item.isWorkingDay === false;
                         const isDateRestricted = item.isCurrentMonth && item.isDateRestricted;
                         const isDisabled = !item.isCurrentMonth || item.isPast || isDayClosed || isDateRestricted;
 
                         const isSelected =
-
                           item.isCurrentMonth &&
-
                           !isDisabled &&
-
                           item.day === formData.selectedDay &&
-
                           calendarMonth === formData.selectedMonth &&
-
                           calendarYear === formData.selectedYear;
 
-
-
                         return (
-
                           <div
-
                             key={idx}
-
+                            className="booking-calendar-cell"
                             onClick={() => !isDisabled && handleSelectDate(item.day, item.isCurrentMonth, item.isPast)}
-
                             title={
                               !item.isCurrentMonth
                                 ? ''
@@ -3027,33 +3209,20 @@ const BookAppointmentPage = () => {
                                 ? 'Clinic is closed on this day'
                                 : 'Click to select date'
                             }
-
                             style={{
-
                               display: 'flex',
-
                               flexDirection: 'column',
-
                               alignItems: 'center',
-
                               justifyContent: 'center',
-
                               height: '38px',
-
                               cursor: isDisabled ? 'not-allowed' : 'pointer',
-
                               userSelect: 'none',
-
                             }}
-
                           >
-
                             <div
-
+                              className="booking-calendar-day-circle"
                               style={{
-
                                 width: '32px',
-
                                 height: '32px',
 
                                 borderRadius: '50%',
@@ -3203,23 +3372,15 @@ const BookAppointmentPage = () => {
                       {/* Slots Header */}
 
                       <div
-
+                        className="booking-slots-header"
                         style={{
-
                           display: 'flex',
-
                           alignItems: 'center',
-
                           justifyContent: 'space-between',
-
                           marginBottom: '18px',
-
                           flexWrap: 'wrap',
-
                           gap: '8px',
-
                         }}
-
                       >
 
                         <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#111827', margin: 0 }}>
@@ -3293,109 +3454,60 @@ const BookAppointmentPage = () => {
                           return (
 
                             <button
-
                               key={index}
-
                               type="button"
-
+                              className="booking-time-slot-btn"
                               disabled={isUnavailable}
-
                               onClick={() => {
-
                                 if (!isUnavailable) {
-
                                   setFormData((p) => ({ ...p, selectedTimeSlot: slot.time }));
-
                                 }
-
                               }}
-
                               title={slot.isBooked ? 'Slot already booked' : slot.isOutsideHours ? `Outside clinic hours (${effectiveHours.startTime} - ${effectiveHours.endTime})` : isUnavailable ? 'Slot unavailable' : 'Click to select slot'}
-
                               style={{
-
                                 padding: '10px 6px',
-
                                 borderRadius: '8px',
-
                                 border: isSelected
-
                                   ? '1.5px solid #1b4332'
-
                                   : isUnavailable
-
                                   ? '1px solid #f1f5f9'
-
                                   : '1px solid #e2e8f0',
-
                                 backgroundColor: isSelected
-
                                   ? '#1b4332'
-
                                   : isUnavailable
-
                                   ? '#f8fafc'
-
                                   : '#ffffff',
-
                                 color: isSelected
-
                                   ? '#ffffff'
-
                                   : isUnavailable
-
                                   ? '#94a3b8'
-
                                   : '#374151',
-
                                 fontSize: '13px',
-
                                 fontWeight: isSelected ? '700' : '500',
-
                                 cursor: isUnavailable ? 'not-allowed' : 'pointer',
-
                                 transition: 'all 0.15s ease',
-
                                 textAlign: 'center',
-
                               }}
-
                             >
-
                               {slot.time}
-
                             </button>
-
                           );
-
                         })}
-
                       </div>
-
                     </div>
-
-
 
                     {/* Bottom Selected Slot Information Pill */}
 
                     <div
-
+                      className="booking-selected-slot-pill"
                       style={{
-
                         backgroundColor: '#f0fdf4',
-
                         border: '1px solid #dcfce7',
-
                         borderRadius: '10px',
-
                         padding: '12px 16px',
-
                         display: 'flex',
-
                         alignItems: 'center',
-
                         gap: '12px',
-
                       }}
 
                     >
@@ -3521,45 +3633,37 @@ const BookAppointmentPage = () => {
 
 
                   <button
-
                     type="button"
-
                     className="booking-step-btn"
-
                     onClick={handleNextStep}
-
+                    disabled={bookingLoading}
                     style={{
-
                       backgroundColor: '#1b4332',
-
                       color: '#ffffff',
-
                       border: 'none',
-
                       borderRadius: '8px',
-
                       padding: '12px 28px',
-
                       fontSize: '14px',
-
                       fontWeight: '700',
-
-                      cursor: 'pointer',
-
+                      cursor: bookingLoading ? 'not-allowed' : 'pointer',
                       display: 'inline-flex',
-
                       alignItems: 'center',
-
                       gap: '8px',
-
                       boxShadow: '0 4px 14px rgba(27, 67, 50, 0.25)',
-
+                      opacity: bookingLoading ? 0.75 : 1,
                     }}
-
                   >
-
-                    Next Step <span>→</span>
-
+                    {bookingLoading ? (
+                      rescheduleData ? 'Rescheduling...' : 'Booking...'
+                    ) : rescheduleData ? (
+                      <>
+                        Confirm Reschedule <span>→</span>
+                      </>
+                    ) : (
+                      <>
+                        Confirm & Book Appointment <span>→</span>
+                      </>
+                    )}
                   </button>
 
                 </div>
@@ -3593,7 +3697,8 @@ const BookAppointmentPage = () => {
                       alt="Appointment Confirmed"
                       className="booking-confirm-img"
                       style={{
-                        maxWidth: '240px',
+                        maxWidth: '300px',
+                        width: '100%',
                         height: 'auto',
                         display: 'inline-block',
                         objectFit: 'contain',
@@ -3614,7 +3719,7 @@ const BookAppointmentPage = () => {
                       letterSpacing: '-0.3px',
                     }}
                   >
-                    Your Appointment is Confirmed!
+                    {isRescheduledSuccess ? 'Your Appointment is Rescheduled!' : 'Your Appointment is Confirmed!'}
                   </h2>
                   <p
                     className="booking-confirm-subtitle"
@@ -3625,8 +3730,20 @@ const BookAppointmentPage = () => {
                       margin: 0,
                     }}
                   >
-                    Thank you for choosing Dr. Kumar Tripathi Ampeh (Pat.).<br />
-                    We look forward to seeing you at the clinic.
+                    {isRescheduledSuccess ? (
+                      <>
+                        Your appointment has been successfully rescheduled for{' '}
+                        <strong style={{ color: '#0f172a' }}>
+                          {formData.selectedDay} {months[formData.selectedMonth]} {formData.selectedYear} at {formData.selectedTimeSlot}
+                        </strong>.<br />
+                        We have updated your consultation schedule.
+                      </>
+                    ) : (
+                      <>
+                        Thank you for choosing Dr. Kumar Tripathi Ampeh (Pat.).<br />
+                        We look forward to seeing you at the clinic.
+                      </>
+                    )}
                   </p>
                 </div>
 
@@ -3673,9 +3790,9 @@ const BookAppointmentPage = () => {
 
                     <span
                       style={{
-                        backgroundColor: '#ecfdf5',
-                        color: '#047857',
-                        border: '1px solid #a7f3d0',
+                        backgroundColor: isRescheduledSuccess ? '#eff6ff' : '#ecfdf5',
+                        color: isRescheduledSuccess ? '#1d4ed8' : '#047857',
+                        border: isRescheduledSuccess ? '1px solid #bfdbfe' : '1px solid #a7f3d0',
                         fontSize: '12px',
                         fontWeight: '700',
                         padding: '4px 12px',
@@ -3691,87 +3808,101 @@ const BookAppointmentPage = () => {
                           width: '6px',
                           height: '6px',
                           borderRadius: '50%',
-                          backgroundColor: '#10b981',
+                          backgroundColor: isRescheduledSuccess ? '#3b82f6' : '#10b981',
                           display: 'inline-block',
                         }}
                       />
-                      Confirmed
+                      {isRescheduledSuccess ? 'Rescheduled' : 'Confirmed'}
                     </span>
                   </div>
 
                   {/* 2-Columns Details Grid */}
-                  <div
-                    className="booking-confirm-grid"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1.15fr 1fr',
-                      rowGap: '16px',
-                      columnGap: '28px',
-                      fontSize: '14px',
-                    }}
-                  >
-                    {/* Row 1 */}
-                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🪪</span>
-                      <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Appointment ID</span>
-                      <strong style={{ color: '#0f172a', fontWeight: '700', wordBreak: 'break-all' }}>{formData.appointmentId}</strong>
-                    </div>
+                  {(() => {
+                    const hasReason = Boolean(formData.reasonForVisit?.trim());
+                    const col2LabelWidth = hasReason ? '108px' : '72px';
+                    return (
+                      <div
+                        className="booking-confirm-grid"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1.15fr 1fr',
+                          rowGap: '16px',
+                          columnGap: '28px',
+                          fontSize: '14px',
+                        }}
+                      >
+                        {/* Row 1 */}
+                        <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🪪</span>
+                          <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Appointment ID</span>
+                          <strong style={{ color: '#0f172a', fontWeight: '700', wordBreak: 'break-all' }}>{formData.appointmentId}</strong>
+                        </div>
 
-                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>👨‍⚕️</span>
-                      <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: '72px', width: '72px', flexShrink: 0, fontWeight: '500' }}>Doctor</span>
-                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>Dr. K. Tripathi Ampeh (Pat.)</strong>
-                    </div>
+                        <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>👨‍⚕️</span>
+                          <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: col2LabelWidth, width: col2LabelWidth, flexShrink: 0, fontWeight: '500' }}>Doctor</span>
+                          <strong style={{ color: '#0f172a', fontWeight: '700' }}>Dr. K. Tripathi Ampeh (Pat.)</strong>
+                        </div>
 
-                    {/* Row 2 */}
-                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>👤</span>
-                      <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Patient Name</span>
-                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formData.fullName}</strong>
-                    </div>
+                        {/* Row 2 */}
+                        <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                          <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0, marginTop: '2px' }}>👤</span>
+                          <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500', marginTop: '2px' }}>Patient Name</span>
+                          <strong style={{ color: '#0f172a', fontWeight: '700', marginTop: '2px', wordBreak: 'break-word' }}>{formData.fullName}</strong>
+                        </div>
 
-                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>⚙️</span>
-                      <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: '72px', width: '72px', flexShrink: 0, fontWeight: '500' }}>Service</span>
-                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>Homeopathy Consultation</strong>
-                    </div>
+                        <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', minWidth: 0 }}>
+                          <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0, marginTop: '2px' }}>
+                            {hasReason ? '📋' : '⚙️'}
+                          </span>
+                          <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: col2LabelWidth, width: col2LabelWidth, flexShrink: 0, fontWeight: '500', marginTop: '2px' }}>
+                            {hasReason ? 'Reason for Visit' : 'Service'}
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0, maxHeight: '130px', overflowY: 'auto', wordBreak: 'break-word', overflowWrap: 'anywhere', paddingRight: '4px' }}>
+                            <strong style={{ color: '#0f172a', fontWeight: '700', lineHeight: '1.45', display: 'block' }}>
+                              {hasReason ? formData.reasonForVisit.trim() : 'Homeopathy Consultation'}
+                            </strong>
+                          </div>
+                        </div>
 
-                    {/* Row 3 */}
-                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>📞</span>
-                      <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Mobile Number</span>
-                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formData.mobileNumber}</strong>
-                    </div>
+                        {/* Row 3 */}
+                        <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>📞</span>
+                          <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Mobile Number</span>
+                          <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formData.mobileNumber}</strong>
+                        </div>
 
-                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>📅</span>
-                      <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: '72px', width: '72px', flexShrink: 0, fontWeight: '500' }}>Date</span>
-                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formatSelectedFullDate()}</strong>
-                    </div>
+                        <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>📅</span>
+                          <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: col2LabelWidth, width: col2LabelWidth, flexShrink: 0, fontWeight: '500' }}>Date</span>
+                          <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formatSelectedFullDate()}</strong>
+                        </div>
 
-                    {/* Row 4 */}
-                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>✉️</span>
-                      <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Email</span>
-                      <strong style={{ color: '#0f172a', fontWeight: '700', wordBreak: 'break-all' }}>{formData.email}</strong>
-                    </div>
+                        {/* Row 4 */}
+                        <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>✉️</span>
+                          <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Email</span>
+                          <strong style={{ color: '#0f172a', fontWeight: '700', wordBreak: 'break-all' }}>{formData.email}</strong>
+                        </div>
 
-                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🕒</span>
-                      <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: '72px', width: '72px', flexShrink: 0, fontWeight: '500' }}>Time</span>
-                      <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formData.selectedTimeSlot}</strong>
-                    </div>
+                        <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🕒</span>
+                          <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: col2LabelWidth, width: col2LabelWidth, flexShrink: 0, fontWeight: '500' }}>Time</span>
+                          <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formData.selectedTimeSlot}</strong>
+                        </div>
 
-                    {/* Row 5: Clinic Address */}
-                    <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                      <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', marginTop: '2px', flexShrink: 0 }}>📍</span>
-                      <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, marginTop: '2px', fontWeight: '500' }}>Clinic Address</span>
-                      <strong style={{ color: '#0f172a', fontWeight: '700', lineHeight: '1.5' }}>
-                        123 Clinic Street, Your City,<br />
-                        Your State - 123456
-                      </strong>
-                    </div>
-                  </div>
+                        {/* Row 5: Clinic Address */}
+                        <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                          <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', marginTop: '2px', flexShrink: 0 }}>📍</span>
+                          <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, marginTop: '2px', fontWeight: '500' }}>Clinic Address</span>
+                          <strong style={{ color: '#0f172a', fontWeight: '700', lineHeight: '1.5' }}>
+                            123 Clinic Street, Your City,<br />
+                            Your State - 123456
+                          </strong>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Important Note Callout */}
@@ -3851,7 +3982,61 @@ const BookAppointmentPage = () => {
                     Download Confirmation (PDF)
                   </button>
 
-                  {/* Button 2: Back to Home */}
+                  {/* Button 2: View in Profile / Appointments */}
+                  <button
+                    type="button"
+                    className="booking-action-btn"
+                    onClick={() => navigate('/profile')}
+                    style={{
+                      backgroundColor: '#eff6ff',
+                      color: '#1d4ed8',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: '8px',
+                      padding: '11px 18px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s',
+                      fontFamily: "'Manrope', sans-serif",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#dbeafe')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#eff6ff')}
+                  >
+                    <span>👤</span>
+                    View in Profile
+                  </button>
+
+                  {/* Button 3: Book Another Appointment */}
+                  <button
+                    type="button"
+                    className="booking-action-btn"
+                    onClick={handleStartNewBooking}
+                    style={{
+                      backgroundColor: '#f0fdf4',
+                      color: '#166534',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '8px',
+                      padding: '11px 18px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s',
+                      fontFamily: "'Manrope', sans-serif",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#dcfce7')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f0fdf4')}
+                  >
+                    <span>📅</span>
+                    Book Another Appointment
+                  </button>
+
+                  {/* Button 4: Back to Home */}
                   <button
                     type="button"
                     className="booking-action-btn booking-home-btn"
@@ -4154,7 +4339,10 @@ const BookAppointmentPage = () => {
 
             >
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div
+                className="booking-sidebar-card-header"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}
+              >
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 
@@ -4736,57 +4924,116 @@ const BookAppointmentPage = () => {
           }
         }
 
+        @media (max-width: 680px) {
+          .booking-step-label-full {
+            display: none !important;
+          }
+          .booking-step-label-short {
+            display: inline !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+          }
+          .booking-step-divider {
+            margin: 0 8px !important;
+            min-width: 8px !important;
+            flex: 1 1 8px !important;
+          }
+        }
+
         @media (max-width: 640px) {
           .booking-page-wrapper {
             overflow-x: hidden !important;
             max-width: 100vw !important;
+            width: 100% !important;
           }
           .booking-hero-banner {
-            height: 180px !important;
+            height: 175px !important;
           }
           .booking-banner-inner {
             padding: 0 16px !important;
           }
           .booking-hero-banner-image {
-            min-height: 180px !important;
+            min-height: 175px !important;
             object-fit: cover !important;
             object-position: center !important;
           }
+          .booking-hero-banner-overlay {
+            background: linear-gradient(90deg, rgba(16, 46, 26, 0.82) 0%, rgba(16, 46, 26, 0.65) 55%, rgba(16, 46, 26, 0.38) 100%) !important;
+          }
           .booking-banner-title {
             font-size: 21px !important;
+            line-height: 1.25 !important;
             margin-bottom: 4px !important;
           }
           .booking-banner-subtitle {
             font-size: 12px !important;
             line-height: 1.4 !important;
+            max-width: 320px !important;
           }
           .booking-main-content {
             padding: 16px 12px 40px !important;
+            max-width: 100vw !important;
+            box-sizing: border-box !important;
           }
           .booking-card {
-            padding: 20px 14px !important;
+            padding: 18px 14px !important;
             border-radius: 16px !important;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+            box-sizing: border-box !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .booking-card input,
+          .booking-card select,
+          .booking-card textarea {
+            box-sizing: border-box !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            font-size: 14px !important;
+          }
+          .booking-card input[type="date"] {
+            min-height: 44px !important;
+            font-family: inherit !important;
           }
           .booking-stepper-wrap {
-            margin-bottom: 22px !important;
-            padding-bottom: 16px !important;
+            margin-bottom: 20px !important;
+            padding-bottom: 14px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
           }
           .booking-step-item {
             gap: 6px !important;
             min-width: 0 !important;
+            flex-shrink: 0 !important;
           }
           .booking-step-circle {
             width: 24px !important;
             height: 24px !important;
             font-size: 11px !important;
+            flex-shrink: 0 !important;
           }
           .booking-step-label {
             font-size: 12px !important;
+            white-space: nowrap !important;
           }
           .booking-step-divider {
-            margin: 0 8px !important;
-            min-width: 12px !important;
+            margin: 0 6px !important;
+            min-width: 8px !important;
+            flex: 1 1 8px !important;
+          }
+          .booking-reschedule-banner {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+            padding: 12px 14px !important;
+            margin-bottom: 18px !important;
+          }
+          .booking-cancel-reschedule-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            text-align: center !important;
+            min-height: 38px !important;
+            box-sizing: border-box !important;
           }
           .booking-step-heading {
             font-size: 19px !important;
@@ -4794,6 +5041,7 @@ const BookAppointmentPage = () => {
           }
           .booking-step-subheading {
             font-size: 12.5px !important;
+            line-height: 1.45 !important;
           }
           .booking-form-row {
             grid-template-columns: 1fr !important;
@@ -4815,8 +5063,10 @@ const BookAppointmentPage = () => {
           .booking-step-btn {
             width: 100% !important;
             justify-content: center !important;
-            padding: 12px 20px !important;
-            font-size: 14px !important;
+            padding: 13px 20px !important;
+            font-size: 14.5px !important;
+            min-height: 46px !important;
+            box-sizing: border-box !important;
           }
           .booking-step2-bottom {
             flex-direction: column-reverse !important;
@@ -4827,48 +5077,115 @@ const BookAppointmentPage = () => {
           .booking-back-btn {
             width: 100% !important;
             justify-content: center !important;
+            min-height: 44px !important;
+            font-size: 14px !important;
+            box-sizing: border-box !important;
           }
           .booking-calendar-card,
           .booking-slots-card {
             padding: 14px 12px !important;
             border-radius: 14px !important;
+            box-sizing: border-box !important;
+          }
+          .booking-calendar-matrix {
+            gap: 4px !important;
+          }
+          .booking-calendar-cell {
+            height: 36px !important;
+          }
+          .booking-calendar-day-circle {
+            width: 30px !important;
+            height: 30px !important;
+            font-size: 12px !important;
+          }
+          .booking-slots-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 4px !important;
+            margin-bottom: 14px !important;
+          }
+          .booking-slots-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 8px !important;
+            margin-bottom: 16px !important;
+          }
+          .booking-time-slot-btn {
+            padding: 11px 6px !important;
+            font-size: 12.5px !important;
+            min-height: 42px !important;
+            box-sizing: border-box !important;
+          }
+          .booking-selected-slot-pill {
+            padding: 10px 12px !important;
+            gap: 10px !important;
+            border-radius: 10px !important;
           }
           .booking-confirm-img {
-            max-width: 180px !important;
+            max-width: 160px !important;
+            height: auto !important;
+            margin: 0 auto !important;
           }
           .booking-confirm-title {
-            font-size: 21px !important;
+            font-size: 20px !important;
+            line-height: 1.25 !important;
+            margin-bottom: 6px !important;
           }
           .booking-confirm-subtitle {
-            font-size: 13px !important;
+            font-size: 12.5px !important;
+            line-height: 1.5 !important;
           }
           .booking-confirm-card {
-            padding: 20px 0 !important;
+            padding: 16px 0 !important;
+            margin-bottom: 18px !important;
             border-radius: 0 !important;
           }
           .booking-confirm-grid {
             grid-template-columns: 1fr !important;
-            row-gap: 14px !important;
+            row-gap: 12px !important;
+          }
+          .booking-confirm-row {
+            display: flex !important;
+            align-items: flex-start !important;
+            gap: 8px !important;
+            font-size: 13px !important;
           }
           .booking-confirm-label,
           .booking-confirm-label-col2 {
-            min-width: 118px !important;
-            width: 118px !important;
+            min-width: 105px !important;
+            width: 105px !important;
+            font-size: 12px !important;
+            color: #64748b !important;
+            flex-shrink: 0 !important;
+          }
+          .booking-confirm-icon {
+            width: 24px !important;
+            height: 24px !important;
+            font-size: 12px !important;
             flex-shrink: 0 !important;
           }
           .booking-confirm-actions {
             flex-direction: column !important;
             align-items: stretch !important;
             gap: 10px !important;
+            width: 100% !important;
           }
           .booking-action-btn {
             width: 100% !important;
             justify-content: center !important;
-            margin-left: 0 !important;
+            margin: 0 !important;
+            padding: 12px 14px !important;
+            font-size: 13.5px !important;
+            min-height: 44px !important;
+            box-sizing: border-box !important;
           }
           .booking-sidebar-card {
             padding: 18px 16px !important;
             border-radius: 16px !important;
+            box-sizing: border-box !important;
+          }
+          .booking-sidebar-card-header {
+            flex-wrap: wrap !important;
+            gap: 8px !important;
           }
           .booking-footer {
             padding: 22px 0 20px !important;
@@ -4912,29 +5229,83 @@ const BookAppointmentPage = () => {
           }
         }
 
-        @media (max-width: 520px) {
-          .booking-step-label-full {
-            display: none !important;
+        @media (max-width: 480px) {
+          .booking-hero-banner {
+            height: 160px !important;
           }
-          .booking-step-label-short {
-            display: inline !important;
-            font-size: 11.5px !important;
-            font-weight: 600 !important;
+          .booking-hero-banner-image {
+            min-height: 160px !important;
           }
-          .booking-step-divider {
-            margin: 0 6px !important;
+          .booking-banner-title {
+            font-size: 20px !important;
+          }
+          .booking-banner-subtitle {
+            font-size: 12px !important;
+            max-width: 270px !important;
+          }
+          .booking-card {
+            padding: 16px 12px !important;
           }
         }
 
-        @media (max-width: 440px) {
-          .booking-slots-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 8px !important;
+        @media (max-width: 400px) {
+          .booking-step-label-short {
+            font-size: 11px !important;
+          }
+          .booking-step-circle {
+            width: 22px !important;
+            height: 22px !important;
+            font-size: 10.5px !important;
+          }
+          .booking-step-divider {
+            margin: 0 4px !important;
+            min-width: 6px !important;
+            flex: 1 1 6px !important;
+          }
+          .booking-step-item {
+            gap: 4px !important;
+          }
+          .booking-calendar-matrix {
+            gap: 2px !important;
+          }
+          .booking-calendar-day-circle {
+            width: 28px !important;
+            height: 28px !important;
+            font-size: 11.5px !important;
+          }
+          .booking-calendar-cell {
+            height: 34px !important;
           }
           .booking-confirm-label,
           .booking-confirm-label-col2 {
-            min-width: 105px !important;
-            width: 105px !important;
+            min-width: 95px !important;
+            width: 95px !important;
+            font-size: 11.5px !important;
+          }
+        }
+
+        @media (max-width: 340px) {
+          .booking-step-label-short {
+            font-size: 10px !important;
+          }
+          .booking-step-divider {
+            margin: 0 2px !important;
+            min-width: 4px !important;
+          }
+          .booking-calendar-day-circle {
+            width: 26px !important;
+            height: 26px !important;
+            font-size: 11px !important;
+          }
+          .booking-time-slot-btn {
+            padding: 9px 4px !important;
+            font-size: 11.5px !important;
+          }
+          .booking-confirm-label,
+          .booking-confirm-label-col2 {
+            min-width: 88px !important;
+            width: 88px !important;
+            font-size: 11px !important;
           }
         }
 

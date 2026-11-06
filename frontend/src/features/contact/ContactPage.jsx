@@ -1788,13 +1788,13 @@ const ContactPage = () => {
                   </div>
                 </div>
 
-                {/* 2 Action Buttons: Get Directions & Call Clinic */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                {/* Action Button: Get Directions */}
+                <div>
                   <button
                     type="button"
                     onClick={handleOpenGoogleMaps}
                     style={{
-                      flex: 1.3,
+                      width: '100%',
                       backgroundColor: '#164327',
                       color: '#ffffff',
                       border: 'none',
@@ -1825,42 +1825,6 @@ const ContactPage = () => {
                     </svg>
                     <span>Get Directions &nbsp;→</span>
                   </button>
-
-                  <a
-                    href="tel:+919876543210"
-                    style={{
-                      flex: 1,
-                      backgroundColor: '#eaf7ef',
-                      color: '#166534',
-                      border: '1px solid #c8e8d4',
-                      borderRadius: '12px',
-                      padding: '14px 20px',
-                      fontSize: '14.5px',
-                      fontWeight: '700',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      textDecoration: 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      fontFamily: "'Manrope', sans-serif",
-                      boxSizing: 'border-box',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#dcf2e4';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#eaf7ef';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                    </svg>
-                    <span>Call Clinic</span>
-                  </a>
                 </div>
               </div>
             </div>

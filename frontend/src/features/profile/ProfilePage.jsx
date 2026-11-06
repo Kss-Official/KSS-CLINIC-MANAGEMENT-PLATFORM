@@ -16,6 +16,7 @@ import ViewPrescriptionModal from '../../components/admin/ViewPrescriptionModal'
 import PrescriptionPreviewCard from '../../components/admin/PrescriptionPreviewCard';
 
 import { downloadPrescriptionPdf } from '../../utils/prescriptionPdf';
+import { downloadAppointmentConfirmationPdf } from '../../utils/appointmentPdf';
 
 import profileHerbs from '../../assets/profile-banner-herbs.png?v=v3_clean_mortar_herbs';
 
@@ -259,15 +260,16 @@ const ProfilePage = () => {
 
   const appointmentDialogRef = useRef(null);
 
-
-
   // Filters
-
   const [appointmentFilter, setAppointmentFilter] = useState('All');
-
   const [prescriptionFilter, setPrescriptionFilter] = useState('All');
 
+  // Pagination states
+  const [aptCurrentPage, setAptCurrentPage] = useState(1);
+  const [aptPageSize, setAptPageSize] = useState(5);
 
+  const [rxCurrentPage, setRxCurrentPage] = useState(1);
+  const [rxPageSize, setRxPageSize] = useState(5);
 
   // Appointment History Data (starts empty, populated strictly for authenticated user)
 
@@ -415,13 +417,25 @@ const ProfilePage = () => {
 
               status: a.status || 'Confirmed',
 
-              pdfName: `Appointment_${a.id || idx + 1}.pdf`,
+              pdfName: `Appointment_${a.id || a.appointmentId || idx + 1}.pdf`,
 
               pdfDate: a.date,
 
               reason: a.reason || '',
 
               hasPrescription: !!a.hasPrescription,
+
+              patientName: a.patientName || a.fullName || a.name || profile.fullName || 'Patient',
+
+              patientPhone: a.patientPhone || a.phone || a.mobile || a.mobileNumber || profile.mobileNumber || '',
+
+              patientEmail: a.patientEmail || a.email || profile.email || '',
+
+              gender: a.gender || profile.gender || '',
+
+              age: a.age || profile.age || '',
+
+              city: a.city || profile.city || '',
 
             };
 
@@ -587,6 +601,8 @@ const ProfilePage = () => {
 
     window.addEventListener('appointment-booked', handleEvent);
 
+    window.addEventListener('appointment-updated', handleEvent);
+
     window.addEventListener('prescription-created', handleEvent);
 
     window.addEventListener('focus', handleEvent);
@@ -602,6 +618,8 @@ const ProfilePage = () => {
     return () => {
 
       window.removeEventListener('appointment-booked', handleEvent);
+
+      window.removeEventListener('appointment-updated', handleEvent);
 
       window.removeEventListener('prescription-created', handleEvent);
 
@@ -1119,33 +1137,76 @@ const ProfilePage = () => {
     }
   };
 
-  const handleDownloadAppointmentPdf = async (aptOrName) => {
+  const handleDownloadAppointmentPdf = (aptOrName) => {
     const apt = (typeof aptOrName === 'object' && aptOrName !== null) ? aptOrName : (selectedAppointment || {});
-    const aptId = apt.appointmentId || apt.id || (typeof aptOrName === 'string' ? aptOrName.replace(/^Appointment_/i, '').replace(/\.pdf$/i, '') : '');
-    const filename = apt.pdfName || (aptId ? `Appointment_${aptId}.pdf` : 'Appointment_Document.pdf');
-    if (!aptId) {
-      alert('Could not identify appointment for PDF download.');
-      return;
+    if (!apt) return;
+
+    const aptId = apt.appointmentId || apt.id || 'APT-CONFIRMED';
+    // Generates the exact confirmed appointment receipt PDF matching website branding
+    downloadAppointmentConfirmationPdf({
+      appointmentId: aptId,
+      fullName: apt.patientName || profile.fullName || user?.name || 'Patient',
+      mobileNumber: apt.patientPhone || profile.mobileNumber || user?.phone || '',
+      email: apt.patientEmail || profile.email || user?.email || '',
+      doctorName: apt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+      service: apt.reason || apt.title || apt.service || 'Homeopathic Consultation',
+      reason: apt.reason || apt.title || '',
+      date: apt.fullDate || apt.date || '',
+      time: apt.time || '',
+      clinicAddress: '12, Green Park, MG Road, Bangalore, Karnataka - 560001',
+      clinicPhone: '+91 98765 43210',
+      filename: apt.pdfName || `Appointment_${aptId}.pdf`,
+    });
+  };
+
+  const handleRescheduleAppointment = (apt) => {
+    const targetApt = apt || selectedAppointment;
+    if (!targetApt) return;
+
+    // Cache appointment data in localStorage so BookAppointmentPage picks it up reliably
+    try {
+      localStorage.setItem('kss_reschedule_appointment', JSON.stringify({
+        ...targetApt,
+        id: targetApt.appointmentId || targetApt.id,
+        appointmentId: targetApt.appointmentId || targetApt.id,
+        patientName: targetApt.patientName || profile.fullName || user?.name || '',
+        patientPhone: targetApt.patientPhone || profile.mobileNumber || user?.phone || '',
+        patientEmail: targetApt.patientEmail || profile.email || user?.email || '',
+        patientGender: targetApt.gender || profile.gender || '',
+        patientAge: targetApt.age || profile.age || '',
+        city: targetApt.city || profile.city || '',
+        reason: targetApt.title || targetApt.service || targetApt.reason || '',
+        title: targetApt.title || targetApt.service || targetApt.reason || '',
+        fullDate: targetApt.fullDate || targetApt.date || '',
+        time: targetApt.time || '',
+        doctor: targetApt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+      }));
+    } catch (e) {
+      console.warn('Failed to cache reschedule appointment', e);
     }
 
-    setDownloadingAppointmentPdf(true);
-    try {
-      const blob = await appointmentApi.downloadAppointmentPdfBlob(aptId);
-      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-    } catch (err) {
-      console.error('Failed to download appointment PDF:', err);
-      alert('Failed to download appointment PDF. Please try again.');
-    } finally {
-      setDownloadingAppointmentPdf(false);
-    }
+    handleCloseAppointmentModal();
+
+    navigate('/book-appointment', {
+      state: {
+        rescheduleAppointment: {
+          ...targetApt,
+          id: targetApt.appointmentId || targetApt.id,
+          appointmentId: targetApt.appointmentId || targetApt.id,
+          patientName: targetApt.patientName || profile.fullName || user?.name || '',
+          patientPhone: targetApt.patientPhone || profile.mobileNumber || user?.phone || '',
+          patientEmail: targetApt.patientEmail || profile.email || user?.email || '',
+          patientGender: targetApt.gender || profile.gender || '',
+          patientAge: targetApt.age || profile.age || '',
+          city: targetApt.city || profile.city || '',
+          reason: targetApt.title || targetApt.service || targetApt.reason || '',
+          title: targetApt.title || targetApt.service || targetApt.reason || '',
+          fullDate: targetApt.fullDate || targetApt.date || '',
+          time: targetApt.time || '',
+          doctor: targetApt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+        },
+      },
+    });
   };
 
 
@@ -1169,18 +1230,257 @@ const ProfilePage = () => {
       e.clientY > rect.bottom;
 
     if (isOutside) {
-
       onClose();
-
     }
-
   };
 
+  // Reusable Pagination Component (matching target UI with prev/next, active green page, and size selector)
+  const renderPagination = ({
+    currentPage,
+    totalPages,
+    pageSize,
+    onPageChange,
+    onPageSizeChange,
+  }) => {
+    const count = Math.max(1, totalPages);
+    let startPage = 1;
+    let endPage = count;
+    if (count > 5) {
+      startPage = Math.max(1, currentPage - 2);
+      endPage = Math.min(count, startPage + 4);
+      if (endPage - startPage < 4) {
+        startPage = Math.max(1, endPage - 4);
+      }
+    }
+    const pageNumbers = [];
+    for (let p = startPage; p <= endPage; p++) {
+      pageNumbers.push(p);
+    }
 
+    return (
+      <div
+        className="profile-pagination"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          flexWrap: 'wrap',
+          gap: '6px',
+          marginTop: '18px',
+          paddingTop: '16px',
+          borderTop: '1px solid #f1f5f9',
+          fontFamily: "'Manrope', sans-serif",
+        }}
+      >
+        {/* Previous Page Button */}
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          disabled={currentPage <= 1}
+          aria-label="Previous Page"
+          style={{
+            width: '34px',
+            height: '34px',
+            minWidth: '34px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            backgroundColor: '#ffffff',
+            color: currentPage <= 1 ? '#cbd5e1' : '#475569',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
+            opacity: currentPage <= 1 ? 0.45 : 1,
+            transition: 'all 0.15s ease',
+            padding: 0,
+          }}
+          onMouseEnter={(e) => {
+            if (currentPage > 1) {
+              e.currentTarget.style.backgroundColor = '#f8fafc';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (currentPage > 1) {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.borderColor = '#e2e8f0';
+            }
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
 
+        {/* Page Number Buttons */}
+        {pageNumbers.map((pageNum) => {
+          const isActive = pageNum === currentPage;
+          return (
+            <button
+              key={pageNum}
+              type="button"
+              onClick={() => onPageChange(pageNum)}
+              aria-label={`Page ${pageNum}`}
+              aria-current={isActive ? 'page' : undefined}
+              style={{
+                width: '34px',
+                height: '34px',
+                minWidth: '34px',
+                borderRadius: '8px',
+                border: isActive ? '1px solid #0d5c3a' : '1px solid #e2e8f0',
+                backgroundColor: isActive ? '#0d5c3a' : '#ffffff',
+                color: isActive ? '#ffffff' : '#374151',
+                fontSize: '13px',
+                fontWeight: isActive ? '700' : '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                padding: 0,
+                fontFamily: "'Manrope', sans-serif",
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = '#f8fafc';
+                  e.currentTarget.style.borderColor = '#cbd5e1';
+                  e.currentTarget.style.color = '#0f172a';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = '#ffffff';
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                  e.currentTarget.style.color = '#374151';
+                }
+              }}
+            >
+              {pageNum}
+            </button>
+          );
+        })}
 
+        {/* Next Page Button */}
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(count, currentPage + 1))}
+          disabled={currentPage >= count}
+          aria-label="Next Page"
+          style={{
+            width: '34px',
+            height: '34px',
+            minWidth: '34px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            backgroundColor: '#ffffff',
+            color: currentPage >= count ? '#cbd5e1' : '#475569',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: currentPage >= count ? 'not-allowed' : 'pointer',
+            opacity: currentPage >= count ? 0.45 : 1,
+            transition: 'all 0.15s ease',
+            padding: 0,
+          }}
+          onMouseEnter={(e) => {
+            if (currentPage < count) {
+              e.currentTarget.style.backgroundColor = '#f8fafc';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (currentPage < count) {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.borderColor = '#e2e8f0';
+            }
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
 
-
+        {/* Page Size Selector */}
+        <div
+          className="profile-page-size-wrap"
+          style={{
+            position: 'relative',
+            display: 'inline-flex',
+            alignItems: 'center',
+            marginLeft: '6px',
+          }}
+        >
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            aria-label="Select items per page"
+            style={{
+              height: '34px',
+              padding: '0 28px 0 12px',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              backgroundColor: '#ffffff',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#374151',
+              cursor: 'pointer',
+              outline: 'none',
+              fontFamily: "'Manrope', sans-serif",
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#e2e8f0';
+            }}
+          >
+            <option value={5}>5 page</option>
+            <option value={10}>10 page</option>
+            <option value={20}>20 page</option>
+          </select>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#64748b"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              position: 'absolute',
+              right: '9px',
+              pointerEvents: 'none',
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
+      </div>
+    );
+  };
 
   return (
 
@@ -1278,7 +1578,7 @@ const ProfilePage = () => {
 
           {/* Left Text Column */}
 
-          <div style={{ zIndex: 2, maxWidth: '620px' }}>
+          <div style={{ zIndex: 2, maxWidth: '620px' }} className="profile-header-text">
 
             {/* Eyebrow Chip */}
 
@@ -1356,6 +1656,8 @@ const ProfilePage = () => {
 
             <h1
 
+              className="profile-header-title"
+
               style={{
 
                 fontSize: '34px',
@@ -1383,6 +1685,8 @@ const ProfilePage = () => {
             {/* Paragraph with enriched, professional text covering the space */}
 
             <p
+
+              className="profile-header-desc"
 
               style={{
 
@@ -1474,6 +1778,8 @@ const ProfilePage = () => {
 
         <div
 
+          className="profile-personal-card"
+
           style={{
 
             backgroundColor: '#ffffff',
@@ -1495,6 +1801,8 @@ const ProfilePage = () => {
           {/* Card Header Row */}
 
           <div
+
+            className="profile-personal-card-header"
 
             style={{
 
@@ -1533,6 +1841,8 @@ const ProfilePage = () => {
             <button
 
               type="button"
+
+              className="profile-edit-btn"
 
               onClick={handleOpenEdit}
 
@@ -1609,6 +1919,7 @@ const ProfilePage = () => {
             {/* Avatar & Upload Option with Dropdown */}
             <div
               ref={uploadDropdownRef}
+              className="profile-avatar-wrapper"
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -1621,6 +1932,7 @@ const ProfilePage = () => {
             >
               {/* Avatar Circle */}
               <div
+                className="profile-avatar-circle"
                 onClick={() => !isUploadingImage && setUploadDropdownOpen((prev) => !prev)}
                 title="Click to manage profile picture"
                 style={{
@@ -1904,9 +2216,9 @@ const ProfilePage = () => {
 
               {/* Row 1: Full Name & Mobile */}
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div className="profile-field-item" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
 
-                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                <span className="profile-field-icon" style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
 
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
@@ -1918,7 +2230,7 @@ const ProfilePage = () => {
 
                 </span>
 
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
 
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
 
@@ -1926,7 +2238,7 @@ const ProfilePage = () => {
 
                   </span>
 
-                  <span style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginTop: '2px', display: 'block' }}>
+                  <span style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginTop: '2px', display: 'block', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
 
                     {profile.fullName}
 
@@ -1938,9 +2250,9 @@ const ProfilePage = () => {
 
 
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div className="profile-field-item" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
 
-                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                <span className="profile-field-icon" style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
 
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
@@ -1950,7 +2262,7 @@ const ProfilePage = () => {
 
                 </span>
 
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
 
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
 
@@ -1958,7 +2270,7 @@ const ProfilePage = () => {
 
                   </span>
 
-                  <span style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginTop: '2px', display: 'block' }}>
+                  <span style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginTop: '2px', display: 'block', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
 
                     {profile.mobileNumber}
 
@@ -1972,9 +2284,9 @@ const ProfilePage = () => {
 
               {/* Row 2: Email & Date of Birth */}
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div className="profile-field-item" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
 
-                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                <span className="profile-field-icon" style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
 
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
@@ -1986,7 +2298,7 @@ const ProfilePage = () => {
 
                 </span>
 
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
 
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
 
@@ -1994,7 +2306,7 @@ const ProfilePage = () => {
 
                   </span>
 
-                  <span style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginTop: '2px', display: 'block' }}>
+                  <span style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginTop: '2px', display: 'block', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
 
                     {profile.email}
 
@@ -2006,9 +2318,9 @@ const ProfilePage = () => {
 
 
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div className="profile-field-item" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
 
-                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                <span className="profile-field-icon" style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
 
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
@@ -2024,7 +2336,7 @@ const ProfilePage = () => {
 
                 </span>
 
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
 
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
 
@@ -2032,7 +2344,7 @@ const ProfilePage = () => {
 
                   </span>
 
-                  <span style={{ fontSize: '15px', fontWeight: '700', color: profile.dateOfBirth ? '#111827' : '#9ca3af', marginTop: '2px', display: 'block' }}>
+                  <span style={{ fontSize: '15px', fontWeight: '700', color: profile.dateOfBirth ? '#111827' : '#9ca3af', marginTop: '2px', display: 'block', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
 
                     {formatDobForDisplay(profile.dateOfBirth)}
 
@@ -2046,9 +2358,9 @@ const ProfilePage = () => {
 
               {/* Row 3: Gender & City */}
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div className="profile-field-item" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
 
-                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                <span className="profile-field-icon" style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
 
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
@@ -2062,7 +2374,7 @@ const ProfilePage = () => {
 
                 </span>
 
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
 
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
 
@@ -2070,7 +2382,7 @@ const ProfilePage = () => {
 
                   </span>
 
-                  <span style={{ fontSize: '15px', fontWeight: '700', color: profile.gender ? '#111827' : '#9ca3af', marginTop: '2px', display: 'block' }}>
+                  <span style={{ fontSize: '15px', fontWeight: '700', color: profile.gender ? '#111827' : '#9ca3af', marginTop: '2px', display: 'block', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
 
                     {profile.gender || '—'}
 
@@ -2082,9 +2394,9 @@ const ProfilePage = () => {
 
 
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div className="profile-field-item" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
 
-                <span style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
+                <span className="profile-field-icon" style={{ color: '#6b7280', marginTop: '2px', display: 'flex' }}>
 
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
 
@@ -2096,7 +2408,7 @@ const ProfilePage = () => {
 
                 </span>
 
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
 
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#9ca3af', letterSpacing: '0.5px' }}>
 
@@ -2104,7 +2416,7 @@ const ProfilePage = () => {
 
                   </span>
 
-                  <span style={{ fontSize: '15px', fontWeight: '700', color: profile.city ? '#111827' : '#9ca3af', marginTop: '2px', display: 'block' }}>
+                  <span style={{ fontSize: '15px', fontWeight: '700', color: profile.city ? '#111827' : '#9ca3af', marginTop: '2px', display: 'block', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
 
                     {profile.city || '—'}
 
@@ -2125,39 +2437,33 @@ const ProfilePage = () => {
         {/* Bottom Section: 2 Side-by-Side Cards (Appointment History & Prescriptions) */}
 
         <div
-
           style={{
-
             display: 'grid',
-
             gridTemplateColumns: '1fr 1fr',
-
             gap: '24px',
-
             alignItems: 'start',
-
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
           }}
-
           className="profile-bottom-grid"
-
         >
 
           {/* Card 1: Appointment History */}
 
           <div
 
+            className="profile-section-card profile-appointments-card"
             style={{
-
               backgroundColor: '#ffffff',
-
               borderRadius: '16px',
-
               padding: '28px',
-
               boxShadow: '0 4px 18px rgba(0, 0, 0, 0.03)',
-
               border: '1px solid #edf2ee',
-
+              width: '100%',
+              maxWidth: '100%',
+              minWidth: 0,
+              boxSizing: 'border-box',
             }}
 
           >
@@ -2165,6 +2471,8 @@ const ProfilePage = () => {
             {/* Header with Filter */}
 
             <div
+
+              className="profile-card-header"
 
               style={{
 
@@ -2180,7 +2488,7 @@ const ProfilePage = () => {
 
             >
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="profile-card-header-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 
                 <div
 
@@ -2243,10 +2551,12 @@ const ProfilePage = () => {
 
 
               <select
-
+                className="profile-filter-select"
                 value={appointmentFilter}
-
-                onChange={(e) => setAppointmentFilter(e.target.value)}
+                onChange={(e) => {
+                  setAppointmentFilter(e.target.value);
+                  setAptCurrentPage(1);
+                }}
 
                 style={{
 
@@ -2382,7 +2692,14 @@ const ProfilePage = () => {
 
 
 
-                return filtered.map((item) => (
+                const totalPages = Math.max(1, Math.ceil(filtered.length / aptPageSize));
+                const safeCurrentPage = Math.min(Math.max(1, aptCurrentPage), totalPages);
+                const startIndex = (safeCurrentPage - 1) * aptPageSize;
+                const paginatedAppointments = filtered.slice(startIndex, startIndex + aptPageSize);
+
+                return (
+                  <>
+                    {paginatedAppointments.map((item) => (
 
                 <div
 
@@ -2390,24 +2707,19 @@ const ProfilePage = () => {
 
                   onClick={() => handleOpenAppointmentModal(item)}
 
+                  className="profile-appointment-item"
                   style={{
-
                     display: 'flex',
-
                     alignItems: 'center',
-
                     justifyContent: 'space-between',
-
                     padding: '12px 14px',
-
                     borderRadius: '12px',
-
                     border: '1px solid transparent',
-
                     cursor: 'pointer',
-
                     transition: 'all 0.15s ease',
-
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    minWidth: 0,
                   }}
 
                   onMouseEnter={(e) => {
@@ -2428,11 +2740,13 @@ const ProfilePage = () => {
 
                 >
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div className="profile-appointment-left" style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
 
                     {/* Date Badge */}
 
                     <div
+
+                      className="profile-date-badge"
 
                       style={{
 
@@ -2496,21 +2810,21 @@ const ProfilePage = () => {
 
                     {/* Consultation Meta */}
 
-                    <div>
+                    <div className="profile-appointment-meta" style={{ flex: 1, minWidth: 0 }}>
 
-                      <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
+                      <h4 className="profile-appointment-title" style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0, fontFamily: "'Manrope', sans-serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
 
                         {item.title}
 
                       </h4>
 
-                      <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif" }}>
+                      <p className="profile-appointment-doctor" style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
 
                         {item.doctor}
 
                       </p>
 
-                      <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif" }}>
+                      <p className="profile-appointment-time" style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif" }}>
 
                         {item.time}
 
@@ -2524,15 +2838,19 @@ const ProfilePage = () => {
 
                   {/* Right Status & Arrow */}
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div className="profile-appointment-right" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginLeft: '8px' }}>
 
                     <span
 
+                      className="profile-status-badge"
+
                       style={{
 
-                        backgroundColor: '#dcfce7',
+                        backgroundColor: item.status === 'Rescheduled' ? '#eff6ff' : item.status === 'Cancelled' ? '#fef2f2' : '#dcfce7',
 
-                        color: '#166534',
+                        color: item.status === 'Rescheduled' ? '#1d4ed8' : item.status === 'Cancelled' ? '#b91c1c' : '#166534',
+
+                        border: item.status === 'Rescheduled' ? '1px solid #bfdbfe' : item.status === 'Cancelled' ? '1px solid #fecaca' : 'none',
 
                         fontSize: '12px',
 
@@ -2553,17 +2871,25 @@ const ProfilePage = () => {
                     </span>
 
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-
                       <polyline points="9 18 15 12 9 6" />
-
                     </svg>
-
                   </div>
-
                 </div>
+              ))}
 
-              ));
-            })()}
+              {renderPagination({
+                currentPage: safeCurrentPage,
+                totalPages: totalPages,
+                pageSize: aptPageSize,
+                onPageChange: (p) => setAptCurrentPage(p),
+                onPageSizeChange: (s) => {
+                  setAptPageSize(s);
+                  setAptCurrentPage(1);
+                },
+              })}
+            </>
+          );
+        })()}
 
             </div>
 
@@ -2575,18 +2901,17 @@ const ProfilePage = () => {
 
           <div
 
+            className="profile-section-card profile-prescriptions-card"
             style={{
-
               backgroundColor: '#ffffff',
-
               borderRadius: '16px',
-
               padding: '28px',
-
               boxShadow: '0 4px 18px rgba(0, 0, 0, 0.03)',
-
               border: '1px solid #edf2ee',
-
+              width: '100%',
+              maxWidth: '100%',
+              minWidth: 0,
+              boxSizing: 'border-box',
             }}
 
           >
@@ -2594,6 +2919,8 @@ const ProfilePage = () => {
             {/* Header with Filter */}
 
             <div
+
+              className="profile-card-header"
 
               style={{
 
@@ -2609,7 +2936,7 @@ const ProfilePage = () => {
 
             >
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="profile-card-header-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 
                 <div
 
@@ -2672,10 +2999,12 @@ const ProfilePage = () => {
 
 
               <select
-
+                className="profile-filter-select"
                 value={prescriptionFilter}
-
-                onChange={(e) => setPrescriptionFilter(e.target.value)}
+                onChange={(e) => {
+                  setPrescriptionFilter(e.target.value);
+                  setRxCurrentPage(1);
+                }}
 
                 style={{
 
@@ -2807,7 +3136,14 @@ const ProfilePage = () => {
 
 
 
-                return filteredPrescriptions.map((item) => (
+                const totalPages = Math.max(1, Math.ceil(filteredPrescriptions.length / rxPageSize));
+                const safeCurrentPage = Math.min(Math.max(1, rxCurrentPage), totalPages);
+                const startIndex = (safeCurrentPage - 1) * rxPageSize;
+                const paginatedPrescriptions = filteredPrescriptions.slice(startIndex, startIndex + rxPageSize);
+
+                return (
+                  <>
+                    {paginatedPrescriptions.map((item) => (
 
                 <div
 
@@ -2817,24 +3153,19 @@ const ProfilePage = () => {
 
                   title="Click to view full prescription"
 
+                  className="profile-prescription-item"
                   style={{
-
                     display: 'flex',
-
                     alignItems: 'center',
-
                     justifyContent: 'space-between',
-
                     padding: '12px 14px',
-
                     borderRadius: '12px',
-
                     border: '1px solid #f3f4f6',
-
                     cursor: 'pointer',
-
                     transition: 'all 0.15s ease',
-
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    minWidth: 0,
                   }}
 
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
@@ -2843,9 +3174,11 @@ const ProfilePage = () => {
 
                 >
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div className="profile-prescription-left" style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
 
                     <div
+
+                      className="profile-rx-icon"
 
                       style={{
 
@@ -2885,15 +3218,15 @@ const ProfilePage = () => {
 
                     </div>
 
-                    <div>
+                    <div className="profile-prescription-meta" style={{ flex: 1, minWidth: 0 }}>
 
-                      <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
+                      <h4 className="profile-prescription-title" style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0, fontFamily: "'Manrope', sans-serif", overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
 
                         {item.title}
 
                       </h4>
 
-                      <p style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif" }}>
+                      <p className="profile-prescription-date" style={{ fontSize: '12px', color: '#6b7280', margin: '2px 0 0 0', fontFamily: "'Manrope', sans-serif" }}>
 
                         {item.date}
 
@@ -2910,6 +3243,8 @@ const ProfilePage = () => {
                   <button
 
                     type="button"
+
+                    className="profile-download-btn"
 
                     disabled={downloadingRxId === (item.id || item.rxId)}
 
@@ -2946,6 +3281,10 @@ const ProfilePage = () => {
                       alignItems: 'center',
 
                       gap: '6px',
+
+                      flexShrink: 0,
+
+                      marginLeft: '8px',
 
                       transition: 'all 0.15s ease',
 
@@ -2995,25 +3334,29 @@ const ProfilePage = () => {
 
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
 
-                          <polyline points="7 10 12 15 17 10" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      <span>Download</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            ))}
 
-                          <line x1="12" y1="15" x2="12" y2="3" />
-
-                        </svg>
-
-                        <span>Download</span>
-
-                      </>
-
-                    )}
-
-                  </button>
-
-                </div>
-
-              ));
-
-            })()}
+            {renderPagination({
+              currentPage: safeCurrentPage,
+              totalPages: totalPages,
+              pageSize: rxPageSize,
+              onPageChange: (p) => setRxCurrentPage(p),
+              onPageSizeChange: (s) => {
+                setRxPageSize(s);
+                setRxCurrentPage(1);
+              },
+            })}
+          </>
+        );
+      })()}
 
             </div>
 
@@ -3028,47 +3371,31 @@ const ProfilePage = () => {
       {/* ================= APPOINTMENT DETAILS MODAL (EXACT MATCHING UI) ================= */}
 
       <dialog
-
         ref={appointmentDialogRef}
-
         onClick={(e) => handleDialogBackdropClick(e, handleCloseAppointmentModal, appointmentDialogRef)}
-
         aria-labelledby="appointment-details-title"
-
+        className="profile-appointment-dialog"
         style={{
-
           borderRadius: '20px',
-
           border: 'none',
-
           padding: 0,
-
           maxWidth: '620px',
-
           width: '92%',
-
+          maxHeight: '90vh',
           margin: 'auto',
-
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-
-          overflow: 'hidden',
-
+          overflowY: 'auto',
+          overflowX: 'hidden',
           backgroundColor: '#ffffff',
-
+          WebkitOverflowScrolling: 'touch',
         }}
-
       >
-
         {selectedAppointment && (
-
-          <div style={{ padding: '32px 36px 30px' }}>
-
+          <div className="profile-modal-inner" style={{ padding: '32px 36px 30px' }}>
             {/* Header Row: Title on Left, Status Badge & Close button on Right */}
-
             <div
-
+              className="profile-modal-header"
               style={{
-
                 display: 'flex',
 
                 alignItems: 'center',
@@ -3082,99 +3409,56 @@ const ProfilePage = () => {
             >
 
               <h3
-
                 id="appointment-details-title"
-
+                className="profile-modal-title"
                 style={{
-
                   fontSize: '20px',
-
                   fontWeight: '800',
-
                   color: '#111827',
-
                   margin: 0,
-
                   letterSpacing: '-0.3px',
-
                   fontFamily: "'Manrope', sans-serif",
-
                 }}
-
               >
-
                 Appointment Details
-
               </h3>
 
-
-
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-
                 <span
-
+                  className="profile-modal-status-badge"
                   style={{
-
-                    backgroundColor: '#dcfce7',
-
-                    color: '#15803d',
-
+                    backgroundColor: selectedAppointment.status === 'Rescheduled' ? '#eff6ff' : selectedAppointment.status === 'Cancelled' ? '#fef2f2' : '#dcfce7',
+                    color: selectedAppointment.status === 'Rescheduled' ? '#1d4ed8' : selectedAppointment.status === 'Cancelled' ? '#b91c1c' : '#15803d',
+                    border: selectedAppointment.status === 'Rescheduled' ? '1px solid #bfdbfe' : selectedAppointment.status === 'Cancelled' ? '1px solid #fecaca' : 'none',
                     fontSize: '12px',
-
                     fontWeight: '700',
-
                     padding: '4px 14px',
-
                     borderRadius: '9999px',
-
                     fontFamily: "'Manrope', sans-serif",
-
                   }}
-
                 >
-
                   {selectedAppointment.status}
-
                 </span>
 
-
-
                 <button
-
                   type="button"
-
                   onClick={handleCloseAppointmentModal}
-
                   aria-label="Close Appointment Details"
-
+                  className="profile-modal-close-x"
                   style={{
-
                     background: 'none',
-
                     border: 'none',
-
                     cursor: 'pointer',
-
                     color: '#9ca3af',
-
                     display: 'flex',
-
                     alignItems: 'center',
-
                     justifyContent: 'center',
-
                     padding: '4px',
-
                     borderRadius: '6px',
-
                     transition: 'color 0.15s ease',
-
                   }}
-
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#111827')}
-
                   onMouseLeave={(e) => (e.currentTarget.style.color = '#9ca3af')}
-
                 >
 
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3196,394 +3480,220 @@ const ProfilePage = () => {
             {/* Box 1: Primary Details 2-Column Grid */}
 
             <div
-
+              className="profile-modal-box profile-modal-details-box"
               style={{
-
                 backgroundColor: '#ffffff',
-
                 border: '1px solid #edf2ee',
-
                 borderRadius: '16px',
-
                 padding: '22px 24px',
-
                 marginBottom: '16px',
-
               }}
-
             >
-
               <div
-
+                className="profile-modal-grid"
                 style={{
-
                   display: 'grid',
-
                   gridTemplateColumns: '1.2fr 1fr',
-
                   rowGap: '20px',
-
                   columnGap: '24px',
-
                 }}
-
               >
-
                 {/* Row 1: Type & ID */}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-
+                <div className="profile-modal-grid-item" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
-
+                    className="profile-modal-grid-icon"
                     style={{
-
                       width: '36px',
-
                       height: '36px',
-
                       borderRadius: '8px',
-
                       backgroundColor: '#e8f5e9',
-
                       display: 'flex',
-
                       alignItems: 'center',
-
                       justifyContent: 'center',
-
                       flexShrink: 0,
-
                     }}
-
                   >
-
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-
                       <line x1="16" y1="2" x2="16" y2="6" />
-
                       <line x1="8" y1="2" x2="8" y2="6" />
-
                       <line x1="3" y1="10" x2="21" y2="10" />
-
                     </svg>
-
                   </div>
-
-                  <div>
-
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
-
+                  <div className="profile-modal-grid-content">
+                    <span className="profile-modal-grid-label" style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Appointment Type
-
                     </span>
-
-                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
-
+                    <strong className="profile-modal-grid-value" style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.type}
-
                     </strong>
-
                   </div>
-
                 </div>
 
-
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-
+                <div className="profile-modal-grid-item" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
-
+                    className="profile-modal-grid-icon"
                     style={{
-
                       width: '36px',
-
                       height: '36px',
-
                       borderRadius: '8px',
-
                       backgroundColor: '#e8f5e9',
-
                       display: 'flex',
-
                       alignItems: 'center',
-
                       justifyContent: 'center',
-
                       flexShrink: 0,
-
                     }}
-
                   >
-
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-
                       <polyline points="14 2 14 8 20 8" />
-
                       <line x1="16" y1="13" x2="8" y2="13" />
-
                       <line x1="16" y1="17" x2="8" y2="17" />
-
                     </svg>
-
                   </div>
-
-                  <div>
-
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
-
+                  <div className="profile-modal-grid-content">
+                    <span className="profile-modal-grid-label" style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Appointment ID
-
                     </span>
-
-                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
-
+                    <strong className="profile-modal-grid-value" style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.appointmentId}
-
                     </strong>
-
                   </div>
-
                 </div>
-
-
 
                 {/* Row 2: Date & Time */}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-
+                <div className="profile-modal-grid-item" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
-
+                    className="profile-modal-grid-icon"
                     style={{
-
                       width: '36px',
-
                       height: '36px',
-
                       borderRadius: '8px',
-
                       backgroundColor: '#e8f5e9',
-
                       display: 'flex',
-
                       alignItems: 'center',
-
                       justifyContent: 'center',
-
                       flexShrink: 0,
-
                     }}
-
                   >
-
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-
                       <line x1="16" y1="2" x2="16" y2="6" />
-
                       <line x1="8" y1="2" x2="8" y2="6" />
-
                       <line x1="3" y1="10" x2="21" y2="10" />
-
                     </svg>
-
                   </div>
-
-                  <div>
-
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
-
+                  <div className="profile-modal-grid-content">
+                    <span className="profile-modal-grid-label" style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Date
-
                     </span>
-
-                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
-
+                    <strong className="profile-modal-grid-value" style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.fullDate}
-
                     </strong>
-
                   </div>
-
                 </div>
 
-
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-
+                <div className="profile-modal-grid-item" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
-
+                    className="profile-modal-grid-icon"
                     style={{
-
                       width: '36px',
-
                       height: '36px',
-
                       borderRadius: '8px',
-
                       backgroundColor: '#e8f5e9',
-
                       display: 'flex',
-
                       alignItems: 'center',
-
                       justifyContent: 'center',
-
                       flexShrink: 0,
-
                     }}
-
                   >
-
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
                       <circle cx="12" cy="12" r="10" />
-
                       <polyline points="12 6 12 12 16 14" />
-
                     </svg>
-
                   </div>
-
-                  <div>
-
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
-
+                  <div className="profile-modal-grid-content">
+                    <span className="profile-modal-grid-label" style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Time
-
                     </span>
-
-                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
-
+                    <strong className="profile-modal-grid-value" style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.time}
-
                     </strong>
-
                   </div>
-
                 </div>
-
-
 
                 {/* Row 3: Doctor & Status */}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-
+                <div className="profile-modal-grid-item" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
-
+                    className="profile-modal-grid-icon"
                     style={{
-
                       width: '36px',
-
                       height: '36px',
-
                       borderRadius: '8px',
-
                       backgroundColor: '#e8f5e9',
-
                       display: 'flex',
-
                       alignItems: 'center',
-
                       justifyContent: 'center',
-
                       flexShrink: 0,
-
                     }}
-
                   >
-
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-
                       <circle cx="12" cy="7" r="4" />
-
                     </svg>
-
                   </div>
-
-                  <div>
-
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
-
+                  <div className="profile-modal-grid-content">
+                    <span className="profile-modal-grid-label" style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Doctor
-
                     </span>
-
-                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
-
+                    <strong className="profile-modal-grid-value" style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
                       {selectedAppointment.doctor}
-
                     </strong>
-
                   </div>
-
                 </div>
 
-
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-
+                <div className="profile-modal-grid-item" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
-
+                    className="profile-modal-grid-icon"
                     style={{
-
                       width: '36px',
-
                       height: '36px',
-
                       borderRadius: '8px',
-
                       backgroundColor: '#e8f5e9',
-
                       display: 'flex',
-
                       alignItems: 'center',
-
                       justifyContent: 'center',
-
                       flexShrink: 0,
-
                     }}
-
                   >
-
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
                       <circle cx="12" cy="12" r="10" />
-
                       <polyline points="9 12 11 14 15 10" />
-
                     </svg>
-
                   </div>
-
-                  <div>
-
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
-
+                  <div className="profile-modal-grid-content">
+                    <span className="profile-modal-grid-label" style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Consultation Status
-
                     </span>
-
-                    <strong style={{ fontSize: '13.5px', color: '#16a34a', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif" }}>
-
+                    <strong
+                      className="profile-modal-grid-value"
+                      style={{
+                        fontSize: '13.5px',
+                        color: selectedAppointment.status === 'Rescheduled' ? '#1d4ed8' : selectedAppointment.status === 'Cancelled' ? '#b91c1c' : '#16a34a',
+                        display: 'block',
+                        marginTop: '1px',
+                        fontFamily: "'Manrope', sans-serif",
+                      }}
+                    >
                       {selectedAppointment.status}
-
                     </strong>
-
                   </div>
-
                 </div>
 
                 {/* Row 4: Reason for Visit */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', gridColumn: 'span 2', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
+                <div className="profile-modal-reason-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', gridColumn: 'span 2', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
                   <div
+                    className="profile-modal-grid-icon"
                     style={{
                       width: '36px',
                       height: '36px',
@@ -3602,11 +3712,11 @@ const ProfilePage = () => {
                       <line x1="16" y1="17" x2="8" y2="17" />
                     </svg>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <span style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className="profile-modal-grid-label" style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', fontFamily: "'Manrope', sans-serif" }}>
                       Reason for Visit
                     </span>
-                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif", wordBreak: 'break-word' }}>
+                    <strong className="profile-modal-grid-value" style={{ fontSize: '13.5px', color: '#111827', display: 'block', marginTop: '1px', fontFamily: "'Manrope', sans-serif", wordBreak: 'break-word' }}>
                       {selectedAppointment.reason || selectedAppointment.title || 'Consultation'}
                     </strong>
                   </div>
@@ -3621,325 +3731,213 @@ const ProfilePage = () => {
             {/* Box 2: Consultation Summary / Appointment Notice */}
 
             <div
-
+              className="profile-modal-box profile-modal-summary-box"
               style={{
-
                 backgroundColor: '#ffffff',
-
                 border: '1px solid #edf2ee',
-
                 borderRadius: '16px',
-
                 padding: '16px 20px',
-
                 marginBottom: '20px',
-
                 display: 'flex',
-
                 alignItems: 'flex-start',
-
                 gap: '12px',
-
               }}
-
             >
-
               <div
-
+                className="profile-modal-summary-icon"
                 style={{
-
                   width: '34px',
-
                   height: '34px',
-
                   borderRadius: '8px',
-
                   backgroundColor: '#e8f5e9',
-
                   display: 'flex',
-
                   alignItems: 'center',
-
                   justifyContent: 'center',
-
                   flexShrink: 0,
-
                   marginTop: '1px',
-
                 }}
-
               >
-
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-
                   <polyline points="14 2 14 8 20 8" />
-
                   <line x1="16" y1="13" x2="8" y2="13" />
-
                   <line x1="16" y1="17" x2="8" y2="17" />
-
                 </svg>
-
               </div>
 
-              <div>
-
-                <h4 style={{ fontSize: '14px', fontWeight: '800', color: '#111827', margin: '0 0 3px 0', fontFamily: "'Manrope', sans-serif" }}>
-
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h4 className="profile-modal-summary-title" style={{ fontSize: '14px', fontWeight: '800', color: '#111827', margin: '0 0 3px 0', fontFamily: "'Manrope', sans-serif" }}>
                   {(selectedAppointment.status === 'Completed' || selectedAppointment.status === 'Complete')
                     ? 'Consultation Summary'
                     : 'Appointment Details'}
-
                 </h4>
-
-                <p style={{ fontSize: '12.5px', color: '#6b7280', margin: 0, lineHeight: '1.5', fontFamily: "'Manrope', sans-serif" }}>
-
+                <p className="profile-modal-summary-text" style={{ fontSize: '12.5px', color: '#6b7280', margin: 0, lineHeight: '1.5', fontFamily: "'Manrope', sans-serif" }}>
                   {(selectedAppointment.status === 'Completed' || selectedAppointment.status === 'Complete')
                     ? 'Your consultation was completed. Review the visit information and any documents shared by your doctor.'
                     : `Your appointment is confirmed for ${selectedAppointment.fullDate} at ${selectedAppointment.time}. Please arrive 10 minutes prior to your consultation.`}
-
                 </p>
-
               </div>
 
             </div>
 
 
 
-            {/* Box 3: Attached Documents - Removed for appointments without prescriptions, only rendered if consultation is complete with prescription */}
-
-            {Boolean((selectedAppointment.status === 'Completed' || selectedAppointment.status === 'Complete') && selectedAppointment.hasPrescription) && (
-
-            <div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-
+            {/* Box 3: Attached Documents - Appointment Confirmation Receipt PDF */}
+            {selectedAppointment && (
+            <div className="profile-modal-docs-section">
+              <div className="profile-modal-docs-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-
                 </svg>
-
                 <h4 style={{ fontSize: '13.5px', fontWeight: '800', color: '#111827', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
-
                   Attached Documents
-
                 </h4>
-
               </div>
-
-
 
               {/* Document Item Box */}
-
               <div
-
+                className="profile-modal-doc-box"
                 style={{
-
                   backgroundColor: '#ffffff',
-
                   border: '1px solid #edf2ee',
-
                   borderRadius: '14px',
-
                   padding: '14px 18px',
-
                   display: 'flex',
-
                   alignItems: 'center',
-
                   justifyContent: 'space-between',
-
                   flexWrap: 'wrap',
-
                   gap: '12px',
-
                 }}
-
               >
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-
+                <div className="profile-modal-doc-left" style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: '1 1 auto' }}>
                   {/* Red PDF Badge */}
-
                   <span
-
+                    className="profile-modal-doc-badge"
                     style={{
-
                       backgroundColor: '#fef2f2',
-
                       color: '#ef4444',
-
                       fontSize: '11px',
-
                       fontWeight: '800',
-
                       padding: '5px 9px',
-
                       borderRadius: '6px',
-
                       letterSpacing: '0.5px',
-
                       fontFamily: "'Manrope', sans-serif",
-
+                      flexShrink: 0,
                     }}
-
                   >
-
                     PDF
-
                   </span>
-
-                  <div>
-
-                    <strong style={{ fontSize: '13.5px', color: '#111827', display: 'block', fontFamily: "'Manrope', sans-serif" }}>
-
-                      {selectedAppointment.pdfName}
-
+                  <div className="profile-modal-doc-info" style={{ minWidth: 0, flex: 1 }}>
+                    <strong className="profile-modal-doc-name" style={{ fontSize: '13.5px', color: '#111827', display: 'block', fontFamily: "'Manrope', sans-serif", wordBreak: 'break-all' }}>
+                      {selectedAppointment.pdfName || `Appointment_${selectedAppointment.appointmentId || selectedAppointment.id}.pdf`}
                     </strong>
-
-                    <span style={{ fontSize: '11.5px', color: '#9ca3af', fontFamily: "'Manrope', sans-serif" }}>
-
-                      PDF • {selectedAppointment.pdfDate}
-
+                    <span className="profile-modal-doc-date" style={{ fontSize: '11.5px', color: '#9ca3af', fontFamily: "'Manrope', sans-serif", display: 'block' }}>
+                      PDF • {selectedAppointment.fullDate || selectedAppointment.pdfDate || selectedAppointment.date}
                     </span>
-
                   </div>
-
                 </div>
 
-
-
-                {/* Right Buttons: View PDF & Download */}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-
+                {/* Right Button: Download only */}
+                <div className="profile-modal-doc-right" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   <button
-
                     type="button"
-
-                    disabled={viewingAppointmentPdf}
-
-                    onClick={() => handleViewPdf(selectedAppointment)}
-
-                    style={{
-
-                      backgroundColor: '#ffffff',
-
-                      color: '#374151',
-
-                      border: '1px solid #d1d5db',
-
-                      borderRadius: '8px',
-
-                      padding: '7px 14px',
-
-                      fontSize: '12px',
-
-                      fontWeight: '600',
-
-                      cursor: 'pointer',
-
-                      display: 'inline-flex',
-
-                      alignItems: 'center',
-
-                      gap: '6px',
-
-                      transition: 'all 0.15s ease',
-
-                      fontFamily: "'Manrope', sans-serif",
-
-                    }}
-
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#9ca3af')}
-
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#d1d5db')}
-
-                  >
-
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-
-                      <circle cx="12" cy="12" r="3" />
-
-                    </svg>
-
-                    View PDF
-
-                  </button>
-
-
-
-                  <button
-
-                    type="button"
-
                     disabled={downloadingAppointmentPdf}
-
                     onClick={() => handleDownloadAppointmentPdf(selectedAppointment)}
-
+                    className="profile-modal-doc-btn"
                     style={{
-
                       backgroundColor: '#dcfce7',
-
                       color: '#166534',
-
                       border: 'none',
-
                       borderRadius: '8px',
-
                       padding: '7px 16px',
-
                       fontSize: '12px',
-
                       fontWeight: '700',
-
                       cursor: 'pointer',
-
                       display: 'inline-flex',
-
                       alignItems: 'center',
-
                       gap: '6px',
-
                       transition: 'all 0.15s ease',
-
                       fontFamily: "'Manrope', sans-serif",
-
                     }}
-
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#bbf7d0')}
-
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dcfce7')}
-
                   >
-
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-
                       <polyline points="7 10 12 15 17 10" />
-
                       <line x1="12" y1="15" x2="12" y2="3" />
-
                     </svg>
-
                     Download
-
                   </button>
-
                 </div>
-
               </div>
-
             </div>
-
             )}
 
+            {/* Modal Bottom Action Bar: Close & Reschedule Appointment */}
+            <div
+              className="profile-modal-actions"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: '12px',
+                marginTop: '22px',
+                paddingTop: '18px',
+                borderTop: '1px solid #edf2ee',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCloseAppointmentModal}
+                className="profile-modal-btn-close"
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '10px',
+                  border: '1px solid #d1d5db',
+                  backgroundColor: '#ffffff',
+                  color: '#374151',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  fontFamily: "'Manrope', sans-serif",
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#9ca3af')}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#d1d5db')}
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRescheduleAppointment(selectedAppointment)}
+                className="profile-modal-btn-reschedule"
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: '#1b4332',
+                  color: '#ffffff',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 2px 8px rgba(27, 67, 50, 0.2)',
+                  fontFamily: "'Manrope', sans-serif",
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2d6a4f')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b4332')}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                Reschedule Appointment
+              </button>
+            </div>
           </div>
 
         )}
@@ -3949,36 +3947,28 @@ const ProfilePage = () => {
 
 
       {/* Edit Profile Dialog Modal */}
-
       <dialog
-
         ref={editDialogRef}
-
         onClick={(e) => handleDialogBackdropClick(e, handleCloseEdit, editDialogRef)}
-
         aria-labelledby="edit-profile-title"
-
+        className="profile-edit-dialog"
         style={{
-
           borderRadius: '18px',
-
           border: 'none',
-
           padding: 0,
-
           maxWidth: '480px',
-
           width: '92%',
-
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
           margin: 'auto',
-
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-
+          backgroundColor: '#ffffff',
         }}
-
       >
 
-        <div style={{ padding: '28px 24px' }}>
+        <div className="profile-edit-modal-inner" style={{ padding: '28px 24px' }}>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
 
@@ -4344,7 +4334,7 @@ const ProfilePage = () => {
 
 
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="profile-edit-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
 
               <div>
 
@@ -4490,7 +4480,7 @@ const ProfilePage = () => {
 
 
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
+            <div className="profile-edit-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
 
               <button
 
@@ -4621,6 +4611,7 @@ const ProfilePage = () => {
           }}
         >
           <div
+            className="profile-pdf-modal-inner"
             style={{
               backgroundColor: '#ffffff',
               borderRadius: '16px',
@@ -4635,6 +4626,7 @@ const ProfilePage = () => {
           >
             {/* Header */}
             <div
+              className="profile-pdf-modal-header"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -4676,7 +4668,7 @@ const ProfilePage = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="profile-pdf-modal-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <button
                   type="button"
                   onClick={() => window.open(appointmentPdfUrl, '_blank')}
@@ -4918,6 +4910,23 @@ const ProfilePage = () => {
 
         }
 
+        .profile-page-wrapper {
+          overflow-x: hidden;
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        .profile-container {
+          box-sizing: border-box;
+          width: 100%;
+        }
+
+        .profile-herbs-img {
+          user-select: none;
+          pointer-events: none;
+        }
+
+        /* ================= TABLET BREAKPOINT (<= 860px) ================= */
         @media (max-width: 860px) {
 
           .profile-header-card {
@@ -4934,33 +4943,73 @@ const ProfilePage = () => {
 
           }
 
+          .profile-personal-card {
+            padding: 24px 24px !important;
+          }
+
           .profile-personal-grid {
 
             grid-template-columns: 1fr !important;
 
+            gap: 22px !important;
+
             justify-items: center;
 
-            text-align: center;
+          }
 
+          .profile-avatar-wrapper {
+            margin: 0 auto !important;
           }
 
           .profile-fields-grid {
 
-            grid-template-columns: 1fr !important;
+            width: 100% !important;
 
-            row-gap: 16px !important;
+            grid-template-columns: 1fr 1fr !important;
+
+            column-gap: 20px !important;
+
+            row-gap: 14px !important;
+
+            text-align: left !important;
 
           }
 
+          .profile-field-item {
+            background-color: #fbfdfc;
+            border: 1px solid #edf4ef;
+            border-radius: 12px;
+            padding: 12px 14px;
+            box-sizing: border-box;
+          }
+
           .profile-bottom-grid {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) !important;
+            gap: 20px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
 
-            grid-template-columns: 1fr !important;
-
+          .profile-section-card {
+            padding: 22px 20px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
 
         }
 
+        /* ================= MOBILE BREAKPOINT (<= 640px) ================= */
         @media (max-width: 640px) {
+
+          .profile-container {
+
+            padding: 18px 14px 44px !important;
+
+          }
 
           .profile-header-card {
 
@@ -4968,15 +5017,31 @@ const ProfilePage = () => {
 
             align-items: flex-start !important;
 
-            gap: 16px !important;
+            gap: 14px !important;
 
-            padding: 20px 20px !important;
+            padding: 18px 16px !important;
 
+            border-radius: 18px !important;
+
+            margin-bottom: 18px !important;
+
+          }
+
+          .profile-header-title {
+            font-size: 26px !important;
+            margin-bottom: 8px !important;
+          }
+
+          .profile-header-desc {
+            font-size: 13.5px !important;
+            line-height: 1.55 !important;
           }
 
           .profile-herbs-wrapper {
 
-            align-self: flex-end !important;
+            align-self: center !important;
+
+            margin-top: 4px !important;
 
             margin-right: 0 !important;
 
@@ -4984,18 +5049,465 @@ const ProfilePage = () => {
 
           .profile-herbs-img {
 
-            height: 95px !important;
+            height: 85px !important;
 
-            max-width: 320px !important;
-
-          }
-
-          .profile-container {
-
-            padding: 24px 16px 50px !important;
+            max-width: 250px !important;
 
           }
 
+          .profile-personal-card {
+            padding: 18px 16px !important;
+            border-radius: 16px !important;
+            margin-bottom: 18px !important;
+          }
+
+          .profile-personal-card-header {
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            gap: 10px !important;
+            margin-bottom: 18px !important;
+          }
+
+          .profile-personal-card-header h2 {
+            font-size: 17px !important;
+          }
+
+          .profile-personal-card-header p {
+            font-size: 12px !important;
+            line-height: 1.4 !important;
+          }
+
+          .profile-edit-btn {
+            padding: 7px 12px !important;
+            font-size: 12px !important;
+            flex-shrink: 0 !important;
+            white-space: nowrap !important;
+          }
+
+          .profile-fields-grid {
+            grid-template-columns: 1fr !important;
+            row-gap: 10px !important;
+            column-gap: 0 !important;
+          }
+
+          .profile-field-item {
+            padding: 10px 12px !important;
+            border-radius: 10px !important;
+          }
+
+          .profile-bottom-grid {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) !important;
+            gap: 18px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-section-card,
+          .profile-appointments-card,
+          .profile-prescriptions-card {
+            padding: 18px 14px !important;
+            border-radius: 16px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+          }
+
+          .profile-card-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 10px !important;
+            margin-bottom: 16px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-card-header-left {
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+
+          .profile-filter-select {
+            align-self: flex-start !important;
+            width: auto !important;
+            font-size: 11.5px !important;
+            padding: 5px 10px !important;
+          }
+
+          .profile-appointment-item,
+          .profile-prescription-item {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            padding: 10px 8px !important;
+            gap: 8px !important;
+          }
+
+          .profile-appointment-left,
+          .profile-prescription-left {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            max-width: calc(100% - 90px) !important;
+            overflow: hidden !important;
+          }
+
+          .profile-date-badge {
+            width: 46px !important;
+            height: 46px !important;
+            min-width: 46px !important;
+            border-radius: 10px !important;
+            padding: 2px !important;
+            flex-shrink: 0 !important;
+          }
+
+          .profile-date-badge span:first-child {
+            font-size: 13.5px !important;
+          }
+
+          .profile-rx-icon {
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px !important;
+            border-radius: 8px !important;
+            flex-shrink: 0 !important;
+          }
+
+          .profile-appointment-meta,
+          .profile-prescription-meta {
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+          }
+
+          .profile-appointment-title,
+          .profile-appointment-doctor,
+          .profile-prescription-title {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
+
+          .profile-appointment-title {
+            font-size: 13.5px !important;
+            word-break: break-all !important;
+          }
+
+          .profile-appointment-doctor {
+            font-size: 11.5px !important;
+          }
+
+          .profile-appointment-time {
+            font-size: 10.5px !important;
+          }
+
+          .profile-prescription-title {
+            font-size: 13px !important;
+            word-break: break-all !important;
+          }
+
+          .profile-prescription-date {
+            font-size: 11px !important;
+          }
+
+          .profile-appointment-right {
+            display: flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+            flex-shrink: 0 !important;
+            margin-left: 6px !important;
+          }
+
+          .profile-status-badge {
+            font-size: 10.5px !important;
+            padding: 3px 7px !important;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
+          }
+
+          .profile-download-btn {
+            padding: 6px 9px !important;
+            font-size: 11px !important;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
+            margin-left: 6px !important;
+            gap: 4px !important;
+          }
+
+          .profile-pagination {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-wrap: wrap !important;
+            gap: 4px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-pagination button {
+            width: 30px !important;
+            height: 30px !important;
+            min-width: 30px !important;
+            font-size: 12px !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-page-size-wrap {
+            margin-left: 4px !important;
+          }
+
+          .profile-page-size-wrap select {
+            height: 30px !important;
+            font-size: 11.5px !important;
+            padding: 0 22px 0 8px !important;
+            box-sizing: border-box !important;
+          }
+
+          /* Modals & Dialogs Responsive */
+          .profile-appointment-dialog {
+            width: 92% !important;
+            max-width: 92% !important;
+            max-height: 88vh !important;
+            border-radius: 16px !important;
+            margin: auto !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+            overscroll-behavior: contain !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-modal-inner {
+            padding: 16px 14px 16px !important;
+            box-sizing: border-box !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+
+          .profile-modal-header {
+            margin-bottom: 12px !important;
+          }
+
+          .profile-modal-title {
+            font-size: 17px !important;
+          }
+
+          .profile-modal-status-badge {
+            font-size: 11px !important;
+            padding: 3px 10px !important;
+          }
+
+          .profile-modal-box {
+            padding: 12px 10px !important;
+            border-radius: 12px !important;
+            margin-bottom: 10px !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-modal-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            column-gap: 8px !important;
+            row-gap: 10px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-modal-grid-item {
+            gap: 8px !important;
+            min-width: 0 !important;
+          }
+
+          .profile-modal-grid-icon {
+            width: 28px !important;
+            height: 28px !important;
+            min-width: 28px !important;
+            border-radius: 6px !important;
+          }
+
+          .profile-modal-grid-icon svg {
+            width: 14px !important;
+            height: 14px !important;
+          }
+
+          .profile-modal-grid-content {
+            min-width: 0 !important;
+            flex: 1 1 0% !important;
+            overflow: hidden !important;
+          }
+
+          .profile-modal-grid-label {
+            font-size: 10px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+          }
+
+          .profile-modal-grid-value {
+            font-size: 12px !important;
+            word-break: break-word !important;
+            line-height: 1.25 !important;
+          }
+
+          .profile-modal-reason-row {
+            padding-top: 10px !important;
+            gap: 8px !important;
+          }
+
+          .profile-modal-summary-box {
+            padding: 11px 10px !important;
+            margin-bottom: 10px !important;
+            gap: 8px !important;
+          }
+
+          .profile-modal-summary-icon {
+            width: 28px !important;
+            height: 28px !important;
+            min-width: 28px !important;
+            border-radius: 6px !important;
+          }
+
+          .profile-modal-summary-icon svg {
+            width: 14px !important;
+            height: 14px !important;
+          }
+
+          .profile-modal-summary-title {
+            font-size: 12.5px !important;
+            margin-bottom: 2px !important;
+          }
+
+          .profile-modal-summary-text {
+            font-size: 11px !important;
+            line-height: 1.4 !important;
+          }
+
+          .profile-modal-docs-header {
+            margin-bottom: 8px !important;
+          }
+
+          .profile-modal-docs-header h4 {
+            font-size: 12.5px !important;
+          }
+
+          .profile-modal-doc-box {
+            padding: 10px 10px !important;
+            border-radius: 12px !important;
+            gap: 8px !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-modal-doc-left {
+            gap: 8px !important;
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+          }
+
+          .profile-modal-doc-badge {
+            font-size: 10px !important;
+            padding: 4px 7px !important;
+          }
+
+          .profile-modal-doc-name {
+            font-size: 12px !important;
+            line-height: 1.25 !important;
+          }
+
+          .profile-modal-doc-date {
+            font-size: 10.5px !important;
+          }
+
+          .profile-modal-doc-btn {
+            padding: 6px 12px !important;
+            font-size: 11.5px !important;
+            border-radius: 7px !important;
+            white-space: nowrap !important;
+          }
+
+          .profile-modal-actions {
+            flex-direction: column-reverse !important;
+            gap: 8px !important;
+            margin-top: 14px !important;
+            padding-top: 12px !important;
+            width: 100% !important;
+          }
+
+          .profile-modal-btn-close,
+          .profile-modal-btn-reschedule {
+            width: 100% !important;
+            justify-content: center !important;
+            min-height: 40px !important;
+            padding: 9px 14px !important;
+            font-size: 13px !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-edit-dialog {
+            width: 92% !important;
+            max-width: 92% !important;
+            max-height: 88vh !important;
+            border-radius: 16px !important;
+            margin: auto !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-edit-modal-inner {
+            padding: 18px 14px !important;
+            box-sizing: border-box !important;
+          }
+
+          .profile-edit-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .profile-edit-actions {
+            flex-direction: column-reverse !important;
+            gap: 8px !important;
+          }
+
+          .profile-edit-actions button {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+
+          .profile-pdf-modal-inner {
+            height: 94vh !important;
+          }
+
+          .profile-pdf-modal-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 10px !important;
+            padding: 12px 14px !important;
+          }
+
+          .profile-pdf-modal-actions {
+            width: 100% !important;
+            justify-content: flex-end !important;
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+          }
+
+          /* Footer */
           .profile-footer {
 
             padding: 22px 0 20px !important;
@@ -5056,6 +5568,135 @@ const ProfilePage = () => {
 
             max-width: 320px !important;
 
+          }
+
+        }
+
+        /* ================= EXTRA SMALL SCREENS (<= 380px) ================= */
+        @media (max-width: 380px) {
+
+          .profile-container {
+            padding: 14px 10px 36px !important;
+          }
+
+          .profile-header-card {
+            padding: 16px 12px !important;
+          }
+
+          .profile-personal-card,
+          .profile-section-card {
+            padding: 14px 10px !important;
+          }
+
+          .profile-personal-card-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 10px !important;
+          }
+
+          .profile-appointment-item,
+          .profile-prescription-item {
+            padding: 8px 6px !important;
+            gap: 6px !important;
+          }
+
+          .profile-appointment-left,
+          .profile-prescription-left {
+            gap: 8px !important;
+            max-width: calc(100% - 80px) !important;
+          }
+
+          .profile-date-badge {
+            width: 42px !important;
+            height: 42px !important;
+            min-width: 42px !important;
+            border-radius: 8px !important;
+          }
+
+          .profile-date-badge span:first-child {
+            font-size: 12.5px !important;
+          }
+
+          .profile-date-badge span:nth-child(2) {
+            font-size: 9px !important;
+          }
+
+          .profile-rx-icon {
+            width: 32px !important;
+            height: 32px !important;
+            min-width: 32px !important;
+          }
+
+          .profile-appointment-title {
+            font-size: 12.5px !important;
+          }
+
+          .profile-status-badge {
+            font-size: 10px !important;
+            padding: 2px 6px !important;
+          }
+
+          .profile-download-btn {
+            padding: 5px 7px !important;
+            font-size: 10.5px !important;
+          }
+
+          .profile-download-btn svg {
+            width: 12px !important;
+            height: 12px !important;
+          }
+
+          .profile-pagination button {
+            width: 27px !important;
+            height: 27px !important;
+            min-width: 27px !important;
+            font-size: 11px !important;
+          }
+
+          .profile-page-size-wrap select {
+            height: 27px !important;
+            font-size: 10.5px !important;
+            padding: 0 18px 0 6px !important;
+          }
+
+          /* Modal tweaks for <= 380px */
+          .profile-appointment-dialog,
+          .profile-edit-dialog {
+            width: 95% !important;
+            max-width: 95% !important;
+            max-height: 88vh !important;
+          }
+
+          .profile-modal-inner {
+            padding: 14px 10px 14px !important;
+          }
+
+          .profile-modal-grid {
+            column-gap: 6px !important;
+            row-gap: 8px !important;
+          }
+
+          .profile-modal-grid-label {
+            font-size: 9.5px !important;
+          }
+
+          .profile-modal-grid-value {
+            font-size: 11.5px !important;
+          }
+
+          .profile-modal-doc-box {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+          }
+
+          .profile-modal-doc-right {
+            width: 100% !important;
+          }
+
+          .profile-modal-doc-btn {
+            width: 100% !important;
+            justify-content: center !important;
           }
 
         }

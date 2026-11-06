@@ -120,7 +120,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
 
   // 4. Appointment Details Card
   y = 56;
-  const cardHeight = 112;
+  const cardHeight = 94;
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(marginX, y, contentWidth, cardHeight, 3.5, 3.5, 'F');
   doc.setDrawColor(226, 232, 240);
@@ -187,14 +187,20 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setTextColor(15, 23, 42);
   doc.text(String(data.fullName || '-'), col1X + col1LabelWidth, rowY);
 
+  const hasCustomReason = Boolean(data.reason || (data.service && data.service !== 'Homeopathy Consultation'));
+  const serviceLabel = hasCustomReason ? 'Reason for Visit' : 'Service';
+  const serviceVal = String(data.reason || data.service || 'Homeopathy Consultation');
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
-  doc.text('Service', col2X, rowY);
+  doc.text(serviceLabel, col2X, rowY);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(String(data.service || 'Homeopathy Consultation'), col2X + col2LabelWidth, rowY);
+  const maxPdfLen = 32;
+  const displayVal = serviceVal.length > maxPdfLen ? `${serviceVal.substring(0, maxPdfLen - 2)}...` : serviceVal;
+  doc.text(displayVal, col2X + col2LabelWidth, rowY);
 
   // Row 3: Mobile Number & Date
   rowY += rowGap;
@@ -248,24 +254,55 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
   doc.text('Clinic Address', col1X, rowY);
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
-  doc.text('123 Clinic Street, Your City,', col1X + col1LabelWidth, rowY);
-  doc.text('Your State - 123456', col1X + col1LabelWidth, rowY + 4.5);
+
+  const rawAddr = String(data.clinicAddress || '123 Clinic Street, Your City,\nYour State - 123456').trim();
+  let addrLines = [];
+  if (rawAddr.includes('\n')) {
+    rawAddr.split('\n').forEach((part) => {
+      const p = part.trim();
+      if (p) addrLines.push(p);
+    });
+  } else if (rawAddr.includes('Your State')) {
+    const idx = rawAddr.indexOf('Your State');
+    const part1 = rawAddr.slice(0, idx).replace(/,\s*$/, '').trim() + ',';
+    const part2 = rawAddr.slice(idx).trim();
+    addrLines = [part1, part2];
+  } else if (rawAddr.includes(',')) {
+    const parts = rawAddr.split(',').map((s) => s.trim()).filter(Boolean);
+    if (parts.length >= 3) {
+      const mid = Math.ceil(parts.length / 2);
+      const line1 = parts.slice(0, mid).join(', ') + ',';
+      const line2 = parts.slice(mid).join(', ');
+      addrLines = [line1, line2];
+    } else {
+      addrLines = doc.splitTextToSize(rawAddr, 42);
+    }
+  } else {
+    addrLines = doc.splitTextToSize(rawAddr, 42);
+  }
+
+  // Draw address lines cleanly without ever overlapping column 2
+  addrLines.forEach((line, idx) => {
+    doc.text(line, col1X + col1LabelWidth, rowY + idx * 4.2);
+  });
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
   doc.text('Consultation Type', col2X, rowY);
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(22, 101, 52);
   doc.text('In-Person (Clinic Visit)', col2X + col2LabelWidth, rowY);
 
   // 5. Important Instructions Section
-  y = 173;
-  const noteHeight = 52;
+  y = 155;
+  const noteHeight = 51;
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(marginX, y, contentWidth, noteHeight, 3, 3, 'F');
   doc.setDrawColor(226, 232, 240);
@@ -309,7 +346,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   });
 
   // 6. Clinic Contact & Verification Footer Box
-  y = 230;
+  y = 212;
   const footerBoxHeight = 28;
   doc.setFillColor(240, 253, 244);
   doc.roundedRect(marginX, y, contentWidth, footerBoxHeight, 3, 3, 'F');
@@ -326,9 +363,9 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
-  doc.text('123 Clinic Street, Your City, Your State - 123456', marginX + 6, y + 12.5);
-  doc.text('Phone: +91 98765 43210  |  Email: contact@homeopathyclinic.com', marginX + 6, y + 17.5);
-  doc.text('Website: www.kssclinic.com  |  OPD Hours: Mon - Sat (09:00 AM - 08:00 PM)', marginX + 6, y + 22.5);
+  doc.text('12, Green Park, MG Road, Bangalore, Karnataka - 560001', marginX + 6, y + 12.5);
+  doc.text('Phone: +91 98765 43210  |  Email: clinic.tripathi@gmail.com', marginX + 6, y + 17.5);
+  doc.text('Website: https://drtripathihomeopathy.com  |  Hours: Mon - Sat (09:00 AM - 06:00 PM)', marginX + 6, y + 22.5);
 
   // Right column Stamp / Verified Seal
   const stampX = marginX + contentWidth - 48;
@@ -362,6 +399,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
 
   // Trigger download
   const safeId = (data.appointmentId || 'CONFIRMATION').replace(/[^a-zA-Z0-9_-]/g, '_');
-  doc.save(`Appointment_Confirmation_${safeId}.pdf`);
+  const filename = data.filename || `Appointment_${safeId}.pdf`;
+  doc.save(filename);
 };
 

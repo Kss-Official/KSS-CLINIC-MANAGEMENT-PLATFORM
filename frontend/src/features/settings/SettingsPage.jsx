@@ -825,6 +825,7 @@ const SettingsPage = () => {
             Clinic Information
           </h1>
           <p
+            className="admin-page-banner-subtitle"
             style={{
               fontSize: '15px',
               color: '#627585',
@@ -866,6 +867,7 @@ const SettingsPage = () => {
 
       {/* Card 1: Clinic Information */}
       <div
+        className="admin-settings-card"
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '18px',
@@ -874,8 +876,8 @@ const SettingsPage = () => {
           marginBottom: '22px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div className="admin-settings-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+          <div className="admin-settings-card-header-left" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div
               style={{
                 width: '42px',
@@ -938,6 +940,7 @@ const SettingsPage = () => {
         <div className="admin-clinic-profile-flex" style={{ display: 'flex', gap: '32px', alignItems: 'flex-start' }}>
           {/* Clinic Profile Picture & Upload Option */}
           <div
+            className="admin-clinic-avatar-wrap"
             ref={uploadDropdownRef}
             style={{
               display: 'flex',
@@ -1210,7 +1213,7 @@ const SettingsPage = () => {
               <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
                 CLINIC NAME
               </div>
-              <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
+              <div className="admin-info-val" style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
                 {clinicInfo.clinicName}
               </div>
             </div>
@@ -1220,7 +1223,7 @@ const SettingsPage = () => {
               <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
                 DOCTOR NAME
               </div>
-              <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
+              <div className="admin-info-val" style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
                 {clinicInfo.doctorName}
               </div>
             </div>
@@ -1230,7 +1233,7 @@ const SettingsPage = () => {
               <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
                 CONTACT NUMBER
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+              <div className="admin-info-val" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
@@ -1243,7 +1246,7 @@ const SettingsPage = () => {
               <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
                 ALTERNATE NUMBER
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+              <div className="admin-info-val" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
@@ -1256,12 +1259,12 @@ const SettingsPage = () => {
               <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
                 EMAIL ADDRESS
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+              <div className="admin-info-val" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a', minWidth: 0 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                   <rect x="2" y="4" width="20" height="16" rx="2" />
                   <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
                 </svg>
-                <span>{clinicInfo.email}</span>
+                <span className="admin-info-val-email">{clinicInfo.email}</span>
               </div>
             </div>
 
@@ -1270,7 +1273,7 @@ const SettingsPage = () => {
               <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
                 ADDRESS
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+              <div className="admin-info-val" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a', minWidth: 0 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                   <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
                   <circle cx="12" cy="10" r="3" />
@@ -1284,6 +1287,7 @@ const SettingsPage = () => {
 
       {/* Card 2: Appointment Settings */}
       <div
+        className="admin-settings-card"
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '18px',
@@ -1292,8 +1296,8 @@ const SettingsPage = () => {
           marginBottom: '22px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div className="admin-settings-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+          <div className="admin-settings-card-header-left" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div
               style={{
                 width: '42px',
@@ -1417,7 +1421,7 @@ const SettingsPage = () => {
         </div>
 
         {(dateRestrictions.length > 0 || customWorkingHours.length > 0) && (
-          <div style={{ marginTop: '18px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+          <div className="admin-appt-badges-wrap" style={{ marginTop: '18px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
             {dateRestrictions.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '11px', fontWeight: '700', color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -1488,9 +1492,9 @@ const SettingsPage = () => {
       </div>
 
       {/* Card 3: Notification Settings */}
-      <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', padding: '26px 28px', border: '1px solid #f1f5f9' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div className="admin-settings-card" style={{ backgroundColor: '#ffffff', borderRadius: '18px', padding: '26px 28px', border: '1px solid #f1f5f9' }}>
+        <div className="admin-settings-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div className="admin-settings-card-header-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: '#e8f5ec', color: '#265e38', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -1584,6 +1588,7 @@ const SettingsPage = () => {
       {/* ================= MODAL 1: Edit Clinic Information ================= */}
       {editClinicModalOpen && (
         <div
+          className="admin-settings-modal-overlay"
           onClick={() => setEditClinicModalOpen(false)}
           style={{
             position: 'fixed',
@@ -1606,6 +1611,7 @@ const SettingsPage = () => {
           }}
         >
           <div
+            className="admin-settings-modal-card"
             onClick={(e) => e.stopPropagation()}
             style={{
               backgroundColor: '#ffffff',
@@ -1659,7 +1665,7 @@ const SettingsPage = () => {
               </div>
 
               <form onSubmit={handleSaveClinicInfo} noValidate>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div className="admin-modal-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                       <label style={{ fontSize: '12px', fontWeight: '700', color: '#334155' }}>
@@ -1738,7 +1744,7 @@ const SettingsPage = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div className="admin-modal-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                       Contact Number *
@@ -1931,7 +1937,7 @@ const SettingsPage = () => {
                   )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
+                <div className="admin-modal-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
                   <button
                     type="button"
                     onClick={() => setEditClinicModalOpen(false)}
@@ -1973,6 +1979,7 @@ const SettingsPage = () => {
       {/* ================= MODAL 2: Edit Appointment Settings ================= */}
       {editAppointmentModalOpen && (
         <div
+          className="admin-settings-modal-overlay"
           onClick={() => setEditAppointmentModalOpen(false)}
           style={{
             position: 'fixed',
@@ -1995,6 +2002,7 @@ const SettingsPage = () => {
           }}
         >
           <div
+            className="admin-settings-modal-card"
             onClick={(e) => e.stopPropagation()}
             style={{
               backgroundColor: '#ffffff',
@@ -2081,7 +2089,7 @@ const SettingsPage = () => {
                 </div>
 
                 {/* SECTION 2: General Hours & Duration */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div className="admin-modal-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                       Start Time
@@ -2203,7 +2211,7 @@ const SettingsPage = () => {
                     </div>
 
                     {newRestrMode === 'range' ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div className="admin-modal-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
                             Select Date (or Start Date)
@@ -2251,7 +2259,7 @@ const SettingsPage = () => {
                       </div>
                     ) : (
                       <div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '8px' }}>
+                        <div className="admin-modal-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '8px' }}>
                           <div>
                             <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
                               Select Month
@@ -2306,7 +2314,7 @@ const SettingsPage = () => {
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                    <div className="admin-modal-row-btn" style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                       <div style={{ flex: 1 }}>
                         <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
                           Reason / Description (Optional)
@@ -2429,7 +2437,7 @@ const SettingsPage = () => {
 
                   <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                     {/* Date Selection */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                    <div className="admin-modal-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
                           Select Date (or Start Date)
@@ -2477,7 +2485,7 @@ const SettingsPage = () => {
                     </div>
 
                     {/* Custom Hours */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                    <div className="admin-modal-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
                           Start Time
@@ -2525,7 +2533,7 @@ const SettingsPage = () => {
                     </div>
 
                     {/* Note & Add button */}
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                    <div className="admin-modal-row-btn" style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                       <div style={{ flex: 1 }}>
                         <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
                           Description / Shift Name (Optional)
@@ -2627,7 +2635,7 @@ const SettingsPage = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', marginTop: '20px' }}>
+                <div className="admin-modal-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', marginTop: '20px' }}>
                   <button
                     type="button"
                     onClick={() => setEditAppointmentModalOpen(false)}
@@ -2669,6 +2677,7 @@ const SettingsPage = () => {
       {/* ================= MODAL 3: Edit Notification Settings ================= */}
       {editNotificationModalOpen && (
         <div
+          className="admin-settings-modal-overlay"
           onClick={() => setEditNotificationModalOpen(false)}
           style={{
             position: 'fixed',
@@ -2691,6 +2700,7 @@ const SettingsPage = () => {
           }}
         >
           <div
+            className="admin-settings-modal-card"
             onClick={(e) => e.stopPropagation()}
             style={{
               backgroundColor: '#ffffff',
@@ -2804,7 +2814,7 @@ const SettingsPage = () => {
                   })}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
+                <div className="admin-modal-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
                   <button
                     type="button"
                     onClick={() => setEditNotificationModalOpen(false)}
@@ -2863,15 +2873,15 @@ const SettingsPage = () => {
         @media (max-width: 768px) {
           .admin-page-banner {
             height: auto !important;
-            min-height: 120px !important;
-            padding: 22px 18px !important;
+            min-height: 110px !important;
+            padding: 20px 18px !important;
           }
           .admin-page-banner-title {
             font-size: 22px !important;
           }
           .admin-page-banner-img {
             opacity: 0.28 !important;
-            height: 120px !important;
+            height: 100px !important;
           }
           .admin-appt-settings-grid {
             grid-template-columns: 1fr !important;
@@ -2890,9 +2900,65 @@ const SettingsPage = () => {
           }
         }
         @media (max-width: 640px) {
+          /* Top Banner */
+          .admin-page-banner {
+            height: auto !important;
+            min-height: 96px !important;
+            padding: 16px 14px !important;
+            border-radius: 14px !important;
+            margin-bottom: 16px !important;
+          }
+          .admin-page-banner-title {
+            font-size: 20px !important;
+            margin-bottom: 4px !important;
+          }
+          .admin-page-banner-subtitle {
+            font-size: 12.5px !important;
+            line-height: 1.35 !important;
+          }
+          .admin-page-banner-img {
+            height: 75px !important;
+            opacity: 0.22 !important;
+          }
+
+          /* Cards Container & Headers */
+          .admin-settings-card {
+            padding: 16px 14px !important;
+            border-radius: 14px !important;
+            margin-bottom: 16px !important;
+          }
+          .admin-settings-card-header {
+            flex-wrap: wrap !important;
+            gap: 10px !important;
+            margin-bottom: 16px !important;
+          }
+          .admin-settings-card-header-left {
+            gap: 10px !important;
+            flex: 1 !important;
+            min-width: 180px !important;
+          }
+          .admin-settings-card-header-left h2 {
+            font-size: 15px !important;
+          }
+          .admin-settings-card-header-left p {
+            font-size: 12px !important;
+          }
+
+          /* Card 1: Clinic Profile Avatar & Details */
+          .admin-clinic-profile-flex {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 16px !important;
+          }
+          .admin-clinic-avatar-wrap {
+            width: 100% !important;
+            align-items: center !important;
+            padding-top: 0 !important;
+          }
           .admin-clinic-info-grid {
+            width: 100% !important;
             grid-template-columns: 1fr !important;
-            gap: 14px !important;
+            gap: 12px !important;
           }
           .admin-info-cell {
             padding-left: 0 !important;
@@ -2908,10 +2974,76 @@ const SettingsPage = () => {
           .admin-info-cell-address {
             grid-column: 1 / span 1 !important;
             border-top: none !important;
+            padding-left: 0 !important;
           }
+          .admin-info-val {
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
+          }
+          .admin-info-val-email {
+            word-break: break-all !important;
+            overflow-wrap: anywhere !important;
+          }
+
+          /* Card 2: Appointment Settings */
+          .admin-appt-badges-wrap {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+          }
+
+          /* Card 3: Notification Settings */
           .admin-notification-grid {
             grid-template-columns: 1fr !important;
-            gap: 14px !important;
+            gap: 12px !important;
+          }
+
+          /* Modals */
+          .admin-settings-modal-overlay {
+            padding: 10px !important;
+          }
+          .admin-settings-modal-card {
+            width: 100% !important;
+            max-height: 92vh !important;
+            border-radius: 16px !important;
+          }
+          .admin-modal-scroll {
+            padding: 18px 14px !important;
+            -webkit-overflow-scrolling: touch !important;
+          }
+          .admin-modal-grid-2col {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .admin-modal-row-btn {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .admin-modal-row-btn button {
+            width: 100% !important;
+            height: 40px !important;
+            justify-content: center !important;
+          }
+          .admin-modal-actions {
+            flex-direction: column-reverse !important;
+            gap: 8px !important;
+          }
+          .admin-modal-actions button {
+            width: 100% !important;
+            min-height: 40px !important;
+            justify-content: center !important;
+          }
+        }
+        @media (max-width: 380px) {
+          .admin-settings-card {
+            padding: 14px 10px !important;
+          }
+          .admin-modal-scroll {
+            padding: 14px 10px !important;
+          }
+          .admin-page-banner {
+            padding: 14px 10px !important;
           }
         }
       `}</style>

@@ -57,6 +57,7 @@ class Patient(TimeStampedModel):
 class Appointment(TimeStampedModel):
     STATUS_CHOICES = [
         ('Confirmed', 'Confirmed'),
+        ('Rescheduled', 'Rescheduled'),
         ('Complete', 'Complete'),
         ('Completed', 'Completed'),
         ('Pending', 'Pending'),
