@@ -1386,7 +1386,8 @@ const DashboardPage = () => {
 
           {/* Action 2: Create Prescription */}
           <div
-            onClick={openNewPrescription}
+            id="dash-create-prescription-quick-action"
+            onClick={() => openNewPrescription(null)}
             style={{
               backgroundColor: '#fbfcfd',
               border: '1px solid #eef2f6',

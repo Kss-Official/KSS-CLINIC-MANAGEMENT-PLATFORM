@@ -944,7 +944,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                               <div
                                 key={notif.id}
                                 onClick={() => handleNotificationClick(notif)}
-                                className="rx-remaining-item"
+                                className="rx-remaining-item prescription-remaining-item"
                                 style={{
                                   padding: '13px 18px',
                                   borderBottom: '1px solid #fef3c7',

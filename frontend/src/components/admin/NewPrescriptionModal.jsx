@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PrescriptionPreviewCard from './PrescriptionPreviewCard';
 import appointmentApi from '../../api/appointmentApi';
 import AdminCalendarPopover from './AdminCalendarPopover';
@@ -47,13 +47,33 @@ const parseDisplayDateToIso = (dateStr) => {
   return '';
 };
 
+// Helper: Check if initialPatient is a genuine, non-synthetic patient/appointment object
+const isValidInitialPatient = (p) => {
+  if (!p || typeof p !== 'object') return false;
+  // Guard against synthetic DOM/React events (e.g., from onClick={openNewPrescription})
+  if (p.nativeEvent || p._reactName || p.target || p.currentTarget || typeof p.preventDefault === 'function') {
+    return false;
+  }
+  const name = p.patient_name || p.name || p.patientName;
+  const hasApt = Boolean(p.appointment_id || (p.id && String(p.id).startsWith('APT-')) || p.rawId);
+  const hasPatId = Boolean(p.patient_id_ref || p.patient_record_id || (p.patient_id && p.patient_id !== 'PAT-1010') || (p.id && String(p.id).startsWith('PAT-') && p.id !== 'PAT-1010'));
+  
+  // Must have a real non-placeholder name, or real appointment / patient ID
+  if (typeof name === 'string' && name.trim() && name.trim().toLowerCase() !== 'patient') {
+    return true;
+  }
+  return Boolean(hasApt || hasPatId);
+};
+
 const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
   const [step, setStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [availablePatients, setAvailablePatients] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState(initialPatient || null);
+  const [selectedPatient, setSelectedPatient] = useState(() => (
+    isValidInitialPatient(initialPatient) ? initialPatient : null
+  ));
   const [selectedAppointment, setSelectedAppointment] = useState(null);
 
   const [appointmentDate, setAppointmentDate] = useState(getTodayIso);
@@ -79,84 +99,117 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
     'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'
   );
 
+  const prevIsOpenRef = useRef(false);
+
   useEffect(() => {
-    if (!isOpen) {
+    // When modal transitions from closed to open:
+    if (isOpen && !prevIsOpenRef.current) {
       setStep(1);
       setSearchQuery('');
-      if (!initialPatient) {
+      setSuccessMessage('');
+      setIsSaving(false);
+
+      if (isValidInitialPatient(initialPatient)) {
+        // Pre-fill ONLY when a valid patient is provided (e.g. from Prescription Remaining notification)
+        const isAppointment = Boolean(
+          initialPatient.appointment_id ||
+          (initialPatient.id && String(initialPatient.id).startsWith('APT-')) ||
+          initialPatient.appointmentId ||
+          initialPatient.timeSlot
+        );
+        if (isAppointment) {
+          setSelectedAppointment(initialPatient);
+          const pName = initialPatient.patient_name || initialPatient.name || initialPatient.patientName || 'Patient';
+          const pPhone = initialPatient.patient_phone || initialPatient.contact || initialPatient.phone || initialPatient.mobile || '';
+          const pAge = initialPatient.age || initialPatient.patient_age || (initialPatient.ageGender ? initialPatient.ageGender.split('/')[0].trim() : '30');
+          const pGender = initialPatient.gender || initialPatient.patient_gender || (initialPatient.ageGender ? initialPatient.ageGender.split('/')[1]?.trim() : 'Adult');
+          const pId = initialPatient.patient_id_ref || initialPatient.patient_record_id || (initialPatient.patient_record?.patient_id) || (initialPatient.patient_id ? `PAT-${initialPatient.patient_id}` : null) || initialPatient.patientId || (initialPatient.id && String(initialPatient.id).startsWith('PAT-') ? initialPatient.id : 'PAT-1010');
+
+          setSelectedPatient({
+            id: pId,
+            name: pName,
+            phone: pPhone,
+            ageGender: `${pAge} | ${pGender}`,
+            age: pAge,
+            gender: pGender,
+            initials:
+              pName
+                .split(' ')
+                .filter(Boolean)
+                .map((n) => n[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase() || 'PT',
+          });
+          if (initialPatient.date || initialPatient.appointment_date) {
+            const iso = parseDisplayDateToIso(initialPatient.date || initialPatient.appointment_date);
+            if (iso) setAppointmentDate(iso);
+          }
+          if (initialPatient.reason || initialPatient.reason_for_visit) {
+            setMainComplaint(initialPatient.reason || initialPatient.reason_for_visit);
+          }
+          if (initialPatient.consultationType || initialPatient.consultation_type) {
+            setConsultationType(initialPatient.consultationType || initialPatient.consultation_type);
+          }
+        } else {
+          const pName = initialPatient.name || initialPatient.patient_name || 'Patient';
+          const pPhone = initialPatient.phone || initialPatient.mobile || initialPatient.contact || initialPatient.patient_phone || '';
+          const pAge = initialPatient.age || initialPatient.patient_age || '30';
+          const pGender = initialPatient.gender || initialPatient.patient_gender || 'Adult';
+          const pId = initialPatient.id || initialPatient.patient_id || initialPatient.patient_id_ref || 'PAT-1010';
+          setSelectedPatient({
+            ...initialPatient,
+            id: pId,
+            name: pName,
+            phone: pPhone,
+            age: pAge,
+            gender: pGender,
+            ageGender: initialPatient.ageGender || `${pAge} | ${pGender}`,
+            initials:
+              initialPatient.initials ||
+              pName
+                .split(' ')
+                .filter(Boolean)
+                .map((n) => n[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase() ||
+              'PT',
+          });
+          setSelectedAppointment(null);
+        }
+      } else {
+        // Direct open: Patient MUST be empty until user searches and selects a patient!
         setSelectedPatient(null);
         setSelectedAppointment(null);
         setAppointmentDate(getTodayIso());
+        setMainComplaint('');
       }
-    } else if (initialPatient) {
-      const isAppointment = Boolean(
-        initialPatient.appointment_id ||
-        (initialPatient.id && String(initialPatient.id).startsWith('APT-')) ||
-        initialPatient.appointmentId ||
-        initialPatient.timeSlot
-      );
-      if (isAppointment) {
-        setSelectedAppointment(initialPatient);
-        const pName = initialPatient.patient_name || initialPatient.name || initialPatient.patientName || 'Patient';
-        const pPhone = initialPatient.patient_phone || initialPatient.contact || initialPatient.phone || initialPatient.mobile || '';
-        const pAge = initialPatient.age || initialPatient.patient_age || (initialPatient.ageGender ? initialPatient.ageGender.split('/')[0].trim() : '30');
-        const pGender = initialPatient.gender || initialPatient.patient_gender || (initialPatient.ageGender ? initialPatient.ageGender.split('/')[1]?.trim() : 'Adult');
-        const pId = initialPatient.patient_id_ref || initialPatient.patient_record_id || (initialPatient.patient_record?.patient_id) || (initialPatient.patient_id ? `PAT-${initialPatient.patient_id}` : null) || initialPatient.patientId || (initialPatient.id && String(initialPatient.id).startsWith('PAT-') ? initialPatient.id : 'PAT-1010');
-
-        setSelectedPatient({
-          id: pId,
-          name: pName,
-          phone: pPhone,
-          ageGender: `${pAge} | ${pGender}`,
-          age: pAge,
-          gender: pGender,
-          initials:
-            pName
-              .split(' ')
-              .filter(Boolean)
-              .map((n) => n[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase() || 'PT',
-        });
-        if (initialPatient.date || initialPatient.appointment_date) {
-          const iso = parseDisplayDateToIso(initialPatient.date || initialPatient.appointment_date);
-          if (iso) setAppointmentDate(iso);
-        }
-        if (initialPatient.reason || initialPatient.reason_for_visit) {
-          setMainComplaint(initialPatient.reason || initialPatient.reason_for_visit);
-        }
-        if (initialPatient.consultationType || initialPatient.consultation_type) {
-          setConsultationType(initialPatient.consultationType || initialPatient.consultation_type);
-        }
-      } else {
-        const pName = initialPatient.name || initialPatient.patient_name || 'Patient';
-        const pPhone = initialPatient.phone || initialPatient.mobile || initialPatient.contact || initialPatient.patient_phone || '';
-        const pAge = initialPatient.age || initialPatient.patient_age || '30';
-        const pGender = initialPatient.gender || initialPatient.patient_gender || 'Adult';
-        const pId = initialPatient.id || initialPatient.patient_id || initialPatient.patient_id_ref || 'PAT-1010';
-        setSelectedPatient({
-          ...initialPatient,
-          id: pId,
-          name: pName,
-          phone: pPhone,
-          age: pAge,
-          gender: pGender,
-          ageGender: initialPatient.ageGender || `${pAge} | ${pGender}`,
-          initials:
-            initialPatient.initials ||
-            pName
-              .split(' ')
-              .filter(Boolean)
-              .map((n) => n[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase() ||
-            'PT',
-        });
-        setSelectedAppointment(null);
-      }
+    } else if (!isOpen && prevIsOpenRef.current) {
+      // When modal closes: clean up completely
+      setStep(1);
+      setSearchQuery('');
+      setSelectedPatient(null);
+      setSelectedAppointment(null);
+      setAppointmentDate(getTodayIso());
+      setMainComplaint('');
+      setSymptoms('');
+      setDiagnosis('Skin allergy due to seasonal change.');
+      setMedicines([
+        {
+          id: 1,
+          name: '',
+          potency: '',
+          dosage: '',
+          duration: '',
+          instructions: '',
+        },
+      ]);
+      setSuccessMessage('');
+      setIsSaving(false);
     }
+
+    prevIsOpenRef.current = isOpen;
   }, [isOpen, initialPatient]);
 
   const patientAppointments = (
@@ -600,6 +653,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
               </div>
               <input
                 type="text"
+                id="prescription-modal-patient-search-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by patient name, mobile number or patient ID..."
@@ -657,6 +711,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
                     return filtered.map((p) => (
                       <div
                         key={p.id}
+                        className="patient-search-result-item"
                         onClick={() => {
                           setSelectedPatient({
                             id: p.id,
@@ -709,6 +764,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient }) => {
             {/* Selected Patient Card */}
             {selectedPatient && (
               <div
+                id="new-prescription-selected-patient-card"
                 style={{
                   backgroundColor: '#edf7ed',
                   border: '1px solid #c7e6c9',

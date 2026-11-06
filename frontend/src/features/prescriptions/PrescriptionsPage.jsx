@@ -477,7 +477,8 @@ const PrescriptionsPage = () => {
           {/* Create Prescription Button */}
           <button
             type="button"
-            onClick={openNewPrescription}
+            id="create-prescription-page-btn"
+            onClick={() => openNewPrescription(null)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
