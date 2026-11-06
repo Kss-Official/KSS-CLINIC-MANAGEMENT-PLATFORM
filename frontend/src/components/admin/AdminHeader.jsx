@@ -170,7 +170,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       ageGender: item.age_gender || item.ageGender || 'Adult',
       age: item.patient_age || item.age || (item.age_gender ? item.age_gender.split('/')[0].trim() : '30'),
       gender: item.patient_gender || item.gender || (item.age_gender ? item.age_gender.split('/')[1]?.trim() : 'Adult'),
-      notes: item.notes || item.reason_for_visit || 'Homeopathic Consultation',
+      notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
       doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
     };
 
@@ -351,7 +351,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       ageGender: item.age_gender || item.ageGender || 'Adult',
       age: item.patient_age || (item.age_gender ? item.age_gender.split('/')[0].trim() : '30'),
       gender: item.patient_gender || (item.age_gender ? item.age_gender.split('/')[1]?.trim() : 'Adult'),
-      notes: item.notes || item.reason_for_visit || 'Homeopathic Consultation',
+      notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
       doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
     };
 

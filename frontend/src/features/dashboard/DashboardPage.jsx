@@ -67,7 +67,7 @@ const DashboardPage = () => {
     status: item.status || 'Confirmed',
     prescriptionStatus: item.prescription_status || item.prescriptionStatus || 'Pending',
     ageGender: item.age_gender || item.ageGender || 'Adult',
-    notes: item.notes || item.reason_for_visit || '',
+    notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
     doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
   });
 
@@ -805,15 +805,15 @@ const DashboardPage = () => {
 
         {/* Table */}
         <div className="admin-table-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: '680px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '860px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Time</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Patient Name</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Contact</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Reason for Visit</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Status</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b', textAlign: 'center' }}>Action</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Time</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Patient Name</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Contact</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', maxWidth: '240px', minWidth: '150px' }}>Reason for Visit</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Status</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '700', color: '#64748b', textAlign: 'center', width: '130px', minWidth: '130px', whiteSpace: 'nowrap' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -866,8 +866,22 @@ const DashboardPage = () => {
                       <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#64748b' }}>
                         {row.contact}
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155' }}>
-                        {row.reason}
+                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155', maxWidth: '240px', minWidth: '150px' }}>
+                        <div
+                          title={row.reason || 'General Consultation'}
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            wordBreak: 'break-word',
+                            overflowWrap: 'anywhere',
+                            lineHeight: '1.45',
+                          }}
+                        >
+                          {row.reason || 'General Consultation'}
+                        </div>
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         <span

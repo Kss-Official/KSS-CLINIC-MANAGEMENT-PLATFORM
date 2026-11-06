@@ -130,7 +130,7 @@ const AppointmentsPage = () => {
       status: aptStatus,
       prescriptionStatus: rxStatus,
       ageGender: item.age_gender || item.ageGender || 'Adult',
-      notes: item.notes || item.reason_for_visit || '',
+      notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
       doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
     };
   };
@@ -888,17 +888,17 @@ const AppointmentsPage = () => {
 
         {/* Appointments Table */}
         <div className="admin-table-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>APPOINTMENT ID</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>PATIENT NAME</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>CONTACT</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>DATE & TIME</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>REASON FOR VISIT</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>PRESCRIPTION</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>STATUS</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textAlign: 'center' }}>ACTION</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>APPOINTMENT ID</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>PATIENT NAME</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>CONTACT</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>DATE & TIME</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', maxWidth: '200px', minWidth: '130px' }}>REASON FOR VISIT</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>PRESCRIPTION</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>STATUS</th>
+                <th style={{ padding: '12px 10px', fontSize: '11.5px', fontWeight: '700', color: '#64748b', letterSpacing: '0.4px', textAlign: 'center', width: '110px', minWidth: '110px', whiteSpace: 'nowrap' }}>ACTION</th>
               </tr>
             </thead>
             <tbody>
@@ -1031,33 +1031,47 @@ const AppointmentsPage = () => {
                         onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = (statusFilter === 'New' && isNew) ? '#f0fdf4' : '#fafafa')}
                         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = (statusFilter === 'New' && isNew) ? '#fbfdfc' : 'transparent')}
                       >
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                      <td style={{ padding: '13px 10px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
                         {row.id}
                       </td>
-                      <td style={{ padding: '14px 16px', position: 'relative' }}>
+                      <td style={{ padding: '13px 10px', position: 'relative' }}>
                         <span style={{ fontSize: '13.5px', color: '#334155', fontWeight: '600' }}>
                           {row.name}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#64748b' }}>
+                      <td style={{ padding: '13px 10px', fontSize: '13.5px', color: '#64748b' }}>
                         {row.contact}
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155', lineHeight: 1.35 }}>
+                      <td style={{ padding: '13px 10px', fontSize: '13.5px', color: '#334155', lineHeight: 1.35 }}>
                         <div>{row.date}</div>
                         <div style={{ fontSize: '12px', color: '#64748b' }}>{row.time}</div>
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155' }}>
-                        {row.reason}
+                      <td style={{ padding: '13px 10px', fontSize: '13.5px', color: '#334155', maxWidth: '200px', minWidth: '130px' }}>
+                        <div
+                          title={row.reason || 'General Consultation'}
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            wordBreak: 'break-word',
+                            overflowWrap: 'anywhere',
+                            lineHeight: '1.45',
+                          }}
+                        >
+                          {row.reason || 'General Consultation'}
+                        </div>
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
+                      <td style={{ padding: '13px 10px' }}>
                         <span
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
-                            padding: '4px 12px',
+                            padding: '4px 10px',
                             borderRadius: '9999px',
-                            fontSize: '12px',
+                            fontSize: '11.5px',
                             fontWeight: '600',
                             backgroundColor: rxBadge.bg,
                             color: rxBadge.color,
@@ -1067,13 +1081,13 @@ const AppointmentsPage = () => {
                           {row.prescriptionStatus || 'Pending'}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
+                      <td style={{ padding: '13px 10px' }}>
                         <span
                           style={{
                             display: 'inline-block',
-                            padding: '4px 12px',
+                            padding: '4px 10px',
                             borderRadius: '9999px',
-                            fontSize: '12px',
+                            fontSize: '11.5px',
                             fontWeight: '600',
                             backgroundColor: badge.bg,
                             color: badge.color,
@@ -1082,7 +1096,7 @@ const AppointmentsPage = () => {
                           {row.status}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      <td style={{ padding: '13px 10px', textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                           <button
                             type="button"
