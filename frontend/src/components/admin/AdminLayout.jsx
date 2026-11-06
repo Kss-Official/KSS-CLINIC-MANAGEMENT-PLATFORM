@@ -59,6 +59,7 @@ const AdminLayout = ({ children }) => {
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [selectedPatientForPrescription, setSelectedPatientForPrescription] = useState(null);
+  const [prescriptionModalInitialStep, setPrescriptionModalInitialStep] = useState(1);
   const [isPatientHistoryModalOpen, setIsPatientHistoryModalOpen] = useState(false);
   const [selectedPatientForHistory, setSelectedPatientForHistory] = useState(null);
   const [isAppointmentDetailsModalOpen, setIsAppointmentDetailsModalOpen] = useState(false);
@@ -85,13 +86,74 @@ const AdminLayout = ({ children }) => {
     setIsAppointmentModalOpen(false);
   };
 
-  const openNewPrescription = (patient = null) => {
-    setSelectedPatientForPrescription(patient);
+  // Helper: Verify that patient argument is a valid data structure and not a DOM/React event
+  const isValidPatientObject = (p) => {
+    if (!p || typeof p !== 'object') return false;
+    if (p.nativeEvent || p._reactName || p.target || p.currentTarget || typeof p.preventDefault === 'function') {
+      return false;
+    }
+    const name = p.patient_name || p.name || p.patientName;
+    const hasApt = Boolean(p.appointment_id || (p.id && String(p.id).startsWith('APT-')) || p.rawId);
+    const hasPatId = Boolean(p.patient_id_ref || p.patient_record_id || p.patient_id || (p.id && String(p.id).startsWith('PAT-')));
+    const hasRx = Boolean(p.rxId || (p.id && String(p.id).startsWith('RX-')) || p.prescriptionId);
+    if (typeof name === 'string' && name.trim() && name.trim().toLowerCase() !== 'patient') {
+      return true;
+    }
+    return Boolean(hasApt || hasPatId || hasRx);
+  };
+
+  // Global event listener to open Create Prescription modal with prefilled patient
+  useEffect(() => {
+    const handleOpenRxEvent = (e) => {
+      const patient = e?.detail?.patient || e?.detail || null;
+      const initialStep = e?.detail?.initialStep || (e?.detail?.step) || 1;
+      if (isValidPatientObject(patient)) {
+        openNewPrescription(patient, initialStep);
+      } else {
+        openNewPrescription(null, 1);
+      }
+    };
+    window.addEventListener('open-create-prescription', handleOpenRxEvent);
+
+    // Also check if navigated with pending patient in sessionStorage or location.state
+    try {
+      const pendingStr = sessionStorage.getItem('pending_prescription_patient');
+      if (pendingStr) {
+        sessionStorage.removeItem('pending_prescription_patient');
+        const patient = JSON.parse(pendingStr);
+        if (isValidPatientObject(patient)) {
+          openNewPrescription(patient, 1);
+        }
+      } else if (location.state?.openNewPrescription && location.state?.patient) {
+        const patient = location.state.patient;
+        const initialStep = location.state.initialStep || (location.state.step) || 1;
+        navigate(location.pathname, { replace: true, state: {} });
+        if (isValidPatientObject(patient)) {
+          openNewPrescription(patient, initialStep);
+        }
+      }
+    } catch (err) {
+      sessionStorage.removeItem('pending_prescription_patient');
+    }
+
+    return () => window.removeEventListener('open-create-prescription', handleOpenRxEvent);
+  }, [location.pathname, location.state]);
+
+  const openNewPrescription = (patient = null, initialStep = 1) => {
+    const validPatient = isValidPatientObject(patient) ? patient : null;
+    setSelectedPatientForPrescription(validPatient);
+    setPrescriptionModalInitialStep(initialStep || 1);
     setIsPrescriptionModalOpen(true);
   };
 
   const closeNewPrescription = () => {
     setIsPrescriptionModalOpen(false);
+    setSelectedPatientForPrescription(null);
+    setPrescriptionModalInitialStep(1);
+    sessionStorage.removeItem('pending_prescription_patient');
+    if (location.state?.openNewPrescription) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
   };
 
   const openPatientHistory = (patient) => {
@@ -184,7 +246,7 @@ const AdminLayout = ({ children }) => {
         }}
       >
         {/* Fixed Top Header (70px height) */}
-        <AdminHeader onToggleSidebar={() => setMobileSidebarOpen((prev) => !prev)} onViewAppointment={openViewAppointment} />
+        <AdminHeader onToggleSidebar={() => setMobileSidebarOpen((prev) => !prev)} onViewAppointment={openViewAppointment} onNewPrescription={openNewPrescription} />
 
         {/* Portal Body: Flex container occupying remaining viewport height */}
         <div
@@ -272,9 +334,11 @@ const AdminLayout = ({ children }) => {
         <NewPrescriptionModal
           isOpen={isPrescriptionModalOpen}
           onClose={closeNewPrescription}
+          initialPatient={selectedPatientForPrescription}
+          initialStep={prescriptionModalInitialStep}
           onSave={(data) => {
-            alert(`Prescription created successfully for ${data.patient?.name || 'patient'}!`);
             closeNewPrescription();
+            window.dispatchEvent(new CustomEvent('prescription-created', { detail: data }));
           }}
         />
 
@@ -302,10 +366,10 @@ const AdminLayout = ({ children }) => {
           onNavigateToPatient={(rx) => {
             closeViewPrescription();
             openPatientHistory({
-              id: rx.patientId || 'PAT-1001',
-              name: rx.name,
-              ageGender: rx.ageGender,
-              mobile: rx.mobile || '+91 98765 43210',
+              id: rx.patientId || rx.patient_id_ref || rx.patient?.id || (rx.patient_record?.patient_id) || '',
+              name: rx.name || rx.patient_name || '',
+              ageGender: rx.ageGender || rx.age_gender || '',
+              mobile: rx.mobile || rx.patient_phone || '',
             });
           }}
         />

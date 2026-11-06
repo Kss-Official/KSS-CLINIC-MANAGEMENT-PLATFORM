@@ -9,7 +9,7 @@ import patientLoginBg from "../../assets/patient-login-bg.jpg?v=v2_crystal_clean
 const LoginPage = ({ initialMode = "login" }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { patientLogin, logout, register, isAuthenticated, user } = useAuth();
+  const { patientLogin, logout, register, clearAuth, isAuthenticated, user } = useAuth();
 
   // Mode: 'login' (Patient Portal, Ref Image 1) or 'signup' (Create Your Account, Ref Image 2)
   const [mode, setMode] = useState(initialMode);
@@ -23,17 +23,10 @@ const LoginPage = ({ initialMode = "login" }) => {
     }
   }, [location.pathname, initialMode]);
 
-  // If already authenticated: redirect patients to intended page or Home (/), admins to /dashboard
+  // When visiting the Login page, ensure previous login session is properly cleared so users must log in afresh
   useEffect(() => {
-    if (isAuthenticated && user?.role) {
-      if (user.role === "PATIENT") {
-        const dest = location.state?.from || "/";
-        navigate(dest, { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
-    }
-  }, [isAuthenticated, user, navigate, location.state]);
+    clearAuth();
+  }, []);
 
   // Form states
   const [loginData, setLoginData] = useState({

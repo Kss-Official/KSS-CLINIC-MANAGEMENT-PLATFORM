@@ -7,7 +7,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
 
   useEffect(() => {
     setCurrentStatus(raw.status || 'Confirmed');
-  }, [raw.status, raw.id]);
+  }, [raw.status, raw.id, raw.appointment_id, raw.rawId]);
 
   // Lock background screen scroll and handle ESC key to close
   useEffect(() => {
@@ -59,6 +59,39 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
     }
   };
 
+  const handleCompleteAppointment = async () => {
+    try {
+      const targetId = raw.rawId || raw.id || raw.appointment_id;
+      const res = await appointmentApi.updateAppointmentStatus(targetId, 'Complete');
+      setCurrentStatus('Complete');
+      const updatedApt = res || raw;
+      window.dispatchEvent(
+        new CustomEvent('appointment-updated', {
+          detail: { id: targetId, status: 'Complete', appointment: updatedApt },
+        })
+      );
+      const aptNum = updatedApt.appointment_id || raw.appointment_id || (targetId ? `APT-${targetId}` : 'APT-0000');
+      const pName = updatedApt.patient_name || raw.patient_name || raw.name || 'Patient';
+      window.dispatchEvent(
+        new CustomEvent('prescription-remaining-notification', {
+          detail: {
+            ...raw,
+            ...updatedApt,
+            id: targetId,
+            rawId: targetId,
+            appointment_id: aptNum,
+            patient_name: pName,
+            name: pName,
+            status: 'Completed',
+            prescriptionStatus: 'Pending',
+          },
+        })
+      );
+    } catch (err) {
+      console.error('Failed to complete appointment:', err);
+    }
+  };
+
   if (!isOpen) return null;
 
   // Normalize appointment data with clean fallbacks
@@ -73,22 +106,26 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
   };
 
   const formattedId = raw.appointment_id || (raw.id && String(raw.id).startsWith('APT-') ? raw.id : (raw.id ? ('APT-' + raw.id) : 'APT-1001'));
+  const userReason = (raw.reason_for_visit || raw.reason || '').trim();
+  const rawNotes = (raw.clinical_remarks || raw.notes || '').trim();
+  const hasDistinctNotes = Boolean(rawNotes && rawNotes !== userReason);
+
   const apt = {
     ...raw,
     id: formattedId,
     appointment_id: formattedId,
-    name: raw.patient_name || raw.name || 'Rahul Sharma',
-    contact: raw.patient_phone || raw.contact || '+91 98765 43210',
+    name: raw.patient_name || raw.name || '',
+    contact: raw.patient_phone || raw.contact || raw.phone || '',
     date: formatDisplayDate(raw.appointment_date || raw.date),
     time: raw.time_slot || raw.time || '09:30 AM',
-    reason: raw.reason_for_visit || raw.reason || 'Homeopathic Consultation',
-    status: raw.status || 'Confirmed',
+    reason: userReason || 'Homeopathic Consultation',
+    status: currentStatus || raw.status || 'Confirmed',
     consultationType: (raw.consultation_type || raw.consultationType || 'In clinic Visit').replace('In-clinic', 'In clinic'),
     ageGender: raw.ageGender || raw.age_gender || (raw.patient_gender ? (raw.patient_age ? (raw.patient_age + ' • ' + raw.patient_gender) : raw.patient_gender) : 'Adult'),
     bloodGroup: raw.blood_group || raw.bloodGroup || 'O+',
     email: raw.patient_email || raw.email || '',
     doctor: raw.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
-    notes: raw.notes || raw.clinical_remarks || raw.reason_for_visit || raw.reason || 'Homeopathic Consultation',
+    clinicalNotes: hasDistinctNotes ? rawNotes : '',
     prescriptionStatus: raw.prescription_status || raw.prescriptionStatus || 'Pending',
   };
 
@@ -112,15 +149,15 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
     switch (status) {
       case 'Complete':
       case 'Completed':
-        return { bg: '#e8f7ee', color: '#1e7e34', border: '#bbf7d0' };
+        return { bg: '#e8f7ee', color: '#1e7e34', border: '#bbf7d0', label: 'Prescription Created' };
       case 'Pending':
       default:
-        return { bg: '#fef7e6', color: '#b45309', border: '#fde68a' };
+        return { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa', label: 'Prescription Pending' };
     }
   };
 
   const badge = getStatusBadge(currentStatus || apt.status || 'Confirmed');
-  const rxStatus = apt.prescriptionStatus || apt.prescription_status || 'Pending';
+  const rxStatus = apt.prescriptionStatus || 'Pending';
   const rxBadge = getPrescriptionBadge(rxStatus);
 
   return (
@@ -134,14 +171,14 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
         bottom: 0,
         width: '100vw',
         height: '100vh',
-        backgroundColor: 'rgba(15, 23, 42, 0.45)',
+        backgroundColor: 'rgba(15, 23, 42, 0.5)',
         backdropFilter: 'blur(6px)',
         WebkitBackdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        padding: '20px',
+        padding: '16px',
         boxSizing: 'border-box',
         overflow: 'hidden',
       }}
@@ -152,8 +189,8 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
           backgroundColor: '#ffffff',
           borderRadius: '20px',
           width: '100%',
-          maxWidth: '560px',
-          maxHeight: '90vh',
+          maxWidth: '580px',
+          maxHeight: '92vh',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           display: 'flex',
           flexDirection: 'column',
@@ -168,7 +205,8 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '28px 32px',
+            overflowX: 'hidden',
+            padding: '24px 28px',
             boxSizing: 'border-box',
           }}
         >
@@ -178,24 +216,29 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               display: 'flex',
               alignItems: 'flex-start',
               justifyContent: 'space-between',
-              marginBottom: '20px',
+              gap: '12px',
+              marginBottom: '18px',
             }}
           >
-            <div>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <div
                 style={{
-                  display: 'inline-block',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
                   fontSize: '11px',
                   fontWeight: '700',
-                  color: '#265e38',
-                  backgroundColor: '#e8f5ec',
+                  color: '#166534',
+                  backgroundColor: '#dcfce7',
                   padding: '3px 10px',
                   borderRadius: '6px',
                   letterSpacing: '0.5px',
+                  textTransform: 'uppercase',
                   marginBottom: '8px',
                 }}
               >
-                APPOINTMENT DETAILS
+                <span>📅</span>
+                <span>Appointment Details</span>
               </div>
               <h2
                 style={{
@@ -204,26 +247,29 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                   color: '#0f172a',
                   margin: 0,
                   letterSpacing: '-0.3px',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'anywhere',
                 }}
               >
                 {apt.name}
               </h2>
               <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
-                ID: <span style={{ fontWeight: '600', color: '#334155' }}>{apt.id}</span>
+                ID: <span style={{ fontWeight: '700', color: '#1e4620' }}>{apt.id}</span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
               <span
                 style={{
                   display: 'inline-block',
-                  padding: '4px 14px',
+                  padding: '4px 12px',
                   borderRadius: '9999px',
                   fontSize: '12px',
                   fontWeight: '700',
                   backgroundColor: badge.bg,
                   color: badge.color,
                   border: `1px solid ${badge.border}`,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {currentStatus || apt.status}
@@ -239,12 +285,13 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                   border: '1px solid #e2e8f0',
                   backgroundColor: '#ffffff',
                   color: '#64748b',
-                  fontSize: '16px',
+                  fontSize: '15px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
+                  flexShrink: 0,
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#f1f5f9';
@@ -265,12 +312,13 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
             style={{
               backgroundColor: '#f8fafc',
               borderRadius: '14px',
-              padding: '16px 20px',
+              padding: '14px 18px',
               border: '1px solid #e2e8f0',
-              marginBottom: '20px',
+              marginBottom: '16px',
               display: 'flex',
               alignItems: 'center',
               gap: '14px',
+              boxSizing: 'border-box',
             }}
           >
             <div
@@ -301,33 +349,39 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               <div style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>
                 {apt.name}
               </div>
-              <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
-                {apt.contact} {apt.ageGender ? `• ${apt.ageGender}` : ''}
+              <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                <span>📞 {apt.contact}</span>
+                {apt.ageGender && <span>• {apt.ageGender}</span>}
+                {apt.email && <span>• ✉️ {apt.email}</span>}
               </div>
             </div>
           </div>
 
-          {/* Details Grid */}
+          {/* Details 2x2 Grid (Strict minmax(0, 1fr) ensures columns never overflow) */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '16px',
-              marginBottom: '20px',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: '12px',
+              marginBottom: '16px',
+              boxSizing: 'border-box',
             }}
           >
+            {/* 1. Date & Time */}
             <div
               style={{
                 backgroundColor: '#ffffff',
-                padding: '12px 16px',
+                padding: '12px 14px',
                 borderRadius: '12px',
-                border: '1px solid #f1f5f9',
+                border: '1px solid #e2e8f0',
+                minWidth: 0,
+                boxSizing: 'border-box',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                 DATE & TIME
               </div>
-              <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#0f172a', marginTop: '4px' }}>
+              <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 📅 {apt.date}
               </div>
               <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
@@ -335,18 +389,21 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               </div>
             </div>
 
+            {/* 2. Consultation Type */}
             <div
               style={{
                 backgroundColor: '#ffffff',
-                padding: '12px 16px',
+                padding: '12px 14px',
                 borderRadius: '12px',
-                border: '1px solid #f1f5f9',
+                border: '1px solid #e2e8f0',
+                minWidth: 0,
+                boxSizing: 'border-box',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                 CONSULTATION TYPE
               </div>
-              <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#0f172a', marginTop: '4px' }}>
+              <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 🩺 {apt.consultationType || 'In clinic Visit'}
               </div>
               <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
@@ -354,55 +411,179 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               </div>
             </div>
 
+            {/* 3. Assigned Doctor */}
             <div
               style={{
                 backgroundColor: '#ffffff',
-                padding: '12px 16px',
+                padding: '12px 14px',
                 borderRadius: '12px',
-                border: '1px solid #f1f5f9',
+                border: '1px solid #e2e8f0',
+                minWidth: 0,
+                boxSizing: 'border-box',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>
-                REASON FOR VISIT
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                ASSIGNED DOCTOR
               </div>
-              <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#0f172a', marginTop: '4px' }}>
-                {apt.reason || 'General Checkup'}
+              <div
+                style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                title={apt.doctor}
+              >
+                👨‍⚕️ {apt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)'}
+              </div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                Homeopathy Consultant
               </div>
             </div>
 
+            {/* 4. Prescription Status */}
             <div
               style={{
                 backgroundColor: '#ffffff',
-                padding: '12px 16px',
+                padding: '12px 14px',
                 borderRadius: '12px',
-                border: '1px solid #f1f5f9',
+                border: '1px solid #e2e8f0',
+                minWidth: 0,
+                boxSizing: 'border-box',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px' }}>
-                ASSIGNED DOCTOR
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                PRESCRIPTION STATUS
               </div>
-              <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#0f172a', marginTop: '4px' }}>
-                {apt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)'}
+              <div style={{ marginTop: '5px' }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '3px 9px',
+                    borderRadius: '9999px',
+                    fontSize: '11.5px',
+                    fontWeight: '700',
+                    backgroundColor: rxBadge.bg,
+                    color: rxBadge.color,
+                    border: `1px solid ${rxBadge.border}`,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span>💊</span>
+                  <span>{rxBadge.label}</span>
+                </span>
+              </div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                {rxStatus === 'Complete' || rxStatus === 'Completed' ? 'Prescription active' : 'Awaiting prescription creation'}
               </div>
             </div>
           </div>
 
-          {/* Clinical Remarks / Notes */}
+          {/* Reason for Visit Card (Full Width with perfect wrap for any user input) */}
           <div
             style={{
               backgroundColor: '#f8fafc',
-              borderRadius: '12px',
+              borderRadius: '14px',
               padding: '16px',
-              border: '1px solid #f1f5f9',
-              marginBottom: '24px',
+              border: '1px solid #e2e8f0',
+              marginBottom: '14px',
+              boxSizing: 'border-box',
             }}
           >
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', marginBottom: '6px' }}>
-              CLINICAL REMARKS & NOTES
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                fontWeight: '700',
+                color: '#475569',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                marginBottom: '8px',
+              }}
+            >
+              <span>🎯</span>
+              <span>Reason for Visit</span>
             </div>
-            <p style={{ fontSize: '13px', color: '#334155', lineHeight: 1.5, margin: 0 }}>
-              {apt.notes || 'Patient reported acute symptoms. Regular follow-up and homeopathic remedies scheduled according to diagnostic review.'}
-            </p>
+            <div
+              style={{
+                fontSize: '13.5px',
+                color: '#0f172a',
+                fontWeight: '500',
+                lineHeight: '1.55',
+                wordBreak: 'break-word',
+                overflowWrap: 'anywhere',
+                whiteSpace: 'pre-wrap',
+                backgroundColor: '#ffffff',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                boxSizing: 'border-box',
+              }}
+            >
+              {apt.reason || 'General Consultation'}
+            </div>
+          </div>
+
+          {/* Clinical Remarks / Notes Card */}
+          <div
+            style={{
+              backgroundColor: '#f8fafc',
+              borderRadius: '14px',
+              padding: '16px',
+              border: '1px solid #e2e8f0',
+              marginBottom: '20px',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                fontWeight: '700',
+                color: '#475569',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                marginBottom: '8px',
+              }}
+            >
+              <span>📝</span>
+              <span>Clinical Remarks & Notes</span>
+            </div>
+            {apt.clinicalNotes ? (
+              <div
+                style={{
+                  fontSize: '13.5px',
+                  color: '#334155',
+                  lineHeight: '1.55',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'anywhere',
+                  whiteSpace: 'pre-wrap',
+                  backgroundColor: '#ffffff',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid #e2e8f0',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {apt.clinicalNotes}
+              </div>
+            ) : (
+              <div
+                style={{
+                  fontSize: '12.5px',
+                  color: '#94a3b8',
+                  fontStyle: 'italic',
+                  padding: '10px 14px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '10px',
+                  border: '1px dashed #cbd5e1',
+                  boxSizing: 'border-box',
+                }}
+              >
+                No clinical remarks or extra notes recorded for this appointment.
+              </div>
+            )}
           </div>
 
           {/* Action Footer */}
@@ -411,9 +592,10 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'flex-end',
-              gap: '12px',
+              gap: '10px',
               paddingTop: '16px',
               borderTop: '1px solid #f1f5f9',
+              boxSizing: 'border-box',
             }}
           >
             {currentStatus === 'Pending' && (
@@ -424,7 +606,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                   padding: '9px 18px',
                   borderRadius: '8px',
                   border: 'none',
-                  backgroundColor: '#1e7e34',
+                  backgroundColor: '#16a34a',
                   color: '#ffffff',
                   fontSize: '13.5px',
                   fontWeight: '600',
@@ -434,18 +616,43 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                   gap: '6px',
                   transition: 'background-color 0.15s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#155724')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1e7e34')}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#15803d')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#16a34a')}
               >
                 <span>✓</span>
                 <span>Confirm Appointment</span>
+              </button>
+            )}
+            {currentStatus !== 'Complete' && currentStatus !== 'Completed' && (
+              <button
+                type="button"
+                onClick={handleCompleteAppointment}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
+              >
+                <span>✓</span>
+                <span>Mark as Complete</span>
               </button>
             )}
             <button
               type="button"
               onClick={onClose}
               style={{
-                padding: '9px 22px',
+                padding: '9px 20px',
                 borderRadius: '8px',
                 border: '1px solid #e2e8f0',
                 backgroundColor: '#ffffff',
@@ -453,7 +660,10 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 fontSize: '13.5px',
                 fontWeight: '600',
                 cursor: 'pointer',
+                transition: 'background-color 0.15s ease',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
             >
               Close
             </button>
@@ -465,4 +675,3 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
 };
 
 export default ViewAppointmentModal;
-

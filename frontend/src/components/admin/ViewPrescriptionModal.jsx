@@ -15,25 +15,52 @@ const ViewPrescriptionModal = ({
     setActiveRx(prescription);
     if (!isOpen || !prescription) return;
 
-    if (!prescription.medicines || prescription.medicines.length === 0) {
-      const rxIdentifier = prescription.id || prescription.rxId;
-      if (rxIdentifier) {
-        appointmentApi.getPrescriptions().then((list) => {
-          if (Array.isArray(list)) {
-            const found = list.find((item) => (item.id === rxIdentifier || item.rxId === rxIdentifier));
-            if (found && found.medicines && found.medicines.length > 0) {
+    const rxIdentifier = prescription.id || prescription.rxId;
+    if (rxIdentifier) {
+      appointmentApi.getPrescriptions().then((list) => {
+        if (Array.isArray(list)) {
+          const found = list.find((item) => (item.id === rxIdentifier || item.rxId === rxIdentifier));
+          if (found) {
+            setActiveRx((prev) => ({
+              ...prev,
+              ...found,
+              appointment_id: found.appointment_id || found.apt_number || found.aptNumber || prev?.appointment_id,
+              apt_number: found.apt_number || found.appointment_id || found.aptNumber || prev?.apt_number,
+              aptNumber: found.aptNumber || found.appointment_id || found.apt_number || prev?.aptNumber,
+              medicines: (found.medicines && found.medicines.length > 0) ? found.medicines : (prev?.medicines || []),
+              diagnosis: found.diagnosis || prev?.diagnosis,
+              patientId: found.patientId || prev?.patientId,
+              additionalInstructions: found.additionalInstructions || prev?.additionalInstructions,
+            }));
+          }
+        }
+      }).catch((err) => console.error('Failed to load prescription medicines:', err));
+    }
+
+    // Fallback: if appointment ID is not yet attached, find matched appointment by patient name
+    const pName = prescription.patientName || prescription.patient_name || prescription.name;
+    if (!prescription.appointment_id && !prescription.apt_number && !prescription.aptNumber && pName) {
+      appointmentApi.getAppointments().then((aptList) => {
+        if (Array.isArray(aptList)) {
+          const matchedApt = aptList.find(
+            (a) =>
+              (a.patient_name && a.patient_name.toLowerCase() === pName.toLowerCase()) ||
+              (a.name && a.name.toLowerCase() === pName.toLowerCase())
+          );
+          if (matchedApt) {
+            const aptNum = matchedApt.appointment_id || (matchedApt.id ? `APT-${matchedApt.id}` : '');
+            if (aptNum) {
               setActiveRx((prev) => ({
                 ...prev,
-                ...found,
-                medicines: found.medicines,
-                diagnosis: found.diagnosis || prev?.diagnosis,
-                patientId: found.patientId || prev?.patientId,
-                additionalInstructions: found.additionalInstructions || prev?.additionalInstructions,
+                appointment_id: aptNum,
+                appointmentId: aptNum,
+                apt_number: aptNum,
+                aptNumber: aptNum,
               }));
             }
           }
-        }).catch((err) => console.error('Failed to load prescription medicines:', err));
-      }
+        }
+      }).catch((err) => console.error('Failed to lookup appointment for prescription:', err));
     }
   }, [prescription, isOpen]);
   // Lock background screen scroll and handle ESC key to close
@@ -75,59 +102,43 @@ const ViewPrescriptionModal = ({
 
   // Current prescription data (from props or fetched state)
   const rx = activeRx || prescription || {
-    id: 'RX-2026-1016',
-    name: 'Rahul Sharma',
-    ageGender: '28 Years / Male',
-    date: '28 Oct 2026',
-    time: '09:45 AM',
-    complaint: 'Skin Allergy',
+    id: '',
+    name: '',
+    ageGender: '',
+    date: '',
+    time: '',
+    complaint: '',
     status: 'Pending',
-    mobile: '+91 98765 43210',
+    mobile: '',
     doctor: 'Dr. Kumar Tripathi Ampeh (Pat.)',
-    diagnosis: 'Skin allergy due to seasonal change.',
-    notes: 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.',
-  };
-
-  // Medicine list mapping by prescription ID or fallback matching reference image
-  const getPrescriptionMedicines = (rxId) => {
-    switch (rxId) {
-      case 'RX-2026-1016':
-        return [
-          { name: 'Rhus Tox', potency: '30C', dosage: '5 drops', duration: '15 Days', instructions: 'Twice daily' },
-          { name: 'Apis Mellifica', potency: '200C', dosage: '5 drops', duration: '10 Days', instructions: 'Once daily' },
-        ];
-      case 'RX-2026-1015':
-        return [
-          { name: 'Belladonna', potency: '30C', dosage: '4 Pills', duration: '7 Days', instructions: 'Twice daily' },
-          { name: 'Natrum Muriaticum', potency: '200CH', dosage: '4 Pills', duration: '14 Days', instructions: 'Once daily' },
-        ];
-      case 'RX-2026-1014':
-        return [
-          { name: 'Glonoinum', potency: '30C', dosage: '4 Pills', duration: '14 Days', instructions: 'Twice daily' },
-          { name: 'Iris Versicolor', potency: '200CH', dosage: '4 Pills', duration: '10 Days', instructions: 'Once daily' },
-        ];
-      case 'RX-2026-1013':
-        return [
-          { name: 'Gelsemium', potency: '30C', dosage: '4 Pills', duration: '14 Days', instructions: 'Twice daily' },
-          { name: 'China Officinalis', potency: '200CH', dosage: '4 Pills', duration: '14 Days', instructions: 'Once daily' },
-        ];
-      default:
-        return [
-          { name: 'Rhus Tox', potency: '30C', dosage: '5 drops', duration: '15 Days', instructions: 'Twice daily' },
-          { name: 'Apis Mellifica', potency: '200C', dosage: '5 drops', duration: '10 Days', instructions: 'Once daily' },
-        ];
-    }
+    diagnosis: '',
+    notes: '',
   };
 
   const medicines = rx.medicines && rx.medicines.length > 0
     ? rx.medicines
-    : getPrescriptionMedicines(rx.id);
+    : [];
+
+  const resolvedAptNum =
+    rx.appointment_id ||
+    rx.appointmentId ||
+    rx.apt_number ||
+    rx.aptNumber ||
+    rx.appointment_number ||
+    rx.patient?.appointment_id ||
+    rx.patient?.appointmentId ||
+    rx.patient?.aptNumber ||
+    '';
 
   const patientObj = {
-    name: rx.name || rx.patientName || 'Rahul Sharma',
-    id: rx.patientId || rx.patient_id_ref || rx.patient?.id || 'PAT-1001',
-    ageGender: rx.ageGender || rx.age_gender || '28 Years / Male',
-    phone: rx.contact || rx.mobile || rx.patient_phone || '+91 98765 43210',
+    name: rx.name || rx.patientName || rx.patient_name || 'Patient',
+    id: rx.patientId || rx.patient_id_ref || rx.patient?.id || rx.patient?.patient_id || '',
+    ageGender: rx.ageGender || rx.age_gender || rx.patient?.age_gender || '',
+    phone: rx.contact || rx.mobile || rx.phone || rx.patient_phone || rx.patient?.phone || '',
+    appointment_id: resolvedAptNum,
+    appointmentId: resolvedAptNum,
+    apt_number: resolvedAptNum,
+    aptNumber: resolvedAptNum,
   };
 
   return (
@@ -145,7 +156,7 @@ const ViewPrescriptionModal = ({
         backgroundColor: 'rgba(15, 23, 42, 0.45)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
-        zIndex: 1000,
+        zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -162,8 +173,8 @@ const ViewPrescriptionModal = ({
           backgroundColor: '#ffffff',
           borderRadius: '24px',
           width: '100%',
-          maxWidth: '680px',
-          maxHeight: 'calc(100vh - 40px)',
+          maxWidth: '720px',
+          maxHeight: '92vh',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           display: 'flex',
           flexDirection: 'column',
@@ -176,6 +187,7 @@ const ViewPrescriptionModal = ({
           className="admin-modal-scroll"
           style={{
             overflowY: 'auto',
+            overflowX: 'hidden',
             overscrollBehavior: 'contain',
             padding: '24px 28px',
             flex: 1,
@@ -201,10 +213,10 @@ const ViewPrescriptionModal = ({
                   margin: '0 0 3px 0',
                 }}
               >
-                New Prescription
+                Prescription Details
               </h2>
               <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
-                Create and preview the prescription for the selected patient.
+                View and review the prescription for the selected patient.
               </p>
             </div>
 
@@ -241,6 +253,7 @@ const ViewPrescriptionModal = ({
           <PrescriptionPreviewCard
             prescriptionId={rx.id || rx.rxId}
             patient={patientObj}
+            aptNumber={resolvedAptNum}
             date={rx.date || '28 Oct 2026'}
             consultationType={rx.consultationType || 'Follow-up'}
             diagnosis={rx.diagnosis || rx.complaint || 'Skin allergy due to seasonal change.'}
