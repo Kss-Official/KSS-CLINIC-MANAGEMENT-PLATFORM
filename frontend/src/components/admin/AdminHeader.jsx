@@ -680,46 +680,6 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                       <span>{newAppointmentsList.length} new</span>
                     </button>
                   )}
-
-                  {/* 2. RX Remaining Button (Filters notification dropdown to show ONLY prescription remaining notifications) */}
-                  {prescriptionUpdatesEnabled && (
-                    <button
-                      type="button"
-                      id="prescription-remaining-count-header-badge"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDropdownFilter((prev) => (prev === 'rx_remaining' ? 'all' : 'rx_remaining'));
-                      }}
-                      style={{
-                        fontSize: '11.5px',
-                        fontWeight: '700',
-                        color: dropdownFilter === 'rx_remaining' ? '#ffffff' : '#9a3412',
-                        backgroundColor: dropdownFilter === 'rx_remaining' ? '#c2410c' : '#ffedd5',
-                        border: dropdownFilter === 'rx_remaining' ? '1px solid #9a3412' : '1px solid #fed7aa',
-                        padding: '3px 10px',
-                        borderRadius: '9999px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        outline: 'none',
-                        boxShadow: dropdownFilter === 'rx_remaining' ? '0 1px 4px rgba(194, 65, 12, 0.25)' : 'none',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (dropdownFilter !== 'rx_remaining') e.currentTarget.style.backgroundColor = '#fed7aa';
-                        e.currentTarget.style.transform = 'scale(1.04)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (dropdownFilter !== 'rx_remaining') e.currentTarget.style.backgroundColor = '#ffedd5';
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }}
-                      title={dropdownFilter === 'rx_remaining' ? 'Click to show all notifications' : 'Click to show only prescription remaining notifications'}
-                    >
-                      <span>📝</span>
-                      <span>{rxRemainingList.length} rx remaining</span>
-                    </button>
-                  )}
                 </div>
                 {unreadCount > 0 && (
                   <button
