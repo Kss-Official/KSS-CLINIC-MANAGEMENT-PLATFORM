@@ -36,12 +36,63 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
 
   const [appointmentDate, setAppointmentDate] = useState(getTodayISO);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [timeSlot, setTimeSlot] = useState('10:30 AM - 11:00 AM');
+  const [slotDuration, setSlotDuration] = useState('30 Minutes');
+  const [consultationHours, setConsultationHours] = useState('09:00 AM - 06:00 PM');
+  const [timeSlot, setTimeSlot] = useState('09:00 AM - 09:30 AM');
   const [reasonForVisit, setReasonForVisit] = useState('');
   const [consultationType, setConsultationType] = useState('In-clinic Visit');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    appointmentApi.getAppointmentSettings().then((data) => {
+      if (data) {
+        if (data.slotDuration || data.slot_duration) setSlotDuration(data.slotDuration || data.slot_duration);
+        if (data.consultationHours || data.consultation_hours) setConsultationHours(data.consultationHours || data.consultation_hours);
+      }
+    }).catch(() => {});
+  }, [isOpen]);
+
+  const generateAdminSlots = () => {
+    const durMatch = String(slotDuration || '').match(/\d+/);
+    const durMins = durMatch ? parseInt(durMatch[0], 10) : 30;
+
+    const parts = (consultationHours || '09:00 AM - 06:00 PM').split('-');
+    const parseMins = (t) => {
+      if (!t) return null;
+      const match = t.trim().match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (!match) return null;
+      let h = parseInt(match[1], 10);
+      const m = parseInt(match[2], 10);
+      const p = match[3].toUpperCase();
+      if (p === 'PM' && h !== 12) h += 12;
+      if (p === 'AM' && h === 12) h = 0;
+      return h * 60 + m;
+    };
+    const sMins = parseMins(parts[0]) ?? (9 * 60);
+    const eMins = parseMins(parts[1]) ?? (18 * 60);
+
+    const generated = [];
+    for (let cur = sMins; cur < eMins; cur += durMins) {
+      const h = Math.floor(cur / 60);
+      const m = cur % 60;
+      const period = h >= 12 ? 'PM' : 'AM';
+      const dispH = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+      const startLabel = `${String(dispH).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+
+      const endCur = cur + durMins;
+      const endH = Math.floor(endCur / 60);
+      const endM = endCur % 60;
+      const endPeriod = endH >= 12 ? 'PM' : 'AM';
+      const endDispH = endH === 0 ? 12 : (endH > 12 ? endH - 12 : endH);
+      const endLabel = `${String(endDispH).padStart(2, '0')}:${String(endM).padStart(2, '0')} ${endPeriod}`;
+
+      generated.push(`${startLabel} - ${endLabel}`);
+    }
+    return generated.length > 0 ? generated : ['09:00 AM - 09:30 AM', '09:30 AM - 10:00 AM'];
+  };
 
   // Fetch real patients from Neon PostgreSQL
   useEffect(() => {
@@ -749,13 +800,11 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                     cursor: 'pointer',
                   }}
                 >
-                  <option value="09:30 AM - 10:00 AM">09:30 AM - 10:00 AM</option>
-                  <option value="10:00 AM - 10:30 AM">10:00 AM - 10:30 AM</option>
-                  <option value="10:30 AM - 11:00 AM">10:30 AM - 11:00 AM</option>
-                  <option value="11:30 AM - 12:00 PM">11:30 AM - 12:00 PM</option>
-                  <option value="01:00 PM - 01:30 PM">01:00 PM - 01:30 PM</option>
-                  <option value="02:30 PM - 03:00 PM">02:30 PM - 03:00 PM</option>
-                  <option value="04:00 PM - 04:30 PM">04:00 PM - 04:30 PM</option>
+                  {generateAdminSlots().map((slotStr) => (
+                    <option key={slotStr} value={slotStr}>
+                      {slotStr}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

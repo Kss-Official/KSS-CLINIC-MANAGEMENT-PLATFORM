@@ -381,11 +381,11 @@ const ProfilePage = () => {
 
               const safePatientName = patientName.replace(/\s+/g, '_');
 
-              const patientId = r.patientId || res.id || profile.patientId || 'PAT-1001';
+              const patientId = r.patientId || res.id || profile.patientId || '';
 
-              const ageGender = r.ageGender || res.ageGender || profile.gender || '30 / Adult';
+              const ageGender = r.ageGender || res.ageGender || profile.gender || '';
 
-              const contact = r.contact || r.mobile || res.mobile || profile.mobileNumber || '+91 98765 43210';
+              const contact = r.contact || r.mobile || res.mobile || profile.mobileNumber || '';
 
               const diagnosis = r.diagnosis || r.complaint || 'Clinical Consultation';
 
@@ -4651,9 +4651,9 @@ const ProfilePage = () => {
 
               name: downloadingRx.patientName || downloadingRx.name || profile.fullName,
 
-              id: downloadingRx.patientId || profile.patientId || 'PAT-1001',
+              id: downloadingRx.patientId || profile.patientId || '',
 
-              ageGender: downloadingRx.ageGender || profile.gender || '30 / Adult',
+              ageGender: downloadingRx.ageGender || profile.gender || '',
 
               phone: downloadingRx.contact || downloadingRx.mobile || profile.mobileNumber,
 

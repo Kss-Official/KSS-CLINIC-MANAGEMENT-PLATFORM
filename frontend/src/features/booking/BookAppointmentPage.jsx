@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -56,7 +56,7 @@ const BookAppointmentPage = () => {
 
     selectedTimeSlot: '09:30 AM',
 
-    appointmentId: 'APT-20261016-001',
+    appointmentId: '',
 
   });
 
@@ -84,11 +84,11 @@ const BookAppointmentPage = () => {
 
         ...prev,
 
-        fullName: prev.fullName === 'Rahul Sharma' && full ? full : (prev.fullName || full),
+        fullName: prev.fullName || full,
 
-        mobileNumber: prev.mobileNumber === '+91 98765 43210' && user.phone_number ? user.phone_number : (prev.mobileNumber || user.phone_number || ''),
+        mobileNumber: prev.mobileNumber || user.phone_number || '',
 
-        email: prev.email === 'rahul.sharma@gmail.com' && user.email ? user.email : (prev.email || user.email || ''),
+        email: prev.email || user.email || '',
 
         gender: prev.gender || user.gender || '',
 
@@ -174,6 +174,18 @@ const BookAppointmentPage = () => {
       }
     } catch {}
     return '09:00 AM - 06:00 PM';
+  });
+
+  const [slotDuration, setSlotDuration] = useState(() => {
+    try {
+      const cached = localStorage.getItem('clinic_appointment_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const sd = parsed.slotDuration || parsed.slot_duration;
+        if (sd) return sd;
+      }
+    } catch {}
+    return '30 Minutes';
   });
 
   const [customWorkingHours, setCustomWorkingHours] = useState(() => {
@@ -363,18 +375,22 @@ const BookAppointmentPage = () => {
   useEffect(() => {
     const fetchAppointmentSettings = async () => {
       try {
-        const data = await appointmentApi.getClinicSettings();
-        const days = data?.workingDays || data?.working_days;
-        if (Array.isArray(days) && days.length > 0) setWorkingDays(days);
-        const restrs = data?.dateRestrictions || data?.date_restrictions;
-        if (Array.isArray(restrs)) setDateRestrictions(restrs);
-        const cwh = data?.customWorkingHours || data?.custom_working_hours;
-        if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
-        const ch = data?.consultationHours || data?.consultation_hours;
-        if (ch) setConsultationHours(ch);
-        try {
-          localStorage.setItem('clinic_appointment_settings', JSON.stringify(data));
-        } catch {}
+        const data = await appointmentApi.getAppointmentSettings();
+        if (data) {
+          const days = data?.workingDays || data?.working_days;
+          if (Array.isArray(days) && days.length > 0) setWorkingDays(days);
+          const restrs = data?.dateRestrictions || data?.date_restrictions;
+          if (Array.isArray(restrs)) setDateRestrictions(restrs);
+          const cwh = data?.customWorkingHours || data?.custom_working_hours;
+          if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
+          const ch = data?.consultationHours || data?.consultation_hours;
+          if (ch) setConsultationHours(ch);
+          const sd = data?.slotDuration || data?.slot_duration;
+          if (sd) setSlotDuration(sd);
+          try {
+            localStorage.setItem('clinic_appointment_settings', JSON.stringify(data));
+          } catch {}
+        }
       } catch (err) {
         console.log('Using cached or default appointment settings');
       }
@@ -382,14 +398,17 @@ const BookAppointmentPage = () => {
     fetchAppointmentSettings();
 
     const handleSettingsUpdated = (e) => {
-      const days = e?.detail?.workingDays || e?.detail?.working_days;
+      const detail = e?.detail || {};
+      const days = detail?.workingDays || detail?.working_days;
       if (Array.isArray(days)) setWorkingDays(days);
-      const restrs = e?.detail?.dateRestrictions || e?.detail?.date_restrictions;
+      const restrs = detail?.dateRestrictions || detail?.date_restrictions;
       if (Array.isArray(restrs)) setDateRestrictions(restrs);
-      const cwh = e?.detail?.customWorkingHours || e?.detail?.custom_working_hours;
+      const cwh = detail?.customWorkingHours || detail?.custom_working_hours;
       if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
-      const ch = e?.detail?.consultationHours || e?.detail?.consultation_hours;
+      const ch = detail?.consultationHours || detail?.consultation_hours;
       if (ch) setConsultationHours(ch);
+      const sd = detail?.slotDuration || detail?.slot_duration;
+      if (sd) setSlotDuration(sd);
     };
 
     const handleStorageChange = (e) => {
@@ -404,15 +423,19 @@ const BookAppointmentPage = () => {
           if (Array.isArray(cwh)) setCustomWorkingHours(cwh);
           const ch = parsed.consultationHours || parsed.consultation_hours;
           if (ch) setConsultationHours(ch);
+          const sd = parsed.slotDuration || parsed.slot_duration;
+          if (sd) setSlotDuration(sd);
         } catch {}
       }
     };
 
     window.addEventListener('appointment-settings-updated', handleSettingsUpdated);
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('focus', fetchAppointmentSettings);
     return () => {
       window.removeEventListener('appointment-settings-updated', handleSettingsUpdated);
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', fetchAppointmentSettings);
     };
   }, []);
 
@@ -453,72 +476,53 @@ const BookAppointmentPage = () => {
 
 
 
-  // Base Time Slots list matching reference design
+  // Dynamic Time Slots generator using clinic settings (consultation hours & slot duration)
+  const generateDynamicSlots = useCallback((startStr, endStr, durationStr) => {
+    const match = String(durationStr || '').match(/\d+/);
+    const durationMins = match ? parseInt(match[0], 10) : 30;
+    if (durationMins <= 0) return [];
 
-  const baseTimeSlots = [
+    const startMins = timeToMinutes(startStr) ?? (9 * 60);
+    const endMins = timeToMinutes(endStr) ?? (18 * 60);
 
-    { time: '09:00 AM', defaultAvailable: true },
-
-    { time: '09:30 AM', defaultAvailable: true },
-
-    { time: '10:30 AM', defaultAvailable: true },
-
-    { time: '10:30 AM', defaultAvailable: true },
-
-    { time: '11:00 AM', defaultAvailable: true },
-
-    { time: '11:30 AM', defaultAvailable: true },
-
-    { time: '12:00 PM', defaultAvailable: true },
-
-    { time: '12:30 PM', defaultAvailable: false }, // unavailable in design
-
-    { time: '01:00 PM', defaultAvailable: true },
-
-    { time: '04:00 PM', defaultAvailable: true },
-
-    { time: '04:30 PM', defaultAvailable: true },
-
-    { time: '05:00 PM', defaultAvailable: true },
-
-    { time: '05:30 PM', defaultAvailable: true },
-
-  ];
-
-
+    const generated = [];
+    for (let cur = startMins; cur < endMins; cur += durationMins) {
+      const h = Math.floor(cur / 60);
+      const m = cur % 60;
+      const period = h >= 12 ? 'PM' : 'AM';
+      const dispH = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+      const timeLabel = `${String(dispH).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+      generated.push({ time: timeLabel, defaultAvailable: true });
+    }
+    return generated;
+  }, []);
 
   const [bookedSlotsMap, setBookedSlotsMap] = useState({});
 
-
-
   const normalizeSlotTime = (t) => {
-
     if (!t) return '';
-
     return t.trim().toUpperCase().replace(/^0/, '');
-
   };
 
-
-
   const fetchBookedSlots = async () => {
-
     try {
-
-      const data = await appointmentApi.getBookedSlots();
-
+      const formattedDate = `${formData.selectedYear}-${String(formData.selectedMonth + 1).padStart(2, '0')}-${String(formData.selectedDay).padStart(2, '0')}`;
+      const data = await appointmentApi.getBookedSlots(formattedDate);
       if (data?.all_booked_slots) {
-
         setBookedSlotsMap(data.all_booked_slots);
-
       }
-
+      if (data?.slotDuration || data?.slot_duration) {
+        setSlotDuration(data.slotDuration || data.slot_duration);
+      }
+      if (data?.consultationHours || data?.consultation_hours) {
+        setConsultationHours(data.consultationHours || data.consultation_hours);
+      }
+      if (data?.workingDays || data?.working_days) {
+        setWorkingDays(data.workingDays || data.working_days);
+      }
     } catch (err) {
-
       console.warn('Could not fetch booked slots:', err);
-
     }
-
   };
 
 
@@ -599,58 +603,40 @@ const BookAppointmentPage = () => {
   const startMins = timeToMinutes(effectiveHours.startTime);
   const endMins = timeToMinutes(effectiveHours.endTime);
 
-  const timeSlots = baseTimeSlots.map((slot) => {
+  const baseTimeSlots = useMemo(() => {
+    return generateDynamicSlots(effectiveHours.startTime, effectiveHours.endTime, slotDuration);
+  }, [generateDynamicSlots, effectiveHours.startTime, effectiveHours.endTime, slotDuration]);
 
-    const norm = normalizeSlotTime(slot.time);
+  const timeSlots = useMemo(() => {
+    return baseTimeSlots.map((slot) => {
+      const norm = normalizeSlotTime(slot.time);
+      const isBooked = bookedSet.has(norm);
+      const slotMins = timeToMinutes(slot.time);
+      const isOutsideHours = slotMins !== null && startMins !== null && endMins !== null &&
+        (slotMins < startMins || slotMins >= endMins);
+      const isAvailable = slot.defaultAvailable && !isBooked && !isOutsideHours;
 
-    const isBooked = bookedSet.has(norm);
-
-    const slotMins = timeToMinutes(slot.time);
-
-    const isOutsideHours = slotMins !== null && startMins !== null && endMins !== null &&
-      (slotMins < startMins || slotMins >= endMins);
-
-    const isAvailable = slot.defaultAvailable && !isBooked && !isOutsideHours;
-
-    return {
-
-      ...slot,
-
-      available: isAvailable,
-
-      isBooked,
-
-      isOutsideHours,
-
-    };
-
-  });
-
-
+      return {
+        ...slot,
+        available: isAvailable,
+        isBooked,
+        isOutsideHours,
+      };
+    });
+  }, [baseTimeSlots, bookedSet, startMins, endMins]);
 
   // Automatically select the next available time slot if current selection is booked or unavailable
-
   useEffect(() => {
-
     const currentSlotObj = timeSlots.find(
-
       (s) => normalizeSlotTime(s.time) === normalizeSlotTime(formData.selectedTimeSlot)
-
     );
-
     if (!currentSlotObj || !currentSlotObj.available) {
-
       const nextAvailable = timeSlots.find((s) => s.available);
-
       if (nextAvailable && nextAvailable.time !== formData.selectedTimeSlot) {
-
         setFormData((prev) => ({ ...prev, selectedTimeSlot: nextAvailable.time }));
-
       }
-
     }
-
-  }, [formData.selectedDay, formData.selectedMonth, formData.selectedYear, bookedSlotsMap]);
+  }, [formData.selectedDay, formData.selectedMonth, formData.selectedYear, bookedSlotsMap, timeSlots, formData.selectedTimeSlot]);
 
 
 

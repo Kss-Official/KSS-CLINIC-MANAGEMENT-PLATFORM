@@ -9,7 +9,7 @@ import AdminCalendarPopover from '../../components/admin/AdminCalendarPopover';
 import { formatDateForDataset, parseDateString, matchesDateFilter as checkDateFilter } from '../../utils/dateFilterUtils';
 
 const AppointmentsPage = () => {
-  const { openNewAppointment, openViewAppointment, openNewPrescription } = useAdmin();
+  const { openNewAppointment, openViewAppointment, openNewPrescription, openPatientHistory } = useAdmin();
 
   const [dateFilter, setDateFilter] = useState('All Dates');
   const [customDate, setCustomDate] = useState('');
@@ -783,7 +783,6 @@ const AppointmentsPage = () => {
               }}
             >
               <option value="All">All Status</option>
-              <option value="New">New / Pending</option>
               <option value="Confirmed">Confirmed</option>
               <option value="Complete">Complete</option>
               <option value="Cancelled">Cancelled</option>
@@ -1132,6 +1131,25 @@ const AppointmentsPage = () => {
                                 label: 'View Details',
                                 icon: '👁️',
                                 onClick: () => openViewAppointment(row),
+                              },
+                              {
+                                label: 'View Patient History',
+                                icon: '👤',
+                                onClick: () =>
+                                  openPatientHistory({
+                                    id: row.patientId || row.patient_id || (row.patient?.id ? `PAT-${row.patient.id}` : (row.rawId ? `PAT-${row.rawId}` : '')),
+                                    name: row.name || row.patientName,
+                                    ageGender: row.ageGender || row.age_gender,
+                                    mobile: row.contact || row.mobile || '',
+                                    email: row.email || row.patientEmail,
+                                    address: row.address,
+                                    bloodGroup: row.bloodGroup || row.blood_group,
+                                    knownAllergies: row.knownAllergies || row.known_allergies,
+                                    primaryConcern: row.reason || row.reason_for_visit,
+                                    notes: row.clinicalRemarks || row.notes,
+                                    appointments: row.patient?.appointments || row.appointments,
+                                    prescriptions: row.patient?.prescriptions || row.prescriptions,
+                                  }),
                               },
                               {
                                 label: 'Create Prescription',

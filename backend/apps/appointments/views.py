@@ -10,6 +10,7 @@ from rest_framework import status, permissions
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from apps.core.permissions import IsStaffOrAdmin, IsPatientUser
 from .models import Appointment, Notification, Prescription, Patient
+from apps.users.models import User
 from .serializers import AppointmentSerializer, NotificationSerializer, ClinicSettingsSerializer, AppointmentSettingsSerializer
 from datetime import datetime
 from django.utils import timezone
@@ -141,6 +142,46 @@ def get_working_hours_for_date(date_str_or_obj, clinic_settings):
     return def_start, def_end, False, None
 
 
+def generate_time_slots(start_time_str, end_time_str, slot_duration_str):
+    try:
+        duration_mins = int(''.join(c for c in str(slot_duration_str) if c.isdigit())) or 30
+    except Exception:
+        duration_mins = 30
+    if duration_mins <= 0:
+        duration_mins = 30
+
+    def _to_mins(t_str):
+        if not t_str:
+            return None
+        t_clean = str(t_str).strip().upper()
+        for fmt in ('%I:%M %p', '%I:%M%p', '%H:%M'):
+            try:
+                dt = datetime.strptime(t_clean, fmt)
+                return dt.hour * 60 + dt.minute
+            except Exception:
+                pass
+        return None
+
+    s_mins = _to_mins(start_time_str)
+    e_mins = _to_mins(end_time_str)
+    if s_mins is None:
+        s_mins = 9 * 60
+    if e_mins is None:
+        e_mins = 18 * 60
+
+    slots = []
+    curr = s_mins
+    while curr < e_mins:
+        h = curr // 60
+        m = curr % 60
+        period = 'AM' if h < 12 else 'PM'
+        display_h = h if 1 <= h <= 12 else (h - 12 if h > 12 else 12)
+        slot_str = f"{display_h:02d}:{m:02d} {period}"
+        slots.append(slot_str)
+        curr += duration_mins
+    return slots
+
+
 class AppointmentSlotsView(APIView):
     permission_classes = [AllowAny]
 
@@ -194,6 +235,9 @@ class AppointmentSlotsView(APIView):
         custom_hours = clinic_settings.get('customWorkingHours') or clinic_settings.get('custom_working_hours') or []
         is_restricted, restriction_reason = check_date_restriction(target_norm, restrictions)
         effective_start, effective_end, is_custom_hours, custom_hours_reason = get_working_hours_for_date(target_norm, clinic_settings)
+        slot_duration = clinic_settings.get('slotDuration') or clinic_settings.get('slot_duration') or '30 Minutes'
+        consultation_hours = clinic_settings.get('consultationHours') or clinic_settings.get('consultation_hours') or '09:00 AM - 06:00 PM'
+        generated_slots = generate_time_slots(effective_start, effective_end, slot_duration)
 
         return Response({
             'date': date_param,
@@ -213,6 +257,12 @@ class AppointmentSlotsView(APIView):
             'dateRestrictions': restrictions,
             'custom_working_hours': custom_hours,
             'customWorkingHours': custom_hours,
+            'slot_duration': slot_duration,
+            'slotDuration': slot_duration,
+            'consultation_hours': consultation_hours,
+            'consultationHours': consultation_hours,
+            'slots': generated_slots,
+            'available_slots': generated_slots,
         })
 
 
@@ -737,8 +787,9 @@ class PatientHistoryListView(APIView):
             if not patient and p_name:
                 patient = Patient.objects.filter(name__iexact=p_name).first()
             if not patient and p_name:
+                p_user = unlinked_apt.user if (unlinked_apt.user and getattr(unlinked_apt.user, 'role', '') == User.Role.PATIENT) else None
                 patient = Patient.objects.create(
-                    user=unlinked_apt.user,
+                    user=p_user,
                     name=p_name,
                     phone=p_phone,
                     email=unlinked_apt.patient_email or f"{p_name.lower().replace(' ', '.')}@gmail.com",
@@ -765,7 +816,7 @@ class PatientHistoryListView(APIView):
                 unlinked_rx.patient_record = patient
                 unlinked_rx.save(update_fields=['patient_record'])
 
-        patients = Patient.objects.all().prefetch_related('appointments', 'prescriptions').order_by('-created_at', '-id')
+        patients = Patient.objects.filter(user__isnull=False, user__role=User.Role.PATIENT).prefetch_related('appointments', 'prescriptions').order_by('-created_at', '-id')
         data = []
 
         for p in patients:
@@ -939,7 +990,7 @@ class PrescriptionListView(APIView):
 
         data = []
         for rx in prescriptions:
-            pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else 'PAT-1001')
+            pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else '')
             complaint_val = (rx.complaint or '').strip()
             if not complaint_val or complaint_val.lower() == 'consultation':
                 if rx.appointment and rx.appointment.reason_for_visit and rx.appointment.reason_for_visit.strip():
@@ -1239,7 +1290,7 @@ class PrescriptionDetailView(APIView):
                 rx = Prescription.objects.get(pk=int(pk_or_id))
             else:
                 rx = Prescription.objects.get(prescription_id=pk_or_id)
-            pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else 'PAT-1001')
+            pid = rx.patient_id_ref or (rx.patient_record.patient_id if rx.patient_record else '')
             complaint_val = (rx.complaint or '').strip()
             if not complaint_val or complaint_val.lower() == 'consultation':
                 if rx.appointment and rx.appointment.reason_for_visit and rx.appointment.reason_for_visit.strip():
@@ -1503,8 +1554,8 @@ class PatientMyProfileView(APIView):
                 'time': r.time,
                 'patientName': r.patient_name,
                 'name': r.patient_name,
-                'patientId': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
-                'patient_id_ref': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
+                'patientId': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else ''),
+                'patient_id_ref': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else ''),
                 'ageGender': r.age_gender or (r.patient_record.age_gender if r.patient_record else ''),
                 'contact': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
                 'mobile': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
@@ -1519,7 +1570,7 @@ class PatientMyProfileView(APIView):
                 'created_at': r.created_at.isoformat() if r.created_at else None,
                 'patient': {
                     'name': r.patient_name,
-                    'id': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else 'PAT-1001'),
+                    'id': r.patient_id_ref or (r.patient_record.patient_id if r.patient_record else ''),
                     'ageGender': r.age_gender or (r.patient_record.age_gender if r.patient_record else ''),
                     'phone': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
                     'contact': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
@@ -1879,7 +1930,7 @@ class SendPrescriptionWhatsAppView(APIView):
             rx_data = {
                 'rxId': payload.get('rxId') or payload.get('prescription_id') or 'RX-2026',
                 'patientName': payload.get('patientName') or payload.get('name') or 'Patient',
-                'patientId': payload.get('patientId') or 'PAT-1001',
+                'patientId': payload.get('patientId') or payload.get('patient_id_ref') or '',
                 'mobile': payload.get('phone') or payload.get('mobile') or payload.get('contact'),
                 'ageGender': payload.get('ageGender') or 'Adult',
                 'date': payload.get('date') or datetime.now().strftime('%d %b %Y'),
@@ -2018,7 +2069,7 @@ class AppointmentPdfDownloadView(APIView):
             rx_data = {
                 'rxId': rx.prescription_id,
                 'patientName': rx.patient_name or apt.patient_name,
-                'patientId': rx.patient_id_ref or (apt.patient_record.patient_id if apt.patient_record else 'PAT-1001'),
+                'patientId': rx.patient_id_ref or (apt.patient_record.patient_id if apt.patient_record else ''),
                 'mobile': rx.patient_phone or apt.patient_phone or '',
                 'ageGender': rx.age_gender or (f"{apt.patient_gender}" if apt.patient_gender else 'Adult'),
                 'date': rx.date or apt.appointment_date,
@@ -2029,7 +2080,7 @@ class AppointmentPdfDownloadView(APIView):
                 'additionalInstructions': rx.additional_instructions or f"Appointment ID: {apt.appointment_id} • Time: {apt.time_slot}",
             }
         else:
-            p_id = apt.patient_record.patient_id if apt.patient_record else 'PAT-1001'
+            p_id = apt.patient_record.patient_id if apt.patient_record else ''
             rx_data = {
                 'rxId': apt.appointment_id,
                 'patientName': apt.patient_name or 'Patient',

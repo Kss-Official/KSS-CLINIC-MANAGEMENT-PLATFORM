@@ -197,12 +197,12 @@ def generate_prescription_pdf_bytes(prescription_data):
     elements.append(HRFlowable(width="100%", thickness=1, color=divider_color, spaceBefore=4, spaceAfter=8))
 
     # 2. Patient Metadata 2-Column Grid
-    p_name = prescription_data.get('patientName') or prescription_data.get('patient_name') or 'Rahul Sharma'
-    p_id = prescription_data.get('patientId') or prescription_data.get('patient_id_ref') or 'PAT-1001'
-    p_age_gender = prescription_data.get('ageGender') or prescription_data.get('age_gender') or '28 Years / Male'
-    p_phone = prescription_data.get('mobile') or prescription_data.get('patient_phone') or '+91 98765 43210'
-    rx_date = prescription_data.get('date') or '28 Oct 2026'
-    consultation_type = prescription_data.get('consultationType') or 'Follow-up'
+    p_name = prescription_data.get('patientName') or prescription_data.get('patient_name') or prescription_data.get('name') or 'Patient'
+    p_id = prescription_data.get('patientId') or prescription_data.get('patient_id_ref') or ''
+    p_age_gender = prescription_data.get('ageGender') or prescription_data.get('age_gender') or ''
+    p_phone = prescription_data.get('mobile') or prescription_data.get('patient_phone') or prescription_data.get('phone') or ''
+    rx_date = prescription_data.get('date') or ''
+    consultation_type = prescription_data.get('consultationType') or prescription_data.get('consultation_type') or 'Consultation'
     p_apt = prescription_data.get('aptNumber') or prescription_data.get('appointment_id') or prescription_data.get('apt_number') or prescription_data.get('appointmentId') or ''
 
     meta_rows = [

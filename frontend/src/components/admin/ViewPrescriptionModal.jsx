@@ -102,53 +102,22 @@ const ViewPrescriptionModal = ({
 
   // Current prescription data (from props or fetched state)
   const rx = activeRx || prescription || {
-    id: 'RX-2026-1016',
-    name: 'Rahul Sharma',
-    ageGender: '28 Years / Male',
-    date: '28 Oct 2026',
-    time: '09:45 AM',
-    complaint: 'Skin Allergy',
+    id: '',
+    name: '',
+    ageGender: '',
+    date: '',
+    time: '',
+    complaint: '',
     status: 'Pending',
-    mobile: '+91 98765 43210',
+    mobile: '',
     doctor: 'Dr. Kumar Tripathi Ampeh (Pat.)',
-    diagnosis: 'Skin allergy due to seasonal change.',
-    notes: 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.',
-  };
-
-  // Medicine list mapping by prescription ID or fallback matching reference image
-  const getPrescriptionMedicines = (rxId) => {
-    switch (rxId) {
-      case 'RX-2026-1016':
-        return [
-          { name: 'Rhus Tox', potency: '30C', dosage: '5 drops', duration: '15 Days', instructions: 'Twice daily' },
-          { name: 'Apis Mellifica', potency: '200C', dosage: '5 drops', duration: '10 Days', instructions: 'Once daily' },
-        ];
-      case 'RX-2026-1015':
-        return [
-          { name: 'Belladonna', potency: '30C', dosage: '4 Pills', duration: '7 Days', instructions: 'Twice daily' },
-          { name: 'Natrum Muriaticum', potency: '200CH', dosage: '4 Pills', duration: '14 Days', instructions: 'Once daily' },
-        ];
-      case 'RX-2026-1014':
-        return [
-          { name: 'Glonoinum', potency: '30C', dosage: '4 Pills', duration: '14 Days', instructions: 'Twice daily' },
-          { name: 'Iris Versicolor', potency: '200CH', dosage: '4 Pills', duration: '10 Days', instructions: 'Once daily' },
-        ];
-      case 'RX-2026-1013':
-        return [
-          { name: 'Gelsemium', potency: '30C', dosage: '4 Pills', duration: '14 Days', instructions: 'Twice daily' },
-          { name: 'China Officinalis', potency: '200CH', dosage: '4 Pills', duration: '14 Days', instructions: 'Once daily' },
-        ];
-      default:
-        return [
-          { name: 'Rhus Tox', potency: '30C', dosage: '5 drops', duration: '15 Days', instructions: 'Twice daily' },
-          { name: 'Apis Mellifica', potency: '200C', dosage: '5 drops', duration: '10 Days', instructions: 'Once daily' },
-        ];
-    }
+    diagnosis: '',
+    notes: '',
   };
 
   const medicines = rx.medicines && rx.medicines.length > 0
     ? rx.medicines
-    : getPrescriptionMedicines(rx.id);
+    : [];
 
   const resolvedAptNum =
     rx.appointment_id ||
@@ -163,9 +132,9 @@ const ViewPrescriptionModal = ({
 
   const patientObj = {
     name: rx.name || rx.patientName || rx.patient_name || 'Patient',
-    id: rx.patientId || rx.patient_id_ref || rx.patient?.id || rx.patient?.patient_id || 'PAT-1001',
-    ageGender: rx.ageGender || rx.age_gender || rx.patient?.age_gender || 'Adult',
-    phone: rx.contact || rx.mobile || rx.phone || rx.patient_phone || rx.patient?.phone || '+91 98765 43210',
+    id: rx.patientId || rx.patient_id_ref || rx.patient?.id || rx.patient?.patient_id || '',
+    ageGender: rx.ageGender || rx.age_gender || rx.patient?.age_gender || '',
+    phone: rx.contact || rx.mobile || rx.phone || rx.patient_phone || rx.patient?.phone || '',
     appointment_id: resolvedAptNum,
     appointmentId: resolvedAptNum,
     apt_number: resolvedAptNum,

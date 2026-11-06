@@ -825,7 +825,7 @@ const ContactPage = () => {
                           onFocus={() => setFocusedField('fullName')}
                           onBlur={() => handleBlur('fullName')}
                           maxLength={35}
-                          placeholder="e.g. Rahul Sharma"
+                          placeholder="e.g. Full Name"
                           style={{
                             width: '100%',
                             boxSizing: 'border-box',

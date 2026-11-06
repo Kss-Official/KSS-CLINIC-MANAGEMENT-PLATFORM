@@ -33,7 +33,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             return obj.patient_record.patient_id
         if obj.patient_record_id:
             return f"PAT-{obj.patient_record_id}"
-        return "PAT-1010"
+        return ""
 
     def validate_patient_name(self, value):
         val = (value or '').strip()

@@ -140,9 +140,9 @@ const DashboardPage = () => {
         const mapped = data.map((item) => ({
           name: item.name || item.patientName || 'Patient',
           patientName: item.patientName || item.name || 'Patient',
-          patientId: item.patientId || item.patient_id_ref || (item.patient?.id ? `PAT-${item.patient.id}` : 'PAT-1001'),
-          contact: item.contact || item.mobile || item.phone || item.patient_phone || '+91 98765 43210',
-          mobile: item.mobile || item.contact || item.phone || '+91 98765 43210',
+          patientId: item.patientId || item.patient_id_ref || (item.patient?.id ? `PAT-${item.patient.id}` : (item.patient_record?.patient_id || '')),
+          contact: item.contact || item.mobile || item.phone || item.patient_phone || '',
+          mobile: item.mobile || item.contact || item.phone || item.patient_phone || '',
           rxId: item.rxId || item.id,
           id: item.rxId || item.id,
           prescriptionId: item.rxId || item.id,
@@ -1229,20 +1229,9 @@ const DashboardPage = () => {
                               onClick: () => navigate('/prescriptions'),
                             },
                             {
-                              label: 'Resend via WhatsApp',
+                              label: 'Send via WhatsApp',
                               icon: '📲',
-                              onClick: async () => {
-                                const text = encodeURIComponent(
-                                  `Prescription for ${row.name} (${row.rxId}): Diagnosis: ${row.complaint || 'Prescription Details'}. Please follow the prescribed homeopathic treatment.`
-                                );
-                                const phoneDigits = (row.contact || row.mobile || '').replace(/\D/g, '');
-                                if (phoneDigits) {
-                                  window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
-                                }
-                                await appointmentApi.updatePrescriptionStatus(row.rxId, 'Delivered');
-                                fetchPrescriptions(true);
-                                alert(`Prescription ${row.rxId} resent via WhatsApp to ${row.name}! Status updated to Delivered.`);
-                              },
+                              onClick: () => openNewPrescription(row, 2),
                             },
                           ]}
                         />

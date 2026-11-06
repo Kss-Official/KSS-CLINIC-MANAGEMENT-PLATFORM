@@ -787,17 +787,7 @@ const PrescriptionsPage = () => {
                             {
                               label: 'Send via WhatsApp',
                               icon: '📲',
-                              onClick: async () => {
-                                const text = encodeURIComponent(
-                                  `Prescription for ${row.name} (${row.id}): Diagnosis: ${row.diagnosis || row.complaint}. Please follow the prescribed homeopathic treatment.`
-                                );
-                                const phoneDigits = (row.contact || row.mobile || '').replace(/\D/g, '');
-                                if (phoneDigits) {
-                                  window.open(`https://wa.me/${phoneDigits}?text=${text}`, '_blank');
-                                }
-                                await handleUpdateRxStatus(row.id, 'Delivered');
-                                alert(`Prescription ${row.id} sent via WhatsApp to ${row.name}! Status updated to Delivered.`);
-                              },
+                              onClick: () => openNewPrescription(row, 2),
                             },
                             {
                               label: 'Mark as Delivered',
@@ -809,10 +799,18 @@ const PrescriptionsPage = () => {
                               icon: '👤',
                               onClick: () =>
                                 openPatientHistory({
-                                  id: row.patientId || row.patient_id_ref || (row.patient?.id ? `PAT-${row.patient.id}` : 'PAT-1001'),
+                                  id: row.patientId || row.patient_id_ref || (row.patient?.id ? `PAT-${row.patient.id}` : (row.patient_record?.patient_id || '')),
                                   name: row.name || row.patientName,
                                   ageGender: row.ageGender || row.age_gender,
-                                  mobile: row.contact || row.mobile || '+91 98765 43210',
+                                  mobile: row.contact || row.mobile || '',
+                                  email: row.patient?.email || row.email,
+                                  address: row.patient?.address || row.address,
+                                  bloodGroup: row.patient?.bloodGroup || row.bloodGroup,
+                                  knownAllergies: row.patient?.knownAllergies || row.knownAllergies,
+                                  primaryConcern: row.diagnosis || row.complaint,
+                                  notes: row.notes || row.additionalInstructions,
+                                  appointments: row.patient?.appointments || row.appointments,
+                                  prescriptions: row.patient?.prescriptions || row.prescriptions,
                                 }),
                             },
                           ]}

@@ -24,10 +24,10 @@ const PrescriptionPreviewCard = ({
   const [whatsAppError, setWhatsAppError] = useState('');
 
   // Normalize patient fields
-  const patientName = patient.name || 'Rahul Sharma';
-  const patientId = patient.id || patient.patientId || 'PAT-1001';
-  const ageGender = patient.ageGender || `${patient.age || '28 Years'} / ${patient.gender || 'Male'}`;
-  const contact = patient.phone || patient.contact || patient.mobile || '+91 98765 43210';
+  const patientName = patient.name || '';
+  const patientId = patient.id || patient.patientId || patient.patient_id_ref || '';
+  const ageGender = patient.ageGender || `${patient.age ? patient.age + (patient.gender ? ' / ' + patient.gender : '') : (patient.gender || '')}`.trim();
+  const contact = patient.phone || patient.contact || patient.mobile || patient.patient_phone || '';
   const aptNumber =
     propAptNumber ||
     patient.aptNumber ||
