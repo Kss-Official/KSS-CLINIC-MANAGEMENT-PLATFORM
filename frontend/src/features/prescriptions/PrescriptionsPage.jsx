@@ -750,7 +750,10 @@ const PrescriptionsPage = () => {
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                         <button
                           type="button"
-                          onClick={() => openViewPrescription(row)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openViewPrescription(row);
+                          }}
                           style={{
                             padding: '5px 14px',
                             borderRadius: '6px',
@@ -805,10 +808,10 @@ const PrescriptionsPage = () => {
                               icon: '👤',
                               onClick: () =>
                                 openPatientHistory({
-                                  id: 'PAT-1001',
-                                  name: row.name,
-                                  ageGender: row.ageGender,
-                                  mobile: '+91 98765 43210',
+                                  id: row.patientId || row.patient_id_ref || (row.patient?.id ? `PAT-${row.patient.id}` : 'PAT-1001'),
+                                  name: row.name || row.patientName,
+                                  ageGender: row.ageGender || row.age_gender,
+                                  mobile: row.contact || row.mobile || '+91 98765 43210',
                                 }),
                             },
                           ]}

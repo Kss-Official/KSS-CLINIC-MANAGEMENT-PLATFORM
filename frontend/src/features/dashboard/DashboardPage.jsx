@@ -55,6 +55,7 @@ const DashboardPage = () => {
 
   const mapApiAppointment = (item) => ({
     id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
+    appointment_id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
     rawId: item.id,
     name: item.patient_name || item.name || 'Anonymous Patient',
     contact: item.patient_phone || item.contact || 'N/A',
@@ -64,6 +65,7 @@ const DashboardPage = () => {
     reason: item.reason_for_visit || item.reason || 'General Consultation',
     consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
     status: item.status || 'Confirmed',
+    prescriptionStatus: item.prescription_status || item.prescriptionStatus || 'Pending',
     ageGender: item.age_gender || item.ageGender || 'Adult',
     notes: item.notes || item.reason_for_visit || '',
     doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
@@ -137,18 +139,25 @@ const DashboardPage = () => {
       if (Array.isArray(data)) {
         const mapped = data.map((item) => ({
           name: item.name || item.patientName || 'Patient',
+          patientName: item.patientName || item.name || 'Patient',
+          patientId: item.patientId || item.patient_id_ref || (item.patient?.id ? `PAT-${item.patient.id}` : 'PAT-1001'),
+          contact: item.contact || item.mobile || item.phone || item.patient_phone || '+91 98765 43210',
+          mobile: item.mobile || item.contact || item.phone || '+91 98765 43210',
           rxId: item.rxId || item.id,
           id: item.rxId || item.id,
+          prescriptionId: item.rxId || item.id,
           database_id: item.database_id,
           created_at: item.created_at,
           date: item.date,
           time: item.time || '10:00 AM',
-          ageGender: item.ageGender || '',
+          consultationType: item.consultationType || item.consultation_type || 'Follow-up',
+          ageGender: item.ageGender || item.age_gender || '',
           complaint: item.complaint || item.reason_for_visit || item.reason || '',
           symptoms: item.symptoms || '',
           diagnosis: item.diagnosis || '',
           medicines: item.medicines || [],
-          additionalInstructions: item.additionalInstructions || '',
+          additionalInstructions: item.additionalInstructions || item.notes || '',
+          notes: item.notes || item.additionalInstructions || '',
           status: item.status || 'Confirmed',
         }));
         setPrescriptionsData((prev) => {
@@ -742,6 +751,27 @@ const DashboardPage = () => {
               <option value="Complete">Complete</option>
             </select>
 
+            {/* View All Appointments */}
+            <button
+              type="button"
+              onClick={() => navigate('/appointments')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'none',
+                border: 'none',
+                color: '#1e4620',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                padding: '6px 8px',
+              }}
+            >
+              <span>View All</span>
+              <span>→</span>
+            </button>
+
             {/* New Appointment Button */}
             <button
               type="button"
@@ -854,7 +884,10 @@ const DashboardPage = () => {
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                           <button
                             type="button"
-                            onClick={() => openViewAppointment(row)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openViewAppointment(row);
+                            }}
                             style={{
                               padding: '5px 14px',
                               borderRadius: '6px',
@@ -1180,7 +1213,10 @@ const DashboardPage = () => {
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                         <button
                           type="button"
-                          onClick={() => openViewPrescription(row)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openViewPrescription(row);
+                          }}
                           style={{
                             padding: '5px 14px',
                             borderRadius: '6px',

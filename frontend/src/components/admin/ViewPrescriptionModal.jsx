@@ -124,10 +124,10 @@ const ViewPrescriptionModal = ({
     : getPrescriptionMedicines(rx.id);
 
   const patientObj = {
-    name: rx.name || rx.patientName || 'Rahul Sharma',
-    id: rx.patientId || rx.patient_id_ref || rx.patient?.id || 'PAT-1001',
-    ageGender: rx.ageGender || rx.age_gender || '28 Years / Male',
-    phone: rx.contact || rx.mobile || rx.patient_phone || '+91 98765 43210',
+    name: rx.name || rx.patientName || rx.patient_name || 'Patient',
+    id: rx.patientId || rx.patient_id_ref || rx.patient?.id || rx.patient?.patient_id || 'PAT-1001',
+    ageGender: rx.ageGender || rx.age_gender || rx.patient?.age_gender || 'Adult',
+    phone: rx.contact || rx.mobile || rx.phone || rx.patient_phone || rx.patient?.phone || '+91 98765 43210',
   };
 
   return (
@@ -145,7 +145,7 @@ const ViewPrescriptionModal = ({
         backgroundColor: 'rgba(15, 23, 42, 0.45)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
-        zIndex: 1000,
+        zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -201,10 +201,10 @@ const ViewPrescriptionModal = ({
                   margin: '0 0 3px 0',
                 }}
               >
-                New Prescription
+                Prescription Details
               </h2>
               <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
-                Create and preview the prescription for the selected patient.
+                View and review the prescription for the selected patient.
               </p>
             </div>
 

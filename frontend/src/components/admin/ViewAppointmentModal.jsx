@@ -7,7 +7,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
 
   useEffect(() => {
     setCurrentStatus(raw.status || 'Confirmed');
-  }, [raw.status, raw.id]);
+  }, [raw.status, raw.id, raw.appointment_id, raw.rawId]);
 
   // Lock background screen scroll and handle ESC key to close
   useEffect(() => {

@@ -1086,7 +1086,10 @@ const AppointmentsPage = () => {
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                           <button
                             type="button"
-                            onClick={() => openViewAppointment(row)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openViewAppointment(row);
+                            }}
                             style={{
                               padding: '5px 14px',
                               borderRadius: '6px',

@@ -5,7 +5,7 @@
   "alternateNumber": "+91 99887 66554",
   "email": "clinic.tripathi@gmail.com",
   "address": "12, Green Park, Bangalore",
-  "profile_image_url": "http://localhost:8000/media/profiles/Smiling_Homeopathy_Clinic_Portrait_nlGUeCj.png",
+  "profile_image_url": "http://localhost:8000/media/profiles/Smiling_Homeopathy_Clinic_Portrait.png",
   "working_days": [
     "Mon",
     "Tue",
@@ -74,5 +74,5 @@
     "email": true,
     "sms": false
   },
-  "profileImageUrl": "http://localhost:8000/media/profiles/Smiling_Homeopathy_Clinic_Portrait_nlGUeCj.png"
+  "profileImageUrl": "http://localhost:8000/media/profiles/Smiling_Homeopathy_Clinic_Portrait.png"
 }
