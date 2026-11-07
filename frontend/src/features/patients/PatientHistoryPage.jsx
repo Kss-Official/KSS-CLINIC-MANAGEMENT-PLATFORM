@@ -120,7 +120,6 @@ const PatientHistoryPage = () => {
   const totalPatientsCount = patientsList.length;
   const activePatientsCount = patientsList.filter((p) => (p.status || 'Active').toLowerCase() === 'active').length;
   const followUpPatientsCount = patientsList.filter((p) => (p.status || '').toLowerCase() === 'follow-up').length;
-  const totalConsultationsCount = patientsList.reduce((acc, p) => acc + (parseInt(p.totalVisits, 10) || 1), 0);
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
@@ -207,12 +206,12 @@ const PatientHistoryPage = () => {
         </div>
       </div>
 
-      {/* 2. Four Metrics Cards */}
+      {/* 2. Metrics Cards */}
       <div
         className="admin-metrics-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: '20px',
           marginBottom: '26px',
         }}
@@ -338,49 +337,6 @@ const PatientHistoryPage = () => {
             </span>
             <span style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', lineHeight: 1.1, marginTop: '4px' }}>
               {followUpPatientsCount}
-            </span>
-          </div>
-        </div>
-
-        {/* Card 4: Total consultation */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '18px',
-            border: '1px solid #e5eaf1',
-            padding: '18px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            boxSizing: 'border-box',
-          }}
-        >
-          <div
-            style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '16px',
-              backgroundColor: '#f5edff',
-              color: '#8631d1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '13.5px', color: '#64748b', fontWeight: '500' }}>
-              Total consultation
-            </span>
-            <span style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', lineHeight: 1.1, marginTop: '4px' }}>
-              196
             </span>
           </div>
         </div>
