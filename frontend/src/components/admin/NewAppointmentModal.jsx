@@ -867,7 +867,6 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                 >
                   <option value="In-clinic Visit">In-clinic Visit</option>
                   <option value="Video Consultation">Video Consultation</option>
-                  <option value="Home Visit">Home Visit</option>
                 </select>
               </div>
             </div>

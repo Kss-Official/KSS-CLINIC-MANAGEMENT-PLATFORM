@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import doctorLogoImg from '../../assets/doctor-portal-logo.png';
 import { downloadPrescriptionPdf, generatePrescriptionPdfBase64 } from '../../utils/prescriptionPdf';
 import appointmentApi from '../../api/appointmentApi';
@@ -9,6 +9,7 @@ const PrescriptionPreviewCard = ({
   aptNumber: propAptNumber,
   date = '28 Oct 2026',
   consultationType = 'Follow-up',
+  reasonForVisit: propReasonForVisit,
   diagnosis = 'Skin allergy due to seasonal change.',
   medicines = [],
   additionalInstructions = 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.',
@@ -22,6 +23,7 @@ const PrescriptionPreviewCard = ({
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [whatsAppSuccess, setWhatsAppSuccess] = useState('');
   const [whatsAppError, setWhatsAppError] = useState('');
+  const [asyncReason, setAsyncReason] = useState('');
 
   // Normalize patient fields
   const patientName = patient.name || '';
@@ -42,6 +44,54 @@ const PrescriptionPreviewCard = ({
         ? patient.appointment
         : (patient.appointment ? `APT-${patient.appointment}` : ''))) ||
     '';
+
+  // Automatically fetch Reason for Visit from appointment if not already present in props/patient
+  useEffect(() => {
+    const immediateReason =
+      propReasonForVisit ||
+      patient.reason_for_visit ||
+      patient.reason ||
+      patient.mainComplaint ||
+      patient.complaint ||
+      patient.appointment?.reason_for_visit ||
+      patient.appointment?.reason;
+
+    if (
+      immediateReason &&
+      immediateReason.trim() &&
+      immediateReason.toLowerCase() !== 'follow-up' &&
+      immediateReason.toLowerCase() !== 'in-clinic visit'
+    ) {
+      setAsyncReason(immediateReason.trim());
+      return;
+    }
+
+    const targetApt = aptNumber || patient.appointment_id || patient.aptNumber || patient.apt_number;
+    if (targetApt) {
+      appointmentApi.getAppointments().then((list) => {
+        if (Array.isArray(list)) {
+          const match = list.find(
+            (a) => a.appointment_id === targetApt || a.id === targetApt || String(a.id) === String(targetApt)
+          );
+          if (match && (match.reason_for_visit || match.reason)) {
+            setAsyncReason(match.reason_for_visit || match.reason);
+          }
+        }
+      }).catch((err) => console.warn('Could not fetch appointment for prescription reason:', err));
+    }
+  }, [propReasonForVisit, patient, aptNumber]);
+
+  const displayReasonForVisit =
+    asyncReason ||
+    propReasonForVisit ||
+    patient.reason_for_visit ||
+    patient.reason ||
+    patient.mainComplaint ||
+    patient.complaint ||
+    patient.appointment?.reason_for_visit ||
+    patient.appointment?.reason ||
+    consultationType ||
+    'General Consultation';
 
   // Normalize medicines list (fallback to exact items from reference image if empty)
   const defaultMedicines = [
@@ -107,7 +157,9 @@ const PrescriptionPreviewCard = ({
           phone: contact,
           ageGender,
           date,
-          consultationType,
+          consultationType: displayReasonForVisit,
+          reasonForVisit: displayReasonForVisit,
+          reason_for_visit: displayReasonForVisit,
           diagnosis,
           medicines: medicineList,
           additionalInstructions,
@@ -292,21 +344,21 @@ const PrescriptionPreviewCard = ({
           </div>
           <div className="prescription-meta-item" style={{ display: 'flex', alignItems: 'baseline' }}>
             <span className="prescription-meta-label" style={{ color: '#64748b', width: '90px', flexShrink: 0, fontWeight: '500' }}>
-              Consultation
+              Reason for Visit
             </span>
             <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
-            <span className="prescription-meta-value" style={{ color: '#0f172a', fontWeight: '700' }}>{consultationType}</span>
+            <span className="prescription-meta-value" style={{ color: '#0f172a', fontWeight: '700', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{displayReasonForVisit}</span>
           </div>
 
           {/* Row 4: APT Number */}
           {aptNumber ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                <span style={{ color: '#64748b', width: '100px', flexShrink: 0, fontWeight: '500' }}>
+              <div className="prescription-meta-item" style={{ display: 'flex', alignItems: 'baseline' }}>
+                <span className="prescription-meta-label" style={{ color: '#64748b', width: '105px', flexShrink: 0, fontWeight: '500' }}>
                   APT Number
                 </span>
-                <span style={{ color: '#64748b', marginRight: '8px' }}>:</span>
-                <span style={{ color: '#0f172a', fontWeight: '700' }}>{aptNumber}</span>
+                <span style={{ color: '#64748b', marginRight: '6px' }}>:</span>
+                <span className="prescription-meta-value" style={{ color: '#0f172a', fontWeight: '700' }}>{aptNumber}</span>
               </div>
               <div />
             </>

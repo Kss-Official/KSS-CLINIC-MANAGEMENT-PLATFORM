@@ -151,6 +151,12 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
             initialPatient.apt_number ||
             initialPatient.aptNumber ||
             '';
+          const rxReason =
+            initialPatient.reason_for_visit ||
+            initialPatient.reason ||
+            initialPatient.mainComplaint ||
+            initialPatient.complaint ||
+            '';
           if (aptNum) {
             setSelectedAppointment({
               id: aptNum,
@@ -158,9 +164,26 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
               appointmentId: aptNum,
               date: initialPatient.date,
               time: initialPatient.time,
-              reason: initialPatient.complaint || initialPatient.diagnosis || '',
-              reason_for_visit: initialPatient.complaint || initialPatient.diagnosis || '',
+              reason: rxReason,
+              reason_for_visit: rxReason,
             });
+            // Also automatically fetch the corresponding appointment details to ensure the exact reason for visit
+            appointmentApi.getAppointments().then((list) => {
+              if (Array.isArray(list)) {
+                const foundApt = list.find((a) => (a.appointment_id === aptNum || a.id === aptNum || String(a.id) === String(aptNum)));
+                if (foundApt && (foundApt.reason_for_visit || foundApt.reason)) {
+                  const fetchedReason = foundApt.reason_for_visit || foundApt.reason;
+                  setSelectedAppointment((prev) => ({
+                    ...(prev || {}),
+                    id: aptNum,
+                    appointment_id: aptNum,
+                    reason: fetchedReason,
+                    reason_for_visit: fetchedReason,
+                  }));
+                  setMainComplaint((prev) => (prev && prev !== 'General Consultation' && prev !== 'Follow-up' && prev !== 'Clinical Consultation' ? prev : fetchedReason));
+                }
+              }
+            }).catch((err) => console.warn('Could not fetch appointment details for prescription:', err));
           } else {
             setSelectedAppointment(null);
           }
@@ -174,8 +197,8 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
             setConsultationType(initialPatient.consultationType || initialPatient.consultation_type);
           }
 
-          if (initialPatient.complaint || initialPatient.mainComplaint || initialPatient.reason) {
-            setMainComplaint(initialPatient.complaint || initialPatient.mainComplaint || initialPatient.reason);
+          if (rxReason) {
+            setMainComplaint(rxReason);
           }
 
           if (initialPatient.symptoms) {
@@ -745,6 +768,8 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                 appointmentId: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
                 aptNumber: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
                 apt_number: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
+                reason_for_visit: mainComplaint || selectedAppointment?.reason_for_visit || selectedAppointment?.reason || initialPatient?.reason_for_visit || initialPatient?.reason || initialPatient?.complaint || '',
+                reason: mainComplaint || selectedAppointment?.reason_for_visit || selectedAppointment?.reason || initialPatient?.reason_for_visit || initialPatient?.reason || initialPatient?.complaint || '',
               }}
               aptNumber={
                 selectedAppointment?.appointment_id ||
@@ -758,6 +783,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
               }
               date={formatDateForDisplay(appointmentDate)}
               consultationType={consultationType}
+              reasonForVisit={mainComplaint || selectedAppointment?.reason_for_visit || selectedAppointment?.reason || initialPatient?.reason_for_visit || initialPatient?.reason || initialPatient?.complaint || ''}
               diagnosis={diagnosis || mainComplaint || 'Skin allergy due to seasonal change.'}
               medicines={medicines.filter((m) => m.name && m.name.trim() !== '')}
               additionalInstructions={
@@ -788,6 +814,8 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                   appointmentDate,
                   consultationType,
                   mainComplaint,
+                  reason_for_visit: mainComplaint || selectedAppointment?.reason_for_visit || selectedAppointment?.reason || initialPatient?.reason_for_visit || initialPatient?.reason || '',
+                  reasonForVisit: mainComplaint || selectedAppointment?.reason_for_visit || selectedAppointment?.reason || initialPatient?.reason_for_visit || initialPatient?.reason || '',
                   symptoms,
                   diagnosis: diagnosis || mainComplaint || 'Skin allergy due to seasonal change.',
                   medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),

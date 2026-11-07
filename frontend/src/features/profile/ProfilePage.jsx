@@ -4825,6 +4825,8 @@ const ProfilePage = () => {
 
             consultationType={downloadingRx.complaint || downloadingRx.consultationType || 'Follow-up'}
 
+            reasonForVisit={downloadingRx.reason_for_visit || downloadingRx.reason || downloadingRx.complaint || downloadingRx.mainComplaint || ''}
+
             diagnosis={downloadingRx.diagnosis}
 
             medicines={downloadingRx.medicines}

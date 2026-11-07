@@ -923,9 +923,11 @@ class PatientHistoryListView(APIView):
             p_apts = p.appointments.all().order_by('-created_at')
             apts_data = [{
                 'id': apt.appointment_id,
+                'appointment_id': apt.appointment_id,
                 'date': apt.appointment_date,
                 'time': apt.time_slot,
                 'reason': apt.reason_for_visit,
+                'reason_for_visit': apt.reason_for_visit,
                 'status': apt.status,
                 'consultationType': apt.consultation_type,
             } for apt in p_apts]
@@ -933,15 +935,21 @@ class PatientHistoryListView(APIView):
             p_rxs = p.prescriptions.all().order_by('-created_at')
             rxs_data = [{
                 'id': rx.prescription_id,
+                'rxId': rx.prescription_id,
                 'database_id': rx.id,
                 'name': rx.patient_name,
                 'patientId': p.patient_id,
                 'patient_id_ref': p.patient_id,
+                'appointment_id': rx.appointment.appointment_id if rx.appointment else '',
+                'apt_number': rx.appointment.appointment_id if rx.appointment else '',
+                'aptNumber': rx.appointment.appointment_id if rx.appointment else '',
                 'mobile': rx.patient_phone or p.phone,
                 'ageGender': rx.age_gender or p.age_gender,
                 'date': rx.date,
                 'time': rx.time,
                 'complaint': rx.complaint,
+                'reason': (rx.appointment.reason_for_visit if rx.appointment else '') or rx.complaint,
+                'reason_for_visit': (rx.appointment.reason_for_visit if rx.appointment else '') or rx.complaint,
                 'symptoms': rx.symptoms,
                 'diagnosis': rx.diagnosis,
                 'medicines': rx.medicines or [],
@@ -1014,19 +1022,26 @@ class PatientDetailUpdateView(APIView):
             'lastVisit': p_apts[0].appointment_date if p_apts.exists() else 'N/A',
             'appointments': [{
                 'id': a.appointment_id,
+                'appointment_id': a.appointment_id,
                 'date': a.appointment_date,
                 'time': a.time_slot,
                 'reason': a.reason_for_visit,
+                'reason_for_visit': a.reason_for_visit,
                 'status': a.status,
                 'consultationType': a.consultation_type,
             } for a in p_apts],
             'prescriptions': [{
                 'id': r.prescription_id,
                 'rxId': r.prescription_id,
+                'appointment_id': r.appointment.appointment_id if r.appointment else '',
+                'apt_number': r.appointment.appointment_id if r.appointment else '',
+                'aptNumber': r.appointment.appointment_id if r.appointment else '',
                 'date': r.date,
                 'time': r.time,
                 'diagnosis': r.diagnosis,
                 'complaint': r.complaint,
+                'reason': (r.appointment.reason_for_visit if r.appointment else '') or r.complaint,
+                'reason_for_visit': (r.appointment.reason_for_visit if r.appointment else '') or r.complaint,
                 'symptoms': r.symptoms,
                 'status': r.status,
                 'medicines': r.medicines or [],
@@ -1115,6 +1130,7 @@ class PrescriptionListView(APIView):
                 if linked_apt and linked_apt.appointment_id:
                     apt_num = linked_apt.appointment_id
 
+            rx_reason = (rx.appointment.reason_for_visit if rx.appointment else '') or complaint_val or rx.complaint
             data.append({
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -1134,6 +1150,9 @@ class PrescriptionListView(APIView):
                 'date': rx.date,
                 'time': rx.time,
                 'complaint': complaint_val or rx.complaint,
+                'reason': rx_reason,
+                'reason_for_visit': rx_reason,
+                'reasonForVisit': rx_reason,
                 'symptoms': rx.symptoms,
                 'diagnosis': rx.diagnosis,
                 'medicines': rx.medicines or [],
@@ -1342,6 +1361,9 @@ class PrescriptionListView(APIView):
             'date': rx.date,
             'time': rx.time,
             'complaint': rx.complaint,
+            'reason': (matched_apt.reason_for_visit if matched_apt else '') or rx.complaint,
+            'reason_for_visit': (matched_apt.reason_for_visit if matched_apt else '') or rx.complaint,
+            'reasonForVisit': (matched_apt.reason_for_visit if matched_apt else '') or rx.complaint,
             'symptoms': rx.symptoms,
             'diagnosis': rx.diagnosis,
             'medicines': rx.medicines or [],
@@ -1409,6 +1431,7 @@ class PrescriptionDetailView(APIView):
                 if linked_apt and linked_apt.appointment_id:
                     apt_num = linked_apt.appointment_id
 
+            rx_reason = (rx.appointment.reason_for_visit if rx.appointment else '') or complaint_val or rx.complaint
             return Response({
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -1425,6 +1448,9 @@ class PrescriptionDetailView(APIView):
                 'date': rx.date,
                 'time': rx.time,
                 'complaint': complaint_val or rx.complaint,
+                'reason': rx_reason,
+                'reason_for_visit': rx_reason,
+                'reasonForVisit': rx_reason,
                 'diagnosis': rx.diagnosis,
                 'symptoms': rx.symptoms,
                 'medicines': rx.medicines or [],

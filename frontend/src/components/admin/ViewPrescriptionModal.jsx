@@ -130,6 +130,15 @@ const ViewPrescriptionModal = ({
     rx.patient?.aptNumber ||
     '';
 
+  const resolvedReason =
+    rx.reason_for_visit ||
+    rx.reason ||
+    rx.complaint ||
+    rx.mainComplaint ||
+    rx.appointment?.reason_for_visit ||
+    rx.appointment?.reason ||
+    '';
+
   const patientObj = {
     name: rx.name || rx.patientName || rx.patient_name || 'Patient',
     id: rx.patientId || rx.patient_id_ref || rx.patient?.id || rx.patient?.patient_id || '',
@@ -139,6 +148,8 @@ const ViewPrescriptionModal = ({
     appointmentId: resolvedAptNum,
     apt_number: resolvedAptNum,
     aptNumber: resolvedAptNum,
+    reason_for_visit: resolvedReason,
+    reason: resolvedReason,
   };
 
   return (
@@ -270,6 +281,7 @@ const ViewPrescriptionModal = ({
             aptNumber={resolvedAptNum}
             date={rx.date || '28 Oct 2026'}
             consultationType={rx.consultationType || 'Follow-up'}
+            reasonForVisit={resolvedReason}
             diagnosis={rx.diagnosis || rx.complaint || 'Skin allergy due to seasonal change.'}
             medicines={medicines}
             additionalInstructions={rx.notes || rx.additionalInstructions || 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'}
