@@ -333,7 +333,7 @@ const AppointmentModal = ({ isOpen, onClose }) => {
       dateOfBirth: formData.dateOfBirth || '',
       appointment_date: bookingDate,
       time_slot: formData.time || '10:00 AM',
-      reason_for_visit: formData.notes || 'Homeopathic Consultation',
+      reason_for_visit: formData.notes || '',
       consultation_type: 'In clinic Visit',
       status: 'Confirmed',
     })

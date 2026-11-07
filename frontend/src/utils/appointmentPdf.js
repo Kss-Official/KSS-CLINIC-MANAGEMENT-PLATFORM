@@ -187,9 +187,8 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setTextColor(15, 23, 42);
   doc.text(String(data.fullName || '-'), col1X + col1LabelWidth, rowY);
 
-  const hasCustomReason = Boolean(data.reason || (data.service && data.service !== 'Homeopathy Consultation'));
-  const serviceLabel = hasCustomReason ? 'Reason for Visit' : 'Service';
-  const serviceVal = String(data.reason || data.service || 'Homeopathy Consultation');
+  const serviceLabel = 'Reason for Visit';
+  const serviceVal = String(data.reason || data.service || '');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);

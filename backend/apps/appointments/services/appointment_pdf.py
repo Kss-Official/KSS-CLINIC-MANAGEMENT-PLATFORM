@@ -78,7 +78,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
     p_phone = appointment_data.get('patient_phone') or appointment_data.get('mobileNumber') or appointment_data.get('mobile') or '—'
     p_email = appointment_data.get('patient_email') or appointment_data.get('email') or '—'
     doctor_name = appointment_data.get('doctor_name') or 'Dr. Kumar Tripathi Ampeh (Pat.)'
-    service_name = appointment_data.get('service') or appointment_data.get('reason_for_visit') or 'Homeopathic Consultation'
+    service_name = appointment_data.get('reason_for_visit') or appointment_data.get('service') or ''
     apt_date = appointment_data.get('appointment_date') or appointment_data.get('date') or '—'
     apt_time = appointment_data.get('time_slot') or appointment_data.get('time') or '—'
     clinic_address = appointment_data.get('clinic_address') or '12, Green Park, MG Road, Bangalore, Karnataka - 560001'
@@ -188,7 +188,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
         ],
         # Row 5
         [
-            Paragraph("Service / Reason", label_style),
+            Paragraph("Reason for Visit", label_style),
             Paragraph(f": &nbsp; {service_name}", val_style),
             Paragraph("Consultation Type", label_style),
             Paragraph(": &nbsp; In-Clinic Visit", val_style)

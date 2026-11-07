@@ -118,7 +118,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
     contact: raw.patient_phone || raw.contact || raw.phone || '',
     date: formatDisplayDate(raw.appointment_date || raw.date),
     time: raw.time_slot || raw.time || '09:30 AM',
-    reason: userReason || 'Homeopathic Consultation',
+    reason: userReason || 'Consultation',
     status: currentStatus || raw.status || 'Confirmed',
     consultationType: (raw.consultation_type || raw.consultationType || 'In clinic Visit').replace('In-clinic', 'In clinic'),
     ageGender: raw.ageGender || raw.age_gender || (raw.patient_gender ? (raw.patient_age ? (raw.patient_age + ' • ' + raw.patient_gender) : raw.patient_gender) : 'Adult'),
@@ -538,7 +538,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 boxSizing: 'border-box',
               }}
             >
-              {apt.reason || 'General Consultation'}
+              {apt.reason || ''}
             </div>
           </div>
 

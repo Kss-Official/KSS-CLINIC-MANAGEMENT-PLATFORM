@@ -27,6 +27,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'appointment_id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'reason_for_visit': {'required': True, 'allow_blank': False},
+        }
 
     def get_patient_id_ref(self, obj):
         if obj.patient_record and obj.patient_record.patient_id:
@@ -76,6 +79,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
         val = (value or '').strip()
         if not val:
             raise serializers.ValidationError("Reason for visit is required.")
+        if len(val) > 100:
+            raise serializers.ValidationError("Reason for visit must not exceed 100 characters.")
         return val
 
 

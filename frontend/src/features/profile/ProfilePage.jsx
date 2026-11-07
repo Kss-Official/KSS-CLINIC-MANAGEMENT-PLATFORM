@@ -407,7 +407,7 @@ const ProfilePage = () => {
 
               fullDate: a.date,
 
-              title: a.reason || 'Homeopathy Consultation',
+              title: (a.reason || '').trim() || (a.title || '').trim() || 'Consultation',
 
               type: a.consultationType || 'In clinic Visit',
 
@@ -1149,7 +1149,7 @@ const ProfilePage = () => {
       mobileNumber: apt.patientPhone || profile.mobileNumber || user?.phone || '',
       email: apt.patientEmail || profile.email || user?.email || '',
       doctorName: apt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
-      service: apt.reason || apt.title || apt.service || 'Homeopathic Consultation',
+      service: apt.reason || apt.title || apt.service || '',
       reason: apt.reason || apt.title || '',
       date: apt.fullDate || apt.date || '',
       time: apt.time || '',
@@ -1162,6 +1162,12 @@ const ProfilePage = () => {
   const handleRescheduleAppointment = (apt) => {
     const targetApt = apt || selectedAppointment;
     if (!targetApt) return;
+
+    const statusLower = String(targetApt.status || '').trim().toLowerCase();
+    if (statusLower === 'complete' || statusLower === 'completed' || statusLower === 'cancelled') {
+      alert('This appointment cannot be rescheduled because it has already been completed.');
+      return;
+    }
 
     // Cache appointment data in localStorage so BookAppointmentPage picks it up reliably
     try {
@@ -3909,34 +3915,43 @@ const ProfilePage = () => {
                 Close
               </button>
 
-              <button
-                type="button"
-                onClick={() => handleRescheduleAppointment(selectedAppointment)}
-                className="profile-modal-btn-reschedule"
-                style={{
-                  padding: '9px 20px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  backgroundColor: '#1b4332',
-                  color: '#ffffff',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 2px 8px rgba(27, 67, 50, 0.2)',
-                  fontFamily: "'Manrope', sans-serif",
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2d6a4f')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b4332')}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                </svg>
-                Reschedule Appointment
-              </button>
+              {(() => {
+                const s = String(selectedAppointment?.status || '').trim().toLowerCase();
+                const isCompletedOrCancelled = s === 'complete' || s === 'completed' || s === 'cancelled';
+                const canReschedule = !isCompletedOrCancelled && (s === 'confirmed' || s === 'rescheduled');
+                if (!canReschedule) return null;
+
+                return (
+                  <button
+                    type="button"
+                    onClick={() => handleRescheduleAppointment(selectedAppointment)}
+                    className="profile-modal-btn-reschedule"
+                    style={{
+                      padding: '9px 20px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      backgroundColor: '#1b4332',
+                      color: '#ffffff',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 2px 8px rgba(27, 67, 50, 0.2)',
+                      fontFamily: "'Manrope', sans-serif",
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2d6a4f')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1b4332')}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                    </svg>
+                    Reschedule Appointment
+                  </button>
+                );
+              })()}
             </div>
           </div>
 

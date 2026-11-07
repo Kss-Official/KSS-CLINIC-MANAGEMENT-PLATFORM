@@ -588,6 +588,11 @@ class AppointmentDetailView(APIView):
         if not any([new_status, new_date, new_time, new_reason, new_prescription_status]):
             return Response({'error': 'At least one field to update is required'}, status=status.HTTP_400_BAD_REQUEST)
 
+        current_status_lower = str(apt.status or '').strip().lower()
+        is_attempting_reschedule = bool(new_date or new_time or (new_status and str(new_status).strip().lower() == 'rescheduled'))
+        if is_attempting_reschedule and current_status_lower in ['complete', 'completed', 'cancelled']:
+            return Response({'error': 'Completed or cancelled appointments cannot be rescheduled.'}, status=status.HTTP_400_BAD_REQUEST)
+
         fields_to_update = ['updated_at']
         is_rescheduled = False
 
@@ -2252,7 +2257,7 @@ class AppointmentPdfDownloadView(APIView):
                     'patient_phone': apt.patient_phone or '',
                     'patient_email': apt.patient_email or '',
                     'doctor_name': 'Dr. Kumar Tripathi Ampeh (Pat.)',
-                    'service': apt.reason_for_visit or 'Homeopathy Consultation',
+                    'service': apt.reason_for_visit or '',
                     'appointment_date': apt.appointment_date,
                     'time_slot': apt.time_slot,
                     'clinic_address': getattr(apt, 'clinic_address', '') or '12, Green Park, MG Road, Bangalore, Karnataka - 560001'

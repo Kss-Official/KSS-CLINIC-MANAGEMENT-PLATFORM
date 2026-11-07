@@ -312,7 +312,7 @@ class WhatsAppService:
             p_name = getattr(appointment_obj, 'patient_name', '') or 'Patient'
             apt_date = getattr(appointment_obj, 'appointment_date', '') or ''
             apt_time = getattr(appointment_obj, 'time_slot', '') or ''
-            service = getattr(appointment_obj, 'reason_for_visit', '') or 'Homeopathy Consultation'
+            service = getattr(appointment_obj, 'reason_for_visit', '') or ''
 
             apt_data = {
                 'appointment_id': apt_id,

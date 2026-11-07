@@ -27,22 +27,40 @@ const BookAppointmentPage = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [rescheduleData, setRescheduleData] = useState(() => {
-    if (location.state?.rescheduleAppointment) return location.state.rescheduleAppointment;
-    try {
-      const cached = localStorage.getItem('kss_reschedule_appointment');
-      if (cached) return JSON.parse(cached);
-    } catch {}
-    return null;
+    let data = location.state?.rescheduleAppointment;
+    if (!data) {
+      try {
+        const cached = localStorage.getItem('kss_reschedule_appointment');
+        if (cached) data = JSON.parse(cached);
+      } catch {}
+    }
+    if (data) {
+      const s = String(data.status || '').trim().toLowerCase();
+      if (s === 'complete' || s === 'completed' || s === 'cancelled') {
+        try { localStorage.removeItem('kss_reschedule_appointment'); } catch {}
+        return null;
+      }
+    }
+    return data || null;
   });
 
   const [isRescheduledSuccess, setIsRescheduledSuccess] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(() => {
-    if (location.state?.rescheduleAppointment) return 2;
-    try {
-      const cached = localStorage.getItem('kss_reschedule_appointment');
-      if (cached) return 2;
-    } catch {}
+    let data = location.state?.rescheduleAppointment;
+    if (!data) {
+      try {
+        const cached = localStorage.getItem('kss_reschedule_appointment');
+        if (cached) data = JSON.parse(cached);
+      } catch {}
+    }
+    if (data) {
+      const s = String(data.status || '').trim().toLowerCase();
+      if (s === 'complete' || s === 'completed' || s === 'cancelled') {
+        return 1;
+      }
+      return 2;
+    }
     return 1;
   });
 
@@ -74,7 +92,7 @@ const BookAppointmentPage = () => {
 
     selectedYear: new Date().getFullYear(),
 
-    selectedTimeSlot: '09:30 AM',
+    selectedTimeSlot: '',
 
     appointmentId: '',
 
@@ -85,6 +103,7 @@ const BookAppointmentPage = () => {
   const [errors, setErrors] = useState({});
 
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [confirmedData, setConfirmedData] = useState(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -165,6 +184,7 @@ const BookAppointmentPage = () => {
     setCurrentStep(1);
     setIsRescheduledSuccess(false);
     setRescheduleData(null);
+    setConfirmedData(null);
     setErrors({});
     if (typeof window !== 'undefined') {
       try {
@@ -179,7 +199,7 @@ const BookAppointmentPage = () => {
       selectedDay: new Date().getDate(),
       selectedMonth: new Date().getMonth(),
       selectedYear: new Date().getFullYear(),
-      selectedTimeSlot: '09:30 AM',
+      selectedTimeSlot: '',
       appointmentId: '',
       fullName: prev.fullName || full,
       mobileNumber: prev.mobileNumber || user?.phone_number || user?.phone || '',
@@ -703,35 +723,34 @@ const BookAppointmentPage = () => {
   }, [generateDynamicSlots, effectiveHours.startTime, effectiveHours.endTime, slotDuration]);
 
   const timeSlots = useMemo(() => {
+    const today = new Date();
+    const isSelectedToday =
+      formData.selectedYear === today.getFullYear() &&
+      formData.selectedMonth === today.getMonth() &&
+      formData.selectedDay === today.getDate();
+    const nowMinutes = today.getHours() * 60 + today.getMinutes();
+
     return baseTimeSlots.map((slot) => {
       const norm = normalizeSlotTime(slot.time);
       const isBooked = bookedSet.has(norm);
       const slotMins = timeToMinutes(slot.time);
-      const isOutsideHours = slotMins !== null && startMins !== null && endMins !== null &&
+      const isOutsideHours =
+        slotMins !== null &&
+        startMins !== null &&
+        endMins !== null &&
         (slotMins < startMins || slotMins >= endMins);
-      const isAvailable = slot.defaultAvailable && !isBooked && !isOutsideHours;
+      const isPast = isSelectedToday && slotMins !== null && slotMins <= nowMinutes;
+      const isAvailable = slot.defaultAvailable && !isBooked && !isOutsideHours && !isPast;
 
       return {
         ...slot,
         available: isAvailable,
         isBooked,
         isOutsideHours,
+        isPast,
       };
     });
-  }, [baseTimeSlots, bookedSet, startMins, endMins]);
-
-  // Automatically select the next available time slot if current selection is booked or unavailable
-  useEffect(() => {
-    const currentSlotObj = timeSlots.find(
-      (s) => normalizeSlotTime(s.time) === normalizeSlotTime(formData.selectedTimeSlot)
-    );
-    if (!currentSlotObj || !currentSlotObj.available) {
-      const nextAvailable = timeSlots.find((s) => s.available);
-      if (nextAvailable && nextAvailable.time !== formData.selectedTimeSlot) {
-        setFormData((prev) => ({ ...prev, selectedTimeSlot: nextAvailable.time }));
-      }
-    }
-  }, [formData.selectedDay, formData.selectedMonth, formData.selectedYear, bookedSlotsMap, timeSlots, formData.selectedTimeSlot]);
+  }, [baseTimeSlots, bookedSet, startMins, endMins, formData.selectedYear, formData.selectedMonth, formData.selectedDay]);
 
 
 
@@ -993,22 +1012,14 @@ const BookAppointmentPage = () => {
 
 
 
-    // 5. Reason for Visit (Optional): if provided, max 35 characters, alphabets & spaces only
-
+    // 5. Reason for Visit (Required): max 35 characters, alphabets & spaces only
     const reasonTrimmed = (formData.reasonForVisit || '').trim();
-
-    if (reasonTrimmed) {
-
-      if (reasonTrimmed.length > 35) {
-
-        newErrors.reasonForVisit = 'Reason cannot exceed 35 characters';
-
-      } else if (!/^[a-zA-Z\s]+$/.test(reasonTrimmed)) {
-
-        newErrors.reasonForVisit = 'Only alphabets and spaces are allowed';
-
-      }
-
+    if (!reasonTrimmed) {
+      newErrors.reasonForVisit = 'Reason for visit is required';
+    } else if (reasonTrimmed.length > 35) {
+      newErrors.reasonForVisit = 'Reason cannot exceed 35 characters';
+    } else if (!/^[a-zA-Z\s]+$/.test(reasonTrimmed)) {
+      newErrors.reasonForVisit = 'Only alphabets and spaces are allowed';
     }
 
 
@@ -1080,42 +1091,56 @@ const BookAppointmentPage = () => {
 
 
 
-      // Ensure the selected slot is currently available
+      // Ensure a time slot has been chosen and is available
+      if (!formData.selectedTimeSlot) {
+        alert('Please select an available time slot for your appointment.');
+        return;
+      }
 
       const currentSlotObj = timeSlots.find(
-
         (s) => normalizeSlotTime(s.time) === normalizeSlotTime(formData.selectedTimeSlot)
-
       );
 
       if (!currentSlotObj || !currentSlotObj.available) {
-
-        alert('This time slot is no longer available. Please select the next available slot.');
-
+        alert('The selected time slot is no longer available. Please choose another time slot.');
         fetchBookedSlots();
-
         return;
-
       }
 
-
-
       setBookingLoading(true);
-
       const formattedDate = `${formData.selectedDay} ${months[formData.selectedMonth]} ${formData.selectedYear}`;
 
       try {
         if (rescheduleData) {
           const targetId = rescheduleData.appointmentId || rescheduleData.id;
+          const chosenTime = formData.selectedTimeSlot;
+          const chosenReason = formData.reasonForVisit?.trim() || '';
           const res = await appointmentApi.rescheduleAppointment(targetId, {
             appointment_date: formattedDate,
-            time_slot: formData.selectedTimeSlot,
-            reason_for_visit: formData.reasonForVisit || 'Homeopathic Consultation',
+            time_slot: chosenTime,
+            reason_for_visit: chosenReason,
             status: 'Rescheduled',
           });
 
           const realId = res?.appointment?.appointment_id || res?.appointment_id || targetId;
-          setFormData((prev) => ({ ...prev, appointmentId: realId }));
+          const finalTime = res?.appointment?.time_slot || res?.time_slot || chosenTime;
+          const finalReason = res?.appointment?.reason_for_visit !== undefined ? res.appointment.reason_for_visit : (res?.reason_for_visit !== undefined ? res.reason_for_visit : chosenReason);
+
+          setFormData((prev) => ({
+            ...prev,
+            appointmentId: realId,
+            selectedTimeSlot: finalTime,
+            reasonForVisit: finalReason,
+          }));
+          setConfirmedData({
+            appointmentId: realId,
+            fullName: formData.fullName,
+            mobileNumber: formData.mobileNumber,
+            email: formData.email,
+            date: formattedDate,
+            time: finalTime,
+            reason: finalReason,
+          });
           setIsRescheduledSuccess(true);
 
           // Immediately update bookedSlotsMap so slot is disabled
@@ -1150,39 +1175,43 @@ const BookAppointmentPage = () => {
           return;
         }
 
+        const chosenTime = formData.selectedTimeSlot;
+        const chosenReason = formData.reasonForVisit?.trim() || '';
         const res = await appointmentApi.bookAppointment({
-
           patient_name: formData.fullName,
-
           patient_phone: formData.mobileNumber,
-
           patient_email: formData.email,
-
           gender: formData.gender,
-
           date_of_birth: formData.dateOfBirth,
-
           dateOfBirth: formData.dateOfBirth,
-
           age: formData.age,
-
           city: formData.city,
-
           appointment_date: formattedDate,
-
-          time_slot: formData.selectedTimeSlot,
-
-          reason_for_visit: formData.reasonForVisit || 'Homeopathic Consultation',
-
+          time_slot: chosenTime,
+          reason_for_visit: chosenReason,
           consultation_type: 'In clinic Visit',
-
           status: 'Confirmed',
-
         });
 
         const realId = res?.appointment?.appointment_id || res?.appointment_id || `APT-${Date.now().toString().slice(-6)}`;
+        const finalTime = res?.appointment?.time_slot || res?.time_slot || chosenTime;
+        const finalReason = res?.appointment?.reason_for_visit !== undefined ? res.appointment.reason_for_visit : (res?.reason_for_visit !== undefined ? res.reason_for_visit : chosenReason);
 
-        setFormData((prev) => ({ ...prev, appointmentId: realId }));
+        setFormData((prev) => ({
+          ...prev,
+          appointmentId: realId,
+          selectedTimeSlot: finalTime,
+          reasonForVisit: finalReason,
+        }));
+        setConfirmedData({
+          appointmentId: realId,
+          fullName: formData.fullName,
+          mobileNumber: formData.mobileNumber,
+          email: formData.email,
+          date: formattedDate,
+          time: finalTime,
+          reason: finalReason,
+        });
 
 
 
@@ -1353,15 +1382,11 @@ const BookAppointmentPage = () => {
     }
 
     setFormData((prev) => ({
-
       ...prev,
-
       selectedDay: day,
-
       selectedMonth: calendarMonth,
-
       selectedYear: calendarYear,
-
+      selectedTimeSlot: '',
     }));
 
   };
@@ -1487,17 +1512,20 @@ const BookAppointmentPage = () => {
   // Handle PDF Download / Print
   const handleDownloadPdf = () => {
     try {
-      const reasonVal = formData.reasonForVisit?.trim();
+      const reasonVal = (confirmedData ? confirmedData.reason : formData.reasonForVisit)?.trim() || '';
+      const timeVal = confirmedData?.time || formData.selectedTimeSlot || '';
+      const dateVal = confirmedData?.date || formatSelectedFullDate();
+      const idVal = confirmedData?.appointmentId || formData.appointmentId;
       downloadAppointmentConfirmationPdf({
-        appointmentId: formData.appointmentId,
+        appointmentId: idVal,
         fullName: formData.fullName,
         mobileNumber: formData.mobileNumber,
         email: formData.email,
         doctorName: 'Dr. K. Tripathi Ampeh (Pat.)',
-        service: reasonVal || 'Homeopathy Consultation',
+        service: reasonVal,
         reason: reasonVal,
-        date: formatSelectedFullDate(),
-        time: formData.selectedTimeSlot,
+        date: dateVal,
+        time: timeVal,
         clinicAddress: '123 Clinic Street, Your City,\nYour State - 123456',
         clinicPhone: '+91 98765 43210',
       });
@@ -1507,20 +1535,15 @@ const BookAppointmentPage = () => {
     }
   };
 
-
-
   // Handle WhatsApp action
-
   const handleWhatsappSend = () => {
-
+    const timeVal = confirmedData?.time || formData.selectedTimeSlot || '';
+    const dateVal = confirmedData?.date || formatSelectedFullDate();
+    const idVal = confirmedData?.appointmentId || formData.appointmentId;
     const text = encodeURIComponent(
-
-      `Hello Dr. Kumar Tripathi Ampeh Clinic, my appointment is confirmed with ID: ${formData.appointmentId} for ${formatSelectedFullDate()} at ${formData.selectedTimeSlot}.`
-
+      `Hello Dr. Kumar Tripathi Ampeh Clinic, my appointment is confirmed with ID: ${idVal} for ${dateVal}${timeVal ? ` at ${timeVal}` : ''}.`
     );
-
     window.open(`https://wa.me/919876543210?text=${text}`, '_blank');
-
   };
 
 
@@ -3004,7 +3027,7 @@ const BookAppointmentPage = () => {
 
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
 
-                    Reason for Visit <span style={{ color: '#9ca3af', fontWeight: '400' }}>(Optional)</span>
+                    Reason for Visit <span style={{ color: '#dc2626' }}>*</span>
 
                   </label>
 
@@ -3034,7 +3057,7 @@ const BookAppointmentPage = () => {
 
                       rows="4"
 
-                      placeholder="Briefly mention your health concern (optional)"
+                      placeholder="Briefly mention your health concern (e.g., Fever, Skin allergy, Routine checkup)"
 
                       style={{
 
@@ -3773,7 +3796,7 @@ const BookAppointmentPage = () => {
                                   setFormData((p) => ({ ...p, selectedTimeSlot: slot.time }));
                                 }
                               }}
-                              title={slot.isBooked ? 'Slot already booked' : slot.isOutsideHours ? `Outside clinic hours (${effectiveHours.startTime} - ${effectiveHours.endTime})` : isUnavailable ? 'Slot unavailable' : 'Click to select slot'}
+                              title={slot.isBooked ? 'Slot already booked' : slot.isPast ? 'Time slot has already passed for today' : slot.isOutsideHours ? `Outside clinic hours (${effectiveHours.startTime} - ${effectiveHours.endTime})` : isUnavailable ? 'Slot unavailable' : 'Click to select slot'}
                               style={{
                                 padding: '10px 6px',
                                 borderRadius: '8px',
@@ -3807,69 +3830,46 @@ const BookAppointmentPage = () => {
                     </div>
 
                     {/* Bottom Selected Slot Information Pill */}
-
                     <div
                       className="booking-selected-slot-pill"
                       style={{
-                        backgroundColor: '#f0fdf4',
-                        border: '1px solid #dcfce7',
+                        backgroundColor: formData.selectedTimeSlot ? '#f0fdf4' : '#fffbeb',
+                        border: formData.selectedTimeSlot ? '1px solid #dcfce7' : '1px solid #fde68a',
                         borderRadius: '10px',
                         padding: '12px 16px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px',
                       }}
-
                     >
-
                       <div
-
                         style={{
-
                           width: '24px',
-
                           height: '24px',
-
                           borderRadius: '50%',
-
-                          backgroundColor: '#dcfce7',
-
-                          color: '#16a34a',
-
+                          backgroundColor: formData.selectedTimeSlot ? '#dcfce7' : '#fef3c7',
+                          color: formData.selectedTimeSlot ? '#16a34a' : '#d97706',
                           display: 'flex',
-
                           alignItems: 'center',
-
                           justifyContent: 'center',
-
                           fontSize: '12px',
-
                           fontWeight: '700',
-
+                          flexShrink: 0,
                         }}
-
                       >
-
                         ℹ
-
                       </div>
 
                       <div>
-
-                        <span style={{ fontSize: '12px', fontWeight: '700', color: '#166534', display: 'block' }}>
-
-                          Selected Slot
-
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: formData.selectedTimeSlot ? '#166534' : '#92400e', display: 'block' }}>
+                          {formData.selectedTimeSlot ? 'Selected Slot' : 'Select Time Slot'}
                         </span>
-
-                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#14532d' }}>
-
-                          {formatSelectedFullDate()} at {formData.selectedTimeSlot}
-
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: formData.selectedTimeSlot ? '#14532d' : '#78350f' }}>
+                          {formData.selectedTimeSlot
+                            ? `${formatSelectedFullDate()} at ${formData.selectedTimeSlot}`
+                            : `Please choose an available time slot above for ${formatSelectedFullDate()}`}
                         </span>
-
                       </div>
-
                     </div>
 
                   </div>
@@ -4044,7 +4044,7 @@ const BookAppointmentPage = () => {
                       <>
                         Your appointment has been successfully rescheduled for{' '}
                         <strong style={{ color: '#0f172a' }}>
-                          {formData.selectedDay} {months[formData.selectedMonth]} {formData.selectedYear} at {formData.selectedTimeSlot}
+                          {confirmedData?.date || `${formData.selectedDay} ${months[formData.selectedMonth]} ${formData.selectedYear}`} at {confirmedData?.time || formData.selectedTimeSlot}
                         </strong>.<br />
                         We have updated your consultation schedule.
                       </>
@@ -4128,8 +4128,11 @@ const BookAppointmentPage = () => {
 
                   {/* 2-Columns Details Grid */}
                   {(() => {
-                    const hasReason = Boolean(formData.reasonForVisit?.trim());
-                    const col2LabelWidth = hasReason ? '108px' : '72px';
+                    const displayReason = (confirmedData ? confirmedData.reason : formData.reasonForVisit)?.trim() || '';
+                    const displayTime = confirmedData?.time || formData.selectedTimeSlot || '';
+                    const displayDate = confirmedData?.date || formatSelectedFullDate();
+                    const displayId = confirmedData?.appointmentId || formData.appointmentId;
+                    const col2LabelWidth = '108px';
                     return (
                       <div
                         className="booking-confirm-grid"
@@ -4145,7 +4148,7 @@ const BookAppointmentPage = () => {
                         <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🪪</span>
                           <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, fontWeight: '500' }}>Appointment ID</span>
-                          <strong style={{ color: '#0f172a', fontWeight: '700', wordBreak: 'break-all' }}>{formData.appointmentId}</strong>
+                          <strong style={{ color: '#0f172a', fontWeight: '700', wordBreak: 'break-all' }}>{displayId}</strong>
                         </div>
 
                         <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -4163,14 +4166,14 @@ const BookAppointmentPage = () => {
 
                         <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', minWidth: 0 }}>
                           <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0, marginTop: '2px' }}>
-                            {hasReason ? '📋' : '⚙️'}
+                            📋
                           </span>
                           <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: col2LabelWidth, width: col2LabelWidth, flexShrink: 0, fontWeight: '500', marginTop: '2px' }}>
-                            {hasReason ? 'Reason for Visit' : 'Service'}
+                            Reason for Visit
                           </span>
                           <div style={{ flex: 1, minWidth: 0, maxHeight: '130px', overflowY: 'auto', wordBreak: 'break-word', overflowWrap: 'anywhere', paddingRight: '4px' }}>
                             <strong style={{ color: '#0f172a', fontWeight: '700', lineHeight: '1.45', display: 'block' }}>
-                              {hasReason ? formData.reasonForVisit.trim() : 'Homeopathy Consultation'}
+                              {displayReason}
                             </strong>
                           </div>
                         </div>
@@ -4185,7 +4188,7 @@ const BookAppointmentPage = () => {
                         <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>📅</span>
                           <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: col2LabelWidth, width: col2LabelWidth, flexShrink: 0, fontWeight: '500' }}>Date</span>
-                          <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formatSelectedFullDate()}</strong>
+                          <strong style={{ color: '#0f172a', fontWeight: '700' }}>{displayDate}</strong>
                         </div>
 
                         {/* Row 4 */}
@@ -4198,7 +4201,7 @@ const BookAppointmentPage = () => {
                         <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🕒</span>
                           <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: col2LabelWidth, width: col2LabelWidth, flexShrink: 0, fontWeight: '500' }}>Time</span>
-                          <strong style={{ color: '#0f172a', fontWeight: '700' }}>{formData.selectedTimeSlot}</strong>
+                          <strong style={{ color: '#0f172a', fontWeight: '700' }}>{displayTime}</strong>
                         </div>
 
                         {/* Row 5: Clinic Address */}
