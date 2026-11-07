@@ -16,6 +16,7 @@ from .views import (
     AppointmentSettingsView,
     NotificationSettingsView,
     SendPrescriptionWhatsAppView,
+    SendAppointmentWhatsAppView,
     PrescriptionPdfDownloadView,
     AppointmentPdfDownloadView,
 )
@@ -24,6 +25,8 @@ urlpatterns = [
     path('appointments/slots/', AppointmentSlotsView.as_view(), name='appointment-slots'),
     path('appointments/', AppointmentListCreateView.as_view(), name='appointment-list-create'),
     path('appointments/<str:appointment_id>/pdf/', AppointmentPdfDownloadView.as_view(), name='appointment-pdf-download'),
+    path('appointments/send-whatsapp/', SendAppointmentWhatsAppView.as_view(), name='appointment-send-whatsapp-direct'),
+    path('appointments/<str:appointment_id>/send-whatsapp/', SendAppointmentWhatsAppView.as_view(), name='appointment-send-whatsapp'),
     path('appointments/<str:pk_or_id>/', AppointmentDetailView.as_view(), name='appointment-detail'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
     path('notifications/<str:pk>/read/', NotificationMarkReadView.as_view(), name='notification-mark-read'),

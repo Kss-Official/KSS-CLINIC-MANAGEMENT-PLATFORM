@@ -80,6 +80,24 @@ class WhatsAppService:
             logger.error(f"Network error during WhatsApp media upload: {e}")
             return None, f"Network error communicating with Meta API: {str(e)}"
 
+    def is_template_approved(self, template_name):
+        """
+        Checks whether a template is APPROVED on Meta WABA before attempting to dispatch it.
+        Prevents Meta from accepting and silently dropping messages for PENDING templates.
+        """
+        try:
+            waba_id = getattr(settings, 'WHATSAPP_WABA_ID', '2357762654985667')
+            url = f"{self.base_url}/{waba_id}/message_templates?name={template_name}"
+            headers = {'Authorization': f'Bearer {self.access_token}'}
+            r = requests.get(url, headers=headers, timeout=5)
+            if r.status_code == 200:
+                data = r.json().get('data', [])
+                if data and data[0].get('status') == 'APPROVED':
+                    return True
+            return False
+        except Exception:
+            return False
+
     def open_template_session(self, clean_phone):
         """
         Sends a standard Meta-approved template (e.g. 'hello_world') to initiate
@@ -145,7 +163,7 @@ class WhatsAppService:
                     "success": True,
                     "message_id": msg_id,
                     "recipient": clean_phone,
-                    "details": "Prescription PDF successfully sent via Meta WhatsApp Cloud API!"
+                    "details": "Document successfully sent via Meta WhatsApp Cloud API!"
                 }
 
             error_obj = res_data.get('error', {})
@@ -162,7 +180,7 @@ class WhatsAppService:
                             "success": True,
                             "message_id": retry_data['messages'][0].get('id'),
                             "recipient": clean_phone,
-                            "details": "Prescription PDF successfully sent via Meta WhatsApp Cloud API!"
+                            "details": "Document successfully sent via Meta WhatsApp Cloud API!"
                         }
                     res_data = retry_data
                     error_obj = res_data.get('error', {})
@@ -275,6 +293,135 @@ class WhatsAppService:
             filename=filename,
             caption=caption
         )
+
+    def send_appointment_confirmation(self, appointment_obj):
+        """
+        Generates and delivers the official Appointment Confirmation Slip (PDF)
+        to the patient's WhatsApp number automatically upon booking.
+        """
+        try:
+            from .appointment_pdf import generate_appointment_confirmation_pdf_bytes
+
+            phone = getattr(appointment_obj, 'patient_phone', '') or ''
+            clean_phone = self.normalize_phone_number(phone)
+            if not clean_phone or len(clean_phone) < 10:
+                logger.warning(f"Cannot send WhatsApp appointment confirmation: invalid phone '{phone}'")
+                return False, {"error": f"Invalid recipient phone number: '{phone}'."}
+
+            apt_id = getattr(appointment_obj, 'appointment_id', '') or f"APT-{getattr(appointment_obj, 'id', '')}"
+            p_name = getattr(appointment_obj, 'patient_name', '') or 'Patient'
+            apt_date = getattr(appointment_obj, 'appointment_date', '') or ''
+            apt_time = getattr(appointment_obj, 'time_slot', '') or ''
+            service = getattr(appointment_obj, 'reason_for_visit', '') or ''
+
+            apt_data = {
+                'appointment_id': apt_id,
+                'patient_name': p_name,
+                'patient_phone': phone,
+                'patient_email': getattr(appointment_obj, 'patient_email', '') or '',
+                'doctor_name': 'Dr. Kumar Tripathi Ampeh (Pat.)',
+                'service': service,
+                'appointment_date': apt_date,
+                'time_slot': apt_time,
+                'clinic_address': getattr(appointment_obj, 'clinic_address', '') or '12, Green Park, MG Road, Bangalore, Karnataka - 560001'
+            }
+
+            pdf_bytes = generate_appointment_confirmation_pdf_bytes(apt_data)
+            filename = f"Appointment_{apt_id}.pdf".replace(' ', '_')
+
+            # 1. Upload PDF to Meta Cloud API
+            media_id, upload_err = self.upload_media(pdf_bytes, filename=filename)
+            if not media_id:
+                logger.error(f"Failed to upload appointment confirmation PDF to WhatsApp: {upload_err}")
+                return False, {"error": f"Failed to upload appointment confirmation PDF: {upload_err}"}
+
+            # 2. Primary attempt: If 'appointment_booking_confirmation' is APPROVED, send via template
+            # (Note: We verify it is APPROVED so Meta does not silently drop messages for PENDING templates)
+            if self.is_template_approved("appointment_booking_confirmation"):
+                messages_url = f"{self.base_url}/{self.phone_number_id}/messages"
+                headers = {
+                    'Authorization': f'Bearer {self.access_token}',
+                    'Content-Type': 'application/json',
+                }
+                template_payload = {
+                    "messaging_product": "whatsapp",
+                    "recipient_type": "individual",
+                    "to": clean_phone,
+                    "type": "template",
+                    "template": {
+                        "name": "appointment_booking_confirmation",
+                        "language": {"code": "en"},
+                        "components": [
+                            {
+                                "type": "header",
+                                "parameters": [
+                                    {
+                                        "type": "document",
+                                        "document": {
+                                            "id": media_id,
+                                            "filename": filename
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "body",
+                                "parameters": [
+                                    {"type": "text", "text": p_name},
+                                    {"type": "text", "text": apt_id},
+                                    {"type": "text", "text": str(apt_date) if apt_date else "your scheduled date"},
+                                    {"type": "text", "text": str(apt_time) if apt_time else "your scheduled time"}
+                                ]
+                            }
+                        ]
+                    }
+                }
+
+                try:
+                    resp = requests.post(messages_url, headers=headers, json=template_payload, timeout=30)
+                    res_data = resp.json()
+                    if resp.status_code == 200 and 'messages' in res_data and len(res_data['messages']) > 0:
+                        logger.info(f"Appointment confirmation template delivered successfully: {res_data}")
+                        return True, {
+                            "success": True,
+                            "message_id": res_data['messages'][0].get('id'),
+                            "recipient": clean_phone,
+                            "details": "Appointment confirmation PDF delivered via official WhatsApp Template!"
+                        }
+                    logger.info(f"Template dispatch fallback: {res_data}")
+                except Exception as e:
+                    logger.warning(f"Template dispatch exception: {e}")
+
+            # 3. Guaranteed immediate dispatch:
+            # While template is pending approval, open conversation session with approved opener
+            # and send the official appointment confirmation slip (PDF) with dedicated appointment caption.
+            caption = (
+                f"Dear {p_name},\n"
+                f"Your appointment ({apt_id}) with Dr. Kumar Tripathi Ampeh (Pat.) Homeopathy Clinic is confirmed!\n\n"
+                f"📅 Date: {apt_date}\n"
+                f"⏰ Time: {apt_time}\n"
+                f"👨‍⚕️ Doctor: Dr. Kumar Tripathi Ampeh (Pat.)\n"
+                f"📍 Address: 123 Clinic Street, Your City\n\n"
+                f"Your official appointment confirmation slip is attached.\n"
+                f"Wishing you vibrant health!\n"
+                f"Dr. Kumar Tripathi Homeopathy Clinic"
+            )
+
+            # Proactively ensure active messaging session with approved hello_world opener
+            self.open_template_session(clean_phone)
+
+            res, resp_data = self.send_document(
+                recipient_phone=clean_phone,
+                media_id=media_id,
+                filename=filename,
+                caption=caption
+            )
+            logger.info(f"WhatsApp appointment confirmation result for {apt_id}: {res} ({resp_data})")
+            return res, resp_data
+
+        except Exception as e:
+            logger.error(f"Unexpected error in send_appointment_confirmation: {e}")
+            return False, {"error": str(e)}
 
 whatsapp_service = WhatsAppService()
 

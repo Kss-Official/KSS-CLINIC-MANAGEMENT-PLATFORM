@@ -125,7 +125,7 @@ const AppointmentsPage = () => {
       email: item.patient_email || item.email || '',
       date: item.appointment_date || item.date || '',
       time: item.time_slot || item.time || '',
-      reason: item.reason_for_visit || item.reason || 'General Consultation',
+      reason: item.reason_for_visit || item.reason || '',
       consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
       status: aptStatus,
       prescriptionStatus: rxStatus,
@@ -1047,7 +1047,7 @@ const AppointmentsPage = () => {
                       </td>
                       <td style={{ padding: '13px 10px', fontSize: '13.5px', color: '#334155', maxWidth: '200px', minWidth: '130px' }}>
                         <div
-                          title={row.reason || 'General Consultation'}
+                          title={row.reason || ''}
                           style={{
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
@@ -1059,7 +1059,7 @@ const AppointmentsPage = () => {
                             lineHeight: '1.45',
                           }}
                         >
-                          {row.reason || 'General Consultation'}
+                          {row.reason || ''}
                         </div>
                       </td>
                       <td style={{ padding: '13px 10px' }}>

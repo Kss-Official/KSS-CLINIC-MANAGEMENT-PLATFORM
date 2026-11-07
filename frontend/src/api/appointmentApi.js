@@ -17,6 +17,19 @@ export const appointmentApi = {
     return response.data;
   },
 
+  rescheduleAppointment: async (id, data) => {
+    const response = await axiosClient.patch(`/appointments/${id}/`, {
+      ...data,
+      status: 'Rescheduled',
+    });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('appointment-updated', { detail: response.data })
+      );
+    }
+    return response.data;
+  },
+
   deleteAppointment: async (id) => {
     const response = await axiosClient.delete(`/appointments/${id}/`);
     if (typeof window !== 'undefined') {
@@ -177,6 +190,13 @@ export const appointmentApi = {
   // WhatsApp Cloud API Prescription Sender
   sendPrescriptionWhatsApp: async (rxId, data = {}) => {
     const target = rxId ? `/prescriptions/${encodeURIComponent(rxId)}/send-whatsapp/` : '/prescriptions/send-whatsapp/';
+    const response = await axiosClient.post(target, data);
+    return response.data;
+  },
+
+  // WhatsApp Cloud API Appointment Confirmation Sender
+  sendAppointmentWhatsApp: async (appointmentId, data = {}) => {
+    const target = appointmentId ? `/appointments/${encodeURIComponent(appointmentId)}/send-whatsapp/` : '/appointments/send-whatsapp/';
     const response = await axiosClient.post(target, data);
     return response.data;
   },

@@ -155,6 +155,7 @@ const ViewPrescriptionModal = ({
   return (
     <div
       onClick={onClose}
+      className="admin-view-rx-overlay"
       onWheel={(e) => {
         if (e.target === e.currentTarget) e.preventDefault();
       }}
@@ -180,6 +181,7 @@ const ViewPrescriptionModal = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="admin-view-rx-modal"
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '24px',
@@ -195,28 +197,33 @@ const ViewPrescriptionModal = ({
         }}
       >
         <div
-          className="admin-modal-scroll"
+          className="admin-modal-scroll admin-view-rx-scroll"
           style={{
             overflowY: 'auto',
             overflowX: 'hidden',
             overscrollBehavior: 'contain',
+            WebkitOverflowScrolling: 'touch',
             padding: '24px 28px',
-            flex: 1,
+            flex: '1 1 0%',
+            minHeight: 0,
             width: '100%',
             boxSizing: 'border-box',
           }}
         >
           {/* Top Modal Header */}
           <div
+            className="admin-view-rx-header"
             style={{
               display: 'flex',
               alignItems: 'flex-start',
               justifyContent: 'space-between',
               marginBottom: '16px',
+              gap: '12px',
             }}
           >
             <div>
               <h2
+                className="admin-view-rx-title"
                 style={{
                   fontSize: '20px',
                   fontWeight: '700',
@@ -224,10 +231,15 @@ const ViewPrescriptionModal = ({
                   margin: '0 0 3px 0',
                 }}
               >
-                Prescription Details
+                {prescription ? 'Prescription Details' : 'New Prescription'}
               </h2>
-              <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
-                View and review the prescription for the selected patient.
+              <p
+                className="admin-view-rx-subtitle"
+                style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}
+              >
+                {prescription
+                  ? 'Review the prescription details and clinical documentation.'
+                  : 'Create and preview the prescription for the selected patient.'}
               </p>
             </div>
 
@@ -236,6 +248,7 @@ const ViewPrescriptionModal = ({
               type="button"
               onClick={onClose}
               aria-label="Close modal"
+              className="admin-view-rx-close-btn"
               style={{
                 background: 'none',
                 border: 'none',
@@ -249,6 +262,7 @@ const ViewPrescriptionModal = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 transition: 'color 0.15s ease',
+                flexShrink: 0,
               }}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#0f172a')}
               onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
@@ -296,8 +310,90 @@ const ViewPrescriptionModal = ({
               return res;
             }}
           />
+
+          {/* Close Action Button at Bottom */}
+          <div className="admin-view-rx-footer-close" style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              className="admin-view-rx-btn-close"
+              style={{
+                padding: '9px 24px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                backgroundColor: '#ffffff',
+                color: '#334155',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8fafc';
+                e.currentTarget.style.borderColor = '#94a3b8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .admin-view-rx-overlay {
+            padding: 10px 8px !important;
+          }
+          .admin-view-rx-modal {
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: 88vh !important;
+            border-radius: 16px !important;
+          }
+          .admin-view-rx-scroll {
+            padding: 16px 12px 18px !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+            overscroll-behavior: contain !important;
+          }
+          .admin-view-rx-header {
+            margin-bottom: 12px !important;
+          }
+          .admin-view-rx-title {
+            font-size: 18px !important;
+          }
+          .admin-view-rx-subtitle {
+            font-size: 11.5px !important;
+          }
+          .admin-view-rx-footer-close {
+            margin-top: 12px !important;
+            width: 100% !important;
+          }
+          .admin-view-rx-btn-close {
+            width: 100% !important;
+            justify-content: center !important;
+            min-height: 40px !important;
+            font-size: 13px !important;
+            box-sizing: border-box !important;
+          }
+        }
+        @media (max-width: 380px) {
+          .admin-view-rx-overlay {
+            padding: 6px 4px !important;
+          }
+          .admin-view-rx-scroll {
+            padding: 14px 10px 16px !important;
+          }
+          .admin-view-rx-title {
+            font-size: 16.5px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

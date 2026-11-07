@@ -495,6 +495,25 @@ class AppointmentListCreateView(APIView):
                     is_read=False
                 )
 
+            # Automatically deliver Appointment Confirmation PDF via Meta WhatsApp Cloud API in background
+            def _async_send_whatsapp_confirmation(apt_id_val):
+                try:
+                    from django.db import connection
+                    connection.close()
+                    from apps.appointments.models import Appointment
+                    from apps.appointments.services.whatsapp_service import whatsapp_service
+                    apt_to_send = Appointment.objects.filter(id=apt_id_val).first()
+                    if apt_to_send and apt_to_send.patient_phone:
+                        ok, details = whatsapp_service.send_appointment_confirmation(apt_to_send)
+                        logger.info(f"WhatsApp confirmation for {apt_to_send.appointment_id}: ok={ok}, details={details}")
+                        print(f"[WhatsApp] Appointment confirmation for {apt_to_send.appointment_id} -> Success={ok}, MsgId={details.get('message_id')}")
+                except Exception as ex:
+                    logger.error(f"Async WhatsApp confirmation dispatch failed: {ex}")
+                    print(f"[WhatsApp Error] Failed to send confirmation: {ex}")
+
+            import threading
+            threading.Thread(target=_async_send_whatsapp_confirmation, args=(appointment.id,), daemon=True).start()
+
             return Response({
                 'appointment': AppointmentSerializer(appointment).data,
                 'notification': NotificationSerializer(notification).data if notification else None
@@ -520,7 +539,7 @@ class AppointmentDetailView(APIView):
     def get_permissions(self):
         if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
             return [AllowAny()]
-        return [IsAuthenticated(), IsStaffOrAdmin()]
+        return [IsAuthenticated()]
 
     def get(self, request, pk_or_id):
         try:
@@ -541,16 +560,60 @@ class AppointmentDetailView(APIView):
         except Appointment.DoesNotExist:
             return Response({'error': 'Appointment not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Allow staff or appointment owner
+        is_staff = request.user.is_staff or request.user.is_superuser or getattr(request.user, 'role', '') in ['ADMIN', 'DOCTOR', 'STAFF', 'RECEPTIONIST']
+        if not is_staff:
+            user_phone = getattr(request.user, 'phone_number', None) or getattr(request.user, 'phone', None) or ''
+            clean_user_phone = ''.join(c for c in str(user_phone) if c.isdigit())
+            apt_phone = getattr(apt, 'patient_phone', '') or ''
+            clean_apt_phone = ''.join(c for c in str(apt_phone) if c.isdigit())
+            phone_match = bool(clean_user_phone and clean_apt_phone and (clean_user_phone[-10:] == clean_apt_phone[-10:]))
+            email_match = bool(apt.patient_email and request.user.email and apt.patient_email.strip().lower() == request.user.email.strip().lower())
+
+            is_owner = (
+                apt.user == request.user or
+                (apt.patient_record and apt.patient_record.user == request.user) or
+                email_match or
+                phone_match
+            )
+            if not is_owner:
+                return Response({'error': 'You do not have permission to modify this appointment.'}, status=status.HTTP_403_FORBIDDEN)
+
         new_status = request.data.get('status')
+        new_date = request.data.get('appointment_date') or request.data.get('date')
+        new_time = request.data.get('time_slot') or request.data.get('time')
+        new_reason = request.data.get('reason_for_visit') or request.data.get('reason')
         new_prescription_status = request.data.get('prescription_status') or request.data.get('prescriptionStatus')
 
-        if not new_status and not new_prescription_status:
-            return Response({'error': 'status or prescription_status field required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not any([new_status, new_date, new_time, new_reason, new_prescription_status]):
+            return Response({'error': 'At least one field to update is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        current_status_lower = str(apt.status or '').strip().lower()
+        is_attempting_reschedule = bool(new_date or new_time or (new_status and str(new_status).strip().lower() == 'rescheduled'))
+        if is_attempting_reschedule and current_status_lower in ['complete', 'completed', 'cancelled']:
+            return Response({'error': 'Completed or cancelled appointments cannot be rescheduled.'}, status=status.HTTP_400_BAD_REQUEST)
 
         fields_to_update = ['updated_at']
+        is_rescheduled = False
+
+        if new_date:
+            apt.appointment_date = new_date
+            fields_to_update.append('appointment_date')
+            is_rescheduled = True
+
+        if new_time:
+            apt.time_slot = new_time
+            fields_to_update.append('time_slot')
+            is_rescheduled = True
+
+        if new_reason:
+            apt.reason_for_visit = new_reason
+            fields_to_update.append('reason_for_visit')
+
         if new_status:
             apt.status = new_status
             fields_to_update.append('status')
+
             # When an appointment is marked as completed:
             if str(new_status).strip().lower() in ['complete', 'completed']:
                 Notification.objects.filter(
@@ -590,12 +653,46 @@ class AppointmentDetailView(APIView):
                         rx_notif.booking_time = apt.time_slot
                         rx_notif.created_at = timezone.now()
                         rx_notif.save()
+        elif is_rescheduled and apt.status != 'Cancelled':
+            apt.status = 'Rescheduled'
+            fields_to_update.append('status')
 
         if new_prescription_status:
             apt.prescription_status = new_prescription_status
             fields_to_update.append('prescription_status')
 
         apt.save(update_fields=fields_to_update)
+
+        # If rescheduled, notify Admin & dispatch updated WhatsApp confirmation
+        if is_rescheduled or apt.status == 'Rescheduled':
+            try:
+                Notification.objects.create(
+                    appointment=apt,
+                    title='Appointment Rescheduled',
+                    patient_name=apt.patient_name,
+                    appointment_date=apt.appointment_date,
+                    booking_time=apt.time_slot,
+                    message=f"Appointment {apt.appointment_id} for {apt.patient_name} was rescheduled to {apt.appointment_date} at {apt.time_slot}.",
+                    is_read=False
+                )
+            except Exception as e:
+                logger.error(f"Failed to create reschedule notification: {e}")
+
+            def _async_send_reschedule_whatsapp(apt_id_val):
+                try:
+                    from django.db import connection
+                    connection.close()
+                    from apps.appointments.models import Appointment
+                    from apps.appointments.services.whatsapp_service import whatsapp_service
+                    a_send = Appointment.objects.filter(id=apt_id_val).first()
+                    if a_send and a_send.patient_phone:
+                        whatsapp_service.send_appointment_confirmation(a_send)
+                except Exception as ex:
+                    logger.error(f"Async reschedule WhatsApp confirmation failed: {ex}")
+
+            import threading
+            threading.Thread(target=_async_send_reschedule_whatsapp, args=(apt.id,), daemon=True).start()
+
         return Response(AppointmentSerializer(apt).data)
 
     def delete(self, request, pk_or_id):
@@ -1571,6 +1668,13 @@ class PatientMyProfileView(APIView):
                 'status': a.status,
                 'consultationType': a.consultation_type,
                 'hasPrescription': a.prescriptions.exists(),
+                'patientName': a.patient_name,
+                'patientPhone': a.patient_phone,
+                'patientEmail': a.patient_email or '',
+                'patientAge': getattr(a, 'patient_age', '') or (patient.age_gender.split('/')[0].strip() if (patient and patient.age_gender) else ''),
+                'patientGender': a.patient_gender or (patient.gender if patient else ''),
+                'patientDob': getattr(a, 'patient_dob', '') or (patient.date_of_birth if patient else ''),
+                'city': (patient.address if patient else '') or city_val,
             } for a in p_apts],
             'prescriptions': [{
                 'id': r.prescription_id,
@@ -2013,6 +2117,45 @@ class SendPrescriptionWhatsAppView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
+class SendAppointmentWhatsAppView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, appointment_id=None):
+        payload = request.data or {}
+        target_id = appointment_id or payload.get('appointment_id') or payload.get('id')
+        apt = None
+        if target_id:
+            cleaned_target = str(target_id).strip()
+            lookup_q = models.Q(appointment_id__iexact=cleaned_target)
+            if cleaned_target.isdigit():
+                lookup_q |= models.Q(id=int(cleaned_target))
+            apt = Appointment.objects.filter(lookup_q).first()
+
+        if not apt:
+            return Response({
+                'success': False,
+                'error': f'Appointment not found: {target_id}'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        if payload.get('phone') or payload.get('mobile'):
+            apt.patient_phone = payload.get('phone') or payload.get('mobile')
+
+        success, result = whatsapp_service.send_appointment_confirmation(apt)
+        if success:
+            return Response({
+                'success': True,
+                'message': f"Appointment confirmation PDF successfully sent via WhatsApp to {apt.patient_name} (+{result.get('recipient')})!",
+                'whatsapp_message_id': result.get('message_id'),
+                'recipient': result.get('recipient'),
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'error': result.get('error', 'Failed to send WhatsApp appointment confirmation.'),
+                'meta_details': result
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
 class PrescriptionPdfDownloadView(APIView):
     """
     Publicly serves / streams official prescription PDF with clinic letterhead.
@@ -2130,7 +2273,23 @@ class AppointmentPdfDownloadView(APIView):
             }
 
         try:
-            pdf_bytes = generate_prescription_pdf_bytes(rx_data)
+            if rx:
+                pdf_bytes = generate_prescription_pdf_bytes(rx_data)
+            else:
+                from .services.appointment_pdf import generate_appointment_confirmation_pdf_bytes
+                apt_data = {
+                    'appointment_id': apt.appointment_id,
+                    'patient_name': apt.patient_name or 'Patient',
+                    'patient_phone': apt.patient_phone or '',
+                    'patient_email': apt.patient_email or '',
+                    'doctor_name': 'Dr. Kumar Tripathi Ampeh (Pat.)',
+                    'service': apt.reason_for_visit or '',
+                    'appointment_date': apt.appointment_date,
+                    'time_slot': apt.time_slot,
+                    'clinic_address': getattr(apt, 'clinic_address', '') or '12, Green Park, MG Road, Bangalore, Karnataka - 560001'
+                }
+                pdf_bytes = generate_appointment_confirmation_pdf_bytes(apt_data)
+
             from django.http import HttpResponse
             response = HttpResponse(pdf_bytes, content_type='application/pdf')
             safe_name = (apt.patient_name or 'Patient').replace(' ', '_')

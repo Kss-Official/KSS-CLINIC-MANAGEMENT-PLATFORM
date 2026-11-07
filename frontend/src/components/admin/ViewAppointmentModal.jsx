@@ -118,7 +118,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
     contact: raw.patient_phone || raw.contact || raw.phone || '',
     date: formatDisplayDate(raw.appointment_date || raw.date),
     time: raw.time_slot || raw.time || '09:30 AM',
-    reason: userReason || 'Homeopathic Consultation',
+    reason: userReason || 'Consultation',
     status: currentStatus || raw.status || 'Confirmed',
     consultationType: (raw.consultation_type || raw.consultationType || 'In clinic Visit').replace('In-clinic', 'In clinic'),
     ageGender: raw.ageGender || raw.age_gender || (raw.patient_gender ? (raw.patient_age ? (raw.patient_age + ' • ' + raw.patient_gender) : raw.patient_gender) : 'Adult'),
@@ -163,6 +163,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
   return (
     <div
       onClick={onClose}
+      className="admin-view-apt-overlay"
       style={{
         position: 'fixed',
         top: 0,
@@ -185,6 +186,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="admin-view-apt-modal"
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '20px',
@@ -201,27 +203,30 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
       >
         {/* Modal Scroll Container */}
         <div
-          className="admin-modal-scroll"
+          className="admin-modal-scroll admin-view-apt-scroll"
           style={{
             flex: 1,
             overflowY: 'auto',
             overflowX: 'hidden',
+            WebkitOverflowScrolling: 'touch',
             padding: '24px 28px',
             boxSizing: 'border-box',
           }}
         >
           {/* Header */}
           <div
+            className="admin-view-apt-header"
             style={{
               display: 'flex',
               alignItems: 'flex-start',
               justifyContent: 'space-between',
-              gap: '12px',
               marginBottom: '18px',
+              gap: '12px',
             }}
           >
-            <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="admin-view-apt-header-left" style={{ minWidth: 0, flex: 1 }}>
               <div
+                className="admin-view-apt-tag"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -241,6 +246,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 <span>Appointment Details</span>
               </div>
               <h2
+                className="admin-view-apt-name"
                 style={{
                   fontSize: '22px',
                   fontWeight: '800',
@@ -253,13 +259,14 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               >
                 {apt.name}
               </h2>
-              <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
+              <div className="admin-view-apt-id" style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
                 ID: <span style={{ fontWeight: '700', color: '#1e4620' }}>{apt.id}</span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <div className="admin-view-apt-header-right" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
               <span
+                className="admin-view-apt-status-badge"
                 style={{
                   display: 'inline-block',
                   padding: '4px 12px',
@@ -278,6 +285,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 type="button"
                 onClick={onClose}
                 aria-label="Close modal"
+                className="admin-view-apt-close-btn"
                 style={{
                   width: '32px',
                   height: '32px',
@@ -309,6 +317,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
 
           {/* Patient Card Banner */}
           <div
+            className="admin-view-apt-patient-card"
             style={{
               backgroundColor: '#f8fafc',
               borderRadius: '14px',
@@ -322,6 +331,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
             }}
           >
             <div
+              className="admin-view-apt-patient-avatar"
               style={{
                 width: '46px',
                 height: '46px',
@@ -345,11 +355,11 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                     .toUpperCase()
                 : 'PT'}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>
+            <div className="admin-view-apt-patient-info" style={{ flex: 1, minWidth: 0 }}>
+              <div className="admin-view-apt-patient-name" style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', wordBreak: 'break-word' }}>
                 {apt.name}
               </div>
-              <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+              <div className="admin-view-apt-patient-meta" style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', wordBreak: 'break-word' }}>
                 <span>📞 {apt.contact}</span>
                 {apt.ageGender && <span>• {apt.ageGender}</span>}
                 {apt.email && <span>• ✉️ {apt.email}</span>}
@@ -359,6 +369,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
 
           {/* Details 2x2 Grid (Strict minmax(0, 1fr) ensures columns never overflow) */}
           <div
+            className="admin-view-apt-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
@@ -369,6 +380,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
           >
             {/* 1. Date & Time */}
             <div
+              className="admin-view-apt-grid-card"
               style={{
                 backgroundColor: '#ffffff',
                 padding: '12px 14px',
@@ -378,19 +390,20 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 boxSizing: 'border-box',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              <div className="admin-view-apt-card-label" style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                 DATE & TIME
               </div>
-              <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div className="admin-view-apt-card-val-primary" style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginTop: '4px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                 📅 {apt.date}
               </div>
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+              <div className="admin-view-apt-card-val-secondary" style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                 🕒 {apt.time}
               </div>
             </div>
 
             {/* 2. Consultation Type */}
             <div
+              className="admin-view-apt-grid-card"
               style={{
                 backgroundColor: '#ffffff',
                 padding: '12px 14px',
@@ -400,19 +413,20 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 boxSizing: 'border-box',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              <div className="admin-view-apt-card-label" style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                 CONSULTATION TYPE
               </div>
-              <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div className="admin-view-apt-card-val-primary" style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginTop: '4px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                 🩺 {apt.consultationType || 'In clinic Visit'}
               </div>
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+              <div className="admin-view-apt-card-val-secondary" style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                 Regular Consultation
               </div>
             </div>
 
             {/* 3. Assigned Doctor */}
             <div
+              className="admin-view-apt-grid-card"
               style={{
                 backgroundColor: '#ffffff',
                 padding: '12px 14px',
@@ -422,22 +436,24 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 boxSizing: 'border-box',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              <div className="admin-view-apt-card-label" style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                 ASSIGNED DOCTOR
               </div>
               <div
-                style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                className="admin-view-apt-card-val-primary"
+                style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginTop: '4px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}
                 title={apt.doctor}
               >
                 👨‍⚕️ {apt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)'}
               </div>
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+              <div className="admin-view-apt-card-val-secondary" style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                 Homeopathy Consultant
               </div>
             </div>
 
             {/* 4. Prescription Status */}
             <div
+              className="admin-view-apt-grid-card"
               style={{
                 backgroundColor: '#ffffff',
                 padding: '12px 14px',
@@ -447,7 +463,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 boxSizing: 'border-box',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              <div className="admin-view-apt-card-label" style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                 PRESCRIPTION STATUS
               </div>
               <div style={{ marginTop: '5px' }}>
@@ -470,7 +486,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                   <span>{rxBadge.label}</span>
                 </span>
               </div>
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+              <div className="admin-view-apt-card-val-secondary" style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
                 {rxStatus === 'Complete' || rxStatus === 'Completed' ? 'Prescription active' : 'Awaiting prescription creation'}
               </div>
             </div>
@@ -478,6 +494,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
 
           {/* Reason for Visit Card (Full Width with perfect wrap for any user input) */}
           <div
+            className="admin-view-apt-notes-box"
             style={{
               backgroundColor: '#f8fafc',
               borderRadius: '14px',
@@ -488,6 +505,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
             }}
           >
             <div
+              className="admin-view-apt-notes-label"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -504,6 +522,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               <span>Reason for Visit</span>
             </div>
             <div
+              className="admin-view-apt-notes-text"
               style={{
                 fontSize: '13.5px',
                 color: '#0f172a',
@@ -519,12 +538,13 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 boxSizing: 'border-box',
               }}
             >
-              {apt.reason || 'General Consultation'}
+              {apt.reason || ''}
             </div>
           </div>
 
           {/* Clinical Remarks / Notes Card */}
           <div
+            className="admin-view-apt-notes-box"
             style={{
               backgroundColor: '#f8fafc',
               borderRadius: '14px',
@@ -535,6 +555,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
             }}
           >
             <div
+              className="admin-view-apt-notes-label"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -550,8 +571,9 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               <span>📝</span>
               <span>Clinical Remarks & Notes</span>
             </div>
-            {apt.clinicalNotes ? (
+            {apt.clinicalNotes || apt.notes ? (
               <div
+                className="admin-view-apt-notes-text"
                 style={{
                   fontSize: '13.5px',
                   color: '#334155',
@@ -566,7 +588,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                   boxSizing: 'border-box',
                 }}
               >
-                {apt.clinicalNotes}
+                {apt.clinicalNotes || apt.notes}
               </div>
             ) : (
               <div
@@ -588,6 +610,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
 
           {/* Action Footer */}
           <div
+            className="admin-view-apt-footer"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -602,6 +625,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
               <button
                 type="button"
                 onClick={handleConfirmAppointment}
+                className="admin-view-apt-btn-confirm"
                 style={{
                   padding: '9px 18px',
                   borderRadius: '8px',
@@ -651,6 +675,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
             <button
               type="button"
               onClick={onClose}
+              className="admin-view-apt-btn-close"
               style={{
                 padding: '9px 20px',
                 borderRadius: '8px',
@@ -660,16 +685,188 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 fontSize: '13.5px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'background-color 0.15s ease',
+                fontFamily: 'inherit',
+                transition: 'all 0.15s ease',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8fafc';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+              }}
             >
               Close
             </button>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .admin-view-apt-overlay {
+            padding: 12px 10px !important;
+          }
+
+          .admin-view-apt-modal {
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: 88vh !important;
+            border-radius: 16px !important;
+          }
+
+          .admin-view-apt-scroll {
+            padding: 16px 14px 16px !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+            overscroll-behavior: contain !important;
+          }
+
+          .admin-view-apt-header {
+            margin-bottom: 12px !important;
+            gap: 8px !important;
+          }
+
+          .admin-view-apt-tag {
+            font-size: 10px !important;
+            padding: 2.5px 8px !important;
+            margin-bottom: 6px !important;
+          }
+
+          .admin-view-apt-name {
+            font-size: 18px !important;
+            line-height: 1.25 !important;
+          }
+
+          .admin-view-apt-id {
+            font-size: 12px !important;
+            margin-top: 2px !important;
+          }
+
+          .admin-view-apt-header-right {
+            gap: 8px !important;
+          }
+
+          .admin-view-apt-status-badge {
+            font-size: 11px !important;
+            padding: 3px 10px !important;
+          }
+
+          .admin-view-apt-close-btn {
+            width: 30px !important;
+            height: 30px !important;
+            min-width: 30px !important;
+            font-size: 14px !important;
+          }
+
+          .admin-view-apt-patient-card {
+            padding: 12px 12px !important;
+            border-radius: 12px !important;
+            margin-bottom: 12px !important;
+            gap: 10px !important;
+          }
+
+          .admin-view-apt-patient-avatar {
+            width: 38px !important;
+            height: 38px !important;
+            min-width: 38px !important;
+            font-size: 14px !important;
+          }
+
+          .admin-view-apt-patient-name {
+            font-size: 14px !important;
+          }
+
+          .admin-view-apt-patient-meta {
+            font-size: 11.5px !important;
+          }
+
+          .admin-view-apt-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+            margin-bottom: 12px !important;
+          }
+
+          .admin-view-apt-grid-card {
+            padding: 10px 12px !important;
+            border-radius: 10px !important;
+          }
+
+          .admin-view-apt-card-label {
+            font-size: 10px !important;
+            margin-bottom: 2px !important;
+          }
+
+          .admin-view-apt-card-val-primary {
+            font-size: 13px !important;
+          }
+
+          .admin-view-apt-card-val-secondary {
+            font-size: 11px !important;
+          }
+
+          .admin-view-apt-notes-box {
+            padding: 12px 12px !important;
+            border-radius: 10px !important;
+            margin-bottom: 14px !important;
+          }
+
+          .admin-view-apt-notes-label {
+            font-size: 10px !important;
+            margin-bottom: 4px !important;
+          }
+
+          .admin-view-apt-notes-text {
+            font-size: 12px !important;
+            line-height: 1.45 !important;
+          }
+
+          .admin-view-apt-footer {
+            flex-direction: column-reverse !important;
+            gap: 8px !important;
+            padding-top: 12px !important;
+            width: 100% !important;
+          }
+
+          .admin-view-apt-btn-confirm,
+          .admin-view-apt-btn-close {
+            width: 100% !important;
+            justify-content: center !important;
+            min-height: 40px !important;
+            padding: 9px 14px !important;
+            font-size: 13px !important;
+            box-sizing: border-box !important;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .admin-view-apt-overlay {
+            padding: 8px 6px !important;
+          }
+
+          .admin-view-apt-scroll {
+            padding: 14px 10px 14px !important;
+          }
+
+          .admin-view-apt-name {
+            font-size: 16.5px !important;
+          }
+
+          .admin-view-apt-patient-card {
+            padding: 10px 10px !important;
+          }
+
+          .admin-view-apt-grid {
+            gap: 8px !important;
+          }
+
+          .admin-view-apt-grid-card {
+            padding: 8px 10px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
