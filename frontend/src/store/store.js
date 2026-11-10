@@ -27,29 +27,31 @@ export const useAppStore = create((set) => ({
   isAuthenticated: !!storedToken,
 
   setAuth: (user, token) => {
-    sessionStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
-    sessionStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
     try {
-      localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+      // Purge any lingering patient cache from previous session
+      sessionStorage.removeItem('kss_patient_phone');
+      sessionStorage.removeItem('kss_patient_email');
+      sessionStorage.removeItem('kss_patient_name');
+      sessionStorage.removeItem('kss_patient_id');
+      sessionStorage.removeItem('kss_last_appointment_id');
       localStorage.removeItem('kss_patient_phone');
       localStorage.removeItem('kss_patient_email');
       localStorage.removeItem('kss_patient_name');
       localStorage.removeItem('kss_patient_id');
       localStorage.removeItem('kss_last_appointment_id');
+      localStorage.removeItem('kss_reschedule_appointment');
+      localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     } catch (e) {}
+
+    sessionStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
+    sessionStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
     set({ user, token, isAuthenticated: true });
   },
 
   clearAuth: () => {
-    sessionStorage.removeItem(STORAGE_KEYS.USER_DATA);
-    sessionStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-    sessionStorage.removeItem('kss_patient_phone');
-    sessionStorage.removeItem('kss_patient_email');
-    sessionStorage.removeItem('kss_patient_name');
-    sessionStorage.removeItem('kss_patient_id');
-    sessionStorage.removeItem('kss_last_appointment_id');
     try {
+      sessionStorage.clear();
       localStorage.removeItem(STORAGE_KEYS.USER_DATA);
       localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
       localStorage.removeItem('kss_patient_phone');
@@ -57,13 +59,26 @@ export const useAppStore = create((set) => ({
       localStorage.removeItem('kss_patient_name');
       localStorage.removeItem('kss_patient_id');
       localStorage.removeItem('kss_last_appointment_id');
+      localStorage.removeItem('kss_reschedule_appointment');
     } catch (e) {}
     set({ user: null, token: null, isAuthenticated: false });
   },
 
   updateUser: (updatedUser) => {
-    sessionStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updatedUser));
-    set({ user: updatedUser });
+    if (!updatedUser) return;
+    set((state) => {
+      // Guard against cross-user updates: ensure ID or email matches
+      if (state.user && updatedUser.id && state.user.id && state.user.id !== updatedUser.id) {
+        console.warn('Blocked attempt to overwrite auth user with different user ID');
+        return state;
+      }
+      if (state.user?.email && updatedUser.email && state.user.email.toLowerCase() !== updatedUser.email.toLowerCase()) {
+        console.warn('Blocked attempt to overwrite auth user with different email');
+        return state;
+      }
+      sessionStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updatedUser));
+      return { user: updatedUser };
+    });
   },
 }));
 

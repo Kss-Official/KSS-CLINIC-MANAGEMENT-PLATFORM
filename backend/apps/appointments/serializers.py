@@ -273,6 +273,8 @@ class PrescriptionSerializer(serializers.ModelSerializer):
     appointment_id = serializers.SerializerMethodField()
     appointment_number = serializers.SerializerMethodField()
     apt_number = serializers.SerializerMethodField()
+    reason_for_visit = serializers.SerializerMethodField()
+    reason = serializers.SerializerMethodField()
 
     class Meta:
         model = Prescription
@@ -290,6 +292,8 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             'date',
             'time',
             'complaint',
+            'reason_for_visit',
+            'reason',
             'symptoms',
             'diagnosis',
             'medicines',
@@ -319,3 +323,21 @@ class PrescriptionSerializer(serializers.ModelSerializer):
 
     def get_apt_number(self, obj):
         return self.get_appointment_id(obj)
+
+    def get_reason_for_visit(self, obj):
+        if obj.appointment and obj.appointment.reason_for_visit and obj.appointment.reason_for_visit.strip():
+            return obj.appointment.reason_for_visit.strip()
+        if obj.complaint and obj.complaint.strip() and obj.complaint.strip().lower() != 'consultation':
+            return obj.complaint.strip()
+        if obj.patient_record:
+            apt = obj.patient_record.appointments.exclude(status='Cancelled').order_by('-created_at').first()
+            if apt and apt.reason_for_visit and apt.reason_for_visit.strip():
+                return apt.reason_for_visit.strip()
+        if obj.patient_name:
+            apt = Appointment.objects.filter(patient_name__iexact=obj.patient_name).exclude(status='Cancelled').order_by('-created_at').first()
+            if apt and apt.reason_for_visit and apt.reason_for_visit.strip():
+                return apt.reason_for_visit.strip()
+        return obj.complaint or ''
+
+    def get_reason(self, obj):
+        return self.get_reason_for_visit(obj)

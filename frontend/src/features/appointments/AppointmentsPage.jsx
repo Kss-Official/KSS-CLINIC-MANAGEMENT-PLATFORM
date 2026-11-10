@@ -6,7 +6,7 @@ import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
 import ActionDropdown from '../../components/admin/ActionDropdown';
 import AdminPagination from '../../components/admin/AdminPagination';
 import AdminCalendarPopover from '../../components/admin/AdminCalendarPopover';
-import { formatDateForDataset, parseDateString, matchesDateFilter as checkDateFilter } from '../../utils/dateFilterUtils';
+import { formatDateForDataset, parseDateString, matchesDateFilter as checkDateFilter, isCreatedToday } from '../../utils/dateFilterUtils';
 
 const AppointmentsPage = () => {
   const { openNewAppointment, openViewAppointment, openNewPrescription, openPatientHistory } = useAdmin();
@@ -110,6 +110,7 @@ const AppointmentsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const [appointmentsList, setAppointmentsList] = useState([]);
+  const [backendStats, setBackendStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -132,6 +133,8 @@ const AppointmentsPage = () => {
       ageGender: item.age_gender || item.ageGender || 'Adult',
       notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
       doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+      createdAt: item.created_at || item.createdAt || '',
+      created_at: item.created_at || item.createdAt || '',
     };
   };
 
@@ -141,7 +144,13 @@ const AppointmentsPage = () => {
         setIsLoading(true);
       }
       setError(null);
-      const data = await appointmentApi.getAppointments();
+      const [data, stats] = await Promise.all([
+        appointmentApi.getAppointments(),
+        appointmentApi.getAppointmentStats().catch(() => null),
+      ]);
+      if (stats) {
+        setBackendStats(stats);
+      }
       if (Array.isArray(data)) {
         const mapped = data.map(mapApiAppointment);
         setAppointmentsList((prev) => {
@@ -334,7 +343,10 @@ const AppointmentsPage = () => {
   // Dynamic pagination calculation based on data and page size
   // Dynamic metrics calculation from live Neon data
   const totalAppointmentsCount = appointmentsList.length;
-  const todayAppointmentsCount = appointmentsList.filter((a) => checkDateFilter(a.date, 'Today')).length;
+  // Today's Appointments count: displays only appointments created on the current date, automatically resetting to 0 when a new day begins
+  const todayAppointmentsCount = useMemo(() => {
+    return appointmentsList.filter((a) => isCreatedToday(a.createdAt || a.created_at)).length;
+  }, [appointmentsList]);
   const completedCount = appointmentsList.filter((a) => ['complete', 'completed'].includes((a.status || '').toLowerCase())).length;
   const pendingCount = appointmentsList.filter((a) => ['pending', 'confirmed'].includes((a.status || '').toLowerCase())).length;
   const cancelledCount = appointmentsList.filter((a) => (a.status || '').toLowerCase() === 'cancelled').length;
@@ -685,6 +697,7 @@ const AppointmentsPage = () => {
           {/* New Appointment Button */}
           <button
             type="button"
+            id="admin-new-appointment-btn"
             onClick={openNewAppointment}
             style={{
               display: 'inline-flex',

@@ -82,18 +82,60 @@ const PrescriptionsPage = () => {
     }
   };
 
+  const handleViewPatientHistory = async (row) => {
+    const targetPatientId = row.patientId || row.patient_id_ref || (row.patient?.id ? `PAT-${row.patient.id}` : (row.patient_record?.patient_id || ''));
+
+    // Open immediately with available patient data
+    openPatientHistory({
+      id: targetPatientId,
+      name: row.name || row.patientName,
+      mobile: row.contact || row.mobile || row.patient_phone || '',
+      ageGender: row.ageGender || row.age_gender || '',
+    });
+
+    try {
+      let fullPatient = null;
+      if (targetPatientId) {
+        try {
+          fullPatient = await appointmentApi.getPatientDetail(targetPatientId);
+        } catch (e) {}
+      }
+
+      if (!fullPatient || !fullPatient.appointments) {
+        const allPatients = await appointmentApi.getPatients();
+        if (Array.isArray(allPatients)) {
+          const cleanPhone = String(row.contact || row.mobile || row.patient_phone || '').replace(/\D/g, '').slice(-10);
+          const patName = (row.name || row.patientName || '').trim().toLowerCase();
+          fullPatient = allPatients.find((p) => {
+            if (targetPatientId && (p.id === targetPatientId || p.patient_id === targetPatientId || String(p.database_id) === String(targetPatientId))) return true;
+            const pPhone = String(p.mobile || p.phone || '').replace(/\D/g, '').slice(-10);
+            if (cleanPhone && pPhone && cleanPhone === pPhone) return true;
+            if (patName && p.name && p.name.trim().toLowerCase() === patName) return true;
+            return false;
+          });
+        }
+      }
+
+      if (fullPatient) {
+        openPatientHistory(fullPatient);
+      }
+    } catch (err) {
+      console.error('Failed to load full patient details:', err);
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Delivered':
-        return { bg: '#e8f7ee', color: '#1e7e34' };
+        return { bg: '#e8f7ee', color: '#1e7e34', border: '#c7e6c9' };
       case 'Sent':
-        return { bg: '#eaf2ff', color: '#2563eb' };
+        return { bg: '#eaf2ff', color: '#2563eb', border: '#bfdbfe' };
       case 'Pending':
-        return { bg: '#fef7e6', color: '#b45309' };
+        return { bg: '#fef7e6', color: '#b45309', border: '#fde68a' };
       case 'Failed':
-        return { bg: '#fee2e2', color: '#dc2626' };
+        return { bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' };
       default:
-        return { bg: '#f1f5f9', color: '#475569' };
+        return { bg: '#fef7e6', color: '#b45309', border: '#fde68a' };
     }
   };
 
@@ -656,16 +698,16 @@ const PrescriptionsPage = () => {
 
         {/* Prescriptions Table */}
         <div className="admin-table-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '980px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b' }}>Prescription ID</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b' }}>Patient Name</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b' }}>Age / Gender</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b' }}>Date</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b' }}>Main Complaint</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b' }}>WhatsApp Status</th>
-                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', textAlign: 'center' }}>Action</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Prescription ID</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Patient Name</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Age / Gender</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>Date</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', minWidth: '180px' }}>Main Complaint</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', textAlign: 'center', whiteSpace: 'nowrap' }}>WhatsApp Status</th>
+                <th style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '700', color: '#64748b', textAlign: 'center', whiteSpace: 'nowrap' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -716,38 +758,54 @@ const PrescriptionsPage = () => {
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fafafa')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
-                    <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                    <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>
                       {row.id}
                     </td>
-                    <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                    <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>
                       {row.name}
                     </td>
-                    <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#64748b' }}>
+                    <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#64748b', whiteSpace: 'nowrap' }}>
                       {row.ageGender}
                     </td>
-                    <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155', lineHeight: 1.35 }}>
-                      <div>{row.date}</div>
+                    <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155', lineHeight: 1.35, whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: '600' }}>{row.date}</div>
                       <div style={{ fontSize: '12px', color: '#64748b' }}>{row.time}</div>
                     </td>
-                    <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155' }}>
-                      {row.complaint || row.reason_for_visit || row.reason || '—'}
+                    <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155', maxWidth: '240px' }} title={row.complaint || row.reason_for_visit || row.reason || ''}>
+                      <div
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          wordBreak: 'break-word',
+                          lineHeight: '1.4',
+                        }}
+                      >
+                        {row.complaint || row.reason_for_visit || row.reason || '—'}
+                      </div>
                     </td>
-                    <td style={{ padding: '14px 16px' }}>
+                    <td style={{ padding: '14px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <span
                         style={{
-                          display: 'inline-block',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           padding: '4px 12px',
                           borderRadius: '9999px',
                           fontSize: '12px',
                           fontWeight: '600',
                           backgroundColor: badge.bg,
                           color: badge.color,
+                          border: `1px solid ${badge.border || 'transparent'}`,
+                          letterSpacing: '0.2px',
                         }}
                       >
-                        {row.status}
+                        {row.status || 'Pending'}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <td style={{ padding: '14px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                         <button
                           type="button"
@@ -790,28 +848,9 @@ const PrescriptionsPage = () => {
                               onClick: () => openNewPrescription(row, 2),
                             },
                             {
-                              label: 'Mark as Delivered',
-                              icon: '✓',
-                              onClick: () => handleUpdateRxStatus(row.id, 'Delivered'),
-                            },
-                            {
                               label: 'View Patient History',
                               icon: '👤',
-                              onClick: () =>
-                                openPatientHistory({
-                                  id: row.patientId || row.patient_id_ref || (row.patient?.id ? `PAT-${row.patient.id}` : (row.patient_record?.patient_id || '')),
-                                  name: row.name || row.patientName,
-                                  ageGender: row.ageGender || row.age_gender,
-                                  mobile: row.contact || row.mobile || '',
-                                  email: row.patient?.email || row.email,
-                                  address: row.patient?.address || row.address,
-                                  bloodGroup: row.patient?.bloodGroup || row.bloodGroup,
-                                  knownAllergies: row.patient?.knownAllergies || row.knownAllergies,
-                                  primaryConcern: row.diagnosis || row.complaint,
-                                  notes: row.notes || row.additionalInstructions,
-                                  appointments: row.patient?.appointments || row.appointments,
-                                  prescriptions: row.patient?.prescriptions || row.prescriptions,
-                                }),
+                              onClick: () => handleViewPatientHistory(row),
                             },
                           ]}
                         />

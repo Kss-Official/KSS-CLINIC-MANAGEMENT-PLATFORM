@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     AppointmentListCreateView,
     AppointmentSlotsView,
+    AppointmentStatsView,
     AppointmentDetailView,
     NotificationListView,
     NotificationMarkReadView,
@@ -23,6 +24,7 @@ from .views import (
 
 urlpatterns = [
     path('appointments/slots/', AppointmentSlotsView.as_view(), name='appointment-slots'),
+    path('appointments/stats/', AppointmentStatsView.as_view(), name='appointment-stats'),
     path('appointments/', AppointmentListCreateView.as_view(), name='appointment-list-create'),
     path('appointments/<str:appointment_id>/pdf/', AppointmentPdfDownloadView.as_view(), name='appointment-pdf-download'),
     path('appointments/send-whatsapp/', SendAppointmentWhatsAppView.as_view(), name='appointment-send-whatsapp-direct'),

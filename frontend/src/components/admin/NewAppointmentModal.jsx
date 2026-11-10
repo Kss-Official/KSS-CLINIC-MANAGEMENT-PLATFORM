@@ -1,6 +1,200 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import appointmentApi from '../../api/appointmentApi';
 import AdminCalendarPopover from './AdminCalendarPopover';
+
+// Mobile Custom Dropdown Component (Active only in mobile responsive view <= 640px)
+const AdminMobileSelect = ({
+  id,
+  value,
+  onChange,
+  options,
+  placeholder = 'Select an option',
+  disabled = false,
+  required = false,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [openUpwards, setOpenUpwards] = useState(false);
+  const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleToggle = () => {
+    if (disabled) return;
+    if (!isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      // If less than 230px space below trigger, open upwards to stay fully in viewport
+      setOpenUpwards(spaceBelow < 230);
+    }
+    setIsOpen((prev) => !prev);
+  };
+
+  const selectedOption = options.find((opt) => opt.value === value);
+  const displayLabel = selectedOption ? selectedOption.label : (value || placeholder);
+
+  return (
+    <div
+      ref={containerRef}
+      className="admin-mobile-select-container"
+      style={{
+        position: 'relative',
+        width: '100%',
+        zIndex: isOpen ? 60 : 1,
+      }}
+    >
+      <button
+        ref={triggerRef}
+        type="button"
+        id={id}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={handleToggle}
+        style={{
+          width: '100%',
+          height: '44px',
+          padding: '0 14px',
+          borderRadius: '10px',
+          border: isOpen ? '1.5px solid #1e4620' : '1px solid #cbd5e1',
+          fontSize: '13.5px',
+          color: value ? '#1e293b' : '#94a3b8',
+          backgroundColor: '#ffffff',
+          outline: 'none',
+          boxSizing: 'border-box',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          textAlign: 'left',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            paddingRight: '8px',
+          }}
+        >
+          {displayLabel}
+        </span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#64748b"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            flexShrink: 0,
+            transition: 'transform 0.2s ease',
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+          }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {/* Hidden native select for standard form accessibility & state fallback */}
+      <select
+        value={value}
+        onChange={onChange}
+        required={required}
+        style={{ display: 'none' }}
+        aria-hidden="true"
+        tabIndex={-1}
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value} disabled={opt.disabled}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+
+      {isOpen && (
+        <div
+          className="admin-mobile-select-dropdown"
+          role="listbox"
+          style={{
+            position: 'absolute',
+            [openUpwards ? 'bottom' : 'top']: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            width: '100%',
+            backgroundColor: '#ffffff',
+            borderRadius: '10px',
+            border: '1px solid #cbd5e1',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 4px 10px rgba(0, 0, 0, 0.08)',
+            maxHeight: '210px',
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            zIndex: 1000,
+            padding: '4px 0',
+            boxSizing: 'border-box',
+            animation: 'adminDropdownFadeIn 0.15s ease',
+          }}
+        >
+          {options.map((opt) => {
+            const isSelected = opt.value === value;
+            const isOptDisabled = opt.disabled;
+            return (
+              <div
+                key={opt.value}
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  if (!isOptDisabled) {
+                    onChange({ target: { value: opt.value } });
+                    setIsOpen(false);
+                  }
+                }}
+                style={{
+                  padding: '10px 14px',
+                  fontSize: '13.5px',
+                  color: isOptDisabled ? '#94a3b8' : (isSelected ? '#166534' : '#1e293b'),
+                  backgroundColor: isSelected ? '#f0fdf4' : 'transparent',
+                  fontWeight: isSelected ? '600' : '400',
+                  cursor: isOptDisabled ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  transition: 'background-color 0.1s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isOptDisabled && !isSelected) e.currentTarget.style.backgroundColor = '#f8fafc';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isOptDisabled && !isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <span>{opt.label}</span>
+                {isSelected && (
+                  <span style={{ color: '#166534', fontSize: '13px', fontWeight: '700' }}>✓</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const formatDateForDisplay = (isoStr) => {
   if (!isoStr) return '28 Oct 2026';
@@ -39,11 +233,65 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
   const [slotDuration, setSlotDuration] = useState('30 Minutes');
   const [consultationHours, setConsultationHours] = useState('09:00 AM - 06:00 PM');
   const [timeSlot, setTimeSlot] = useState('09:00 AM - 09:30 AM');
+  const [bookedSlots, setBookedSlots] = useState([]);
   const [reasonForVisit, setReasonForVisit] = useState('');
   const [consultationType, setConsultationType] = useState('In-clinic Visit');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= 640;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const fetchAdminBookedSlots = async (dateStr) => {
+    if (!dateStr) return;
+    try {
+      const data = await appointmentApi.getBookedSlots(dateStr);
+      if (data?.booked_slots && Array.isArray(data.booked_slots)) {
+        setBookedSlots(data.booked_slots);
+      } else {
+        setBookedSlots([]);
+      }
+    } catch {
+      setBookedSlots([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchAdminBookedSlots(appointmentDate);
+
+    const handleSync = () => {
+      fetchAdminBookedSlots(appointmentDate);
+    };
+    const handleStorage = (e) => {
+      if (e.key === 'kss_appointment_sync') {
+        fetchAdminBookedSlots(appointmentDate);
+      }
+    };
+
+    window.addEventListener('appointment-booked', handleSync);
+    window.addEventListener('appointment-updated', handleSync);
+    window.addEventListener('appointment-deleted', handleSync);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('appointment-booked', handleSync);
+      window.removeEventListener('appointment-updated', handleSync);
+      window.removeEventListener('appointment-deleted', handleSync);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [isOpen, appointmentDate]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -293,6 +541,7 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="admin-modal-card new-appointment-modal-card"
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '24px',
@@ -739,8 +988,8 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
             </p>
 
             {/* Row 1: Date & Time Slot */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '14px' }}>
-              <div>
+            <div className="new-appointment-grid-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '14px' }}>
+              <div style={{ position: 'relative', zIndex: isCalendarOpen ? 70 : 2 }}>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
                   Appointment Date <span style={{ color: '#ef4444' }}>*</span>
                 </label>
@@ -778,39 +1027,67 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                 </div>
               </div>
 
-              <div>
+              <div style={{ position: 'relative', zIndex: 10 }}>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
                   Preferred Time Slot <span style={{ color: '#ef4444' }}>*</span>
                 </label>
-                <select
-                  value={timeSlot}
-                  onChange={(e) => setTimeSlot(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    height: '44px',
-                    padding: '0 14px',
-                    borderRadius: '10px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '13.5px',
-                    color: '#1e293b',
-                    backgroundColor: '#ffffff',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {generateAdminSlots().map((slotStr) => (
-                    <option key={slotStr} value={slotStr}>
-                      {slotStr}
-                    </option>
-                  ))}
-                </select>
+                {!isMobile ? (
+                  <select
+                    value={timeSlot}
+                    onChange={(e) => setTimeSlot(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      padding: '0 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '13.5px',
+                      color: '#1e293b',
+                      backgroundColor: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {generateAdminSlots().map((slotStr) => {
+                      const startPart = slotStr.split(/[-–—]|to/i)[0].trim().toUpperCase().replace(/^0/, '');
+                      const isBooked = bookedSlots.some((bs) => {
+                        const bsClean = String(bs).split(/[-–—]|to/i)[0].trim().toUpperCase().replace(/^0/, '');
+                        return bsClean === startPart;
+                      });
+                      return (
+                        <option key={slotStr} value={slotStr} disabled={isBooked} style={{ color: isBooked ? '#94a3b8' : '#1e293b' }}>
+                          {slotStr}{isBooked ? ' (Booked)' : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                ) : (
+                  <AdminMobileSelect
+                    id="mobile-preferred-time-slot"
+                    value={timeSlot}
+                    onChange={(e) => setTimeSlot(e.target.value)}
+                    required
+                    options={generateAdminSlots().map((slotStr) => {
+                      const startPart = slotStr.split(/[-–—]|to/i)[0].trim().toUpperCase().replace(/^0/, '');
+                      const isBooked = bookedSlots.some((bs) => {
+                        const bsClean = String(bs).split(/[-–—]|to/i)[0].trim().toUpperCase().replace(/^0/, '');
+                        return bsClean === startPart;
+                      });
+                      return {
+                        value: slotStr,
+                        label: `${slotStr}${isBooked ? ' (Booked)' : ''}`,
+                        disabled: isBooked,
+                      };
+                    })}
+                  />
+                )}
               </div>
             </div>
 
             {/* Row 2: Reason for Visit & Consultation Type */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '14px' }}>
+            <div className="new-appointment-grid-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
                   Reason for Visit <span style={{ color: '#ef4444' }}>*</span>
@@ -844,31 +1121,42 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                 )}
               </div>
 
-              <div>
+              <div style={{ position: 'relative', zIndex: 9 }}>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
                   Consultation Type
                 </label>
-                <select
-                  value={consultationType}
-                  onChange={(e) => setConsultationType(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '44px',
-                    padding: '0 14px',
-                    borderRadius: '10px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '13.5px',
-                    color: '#1e293b',
-                    backgroundColor: '#ffffff',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="In-clinic Visit">In-clinic Visit</option>
-                  <option value="Video Consultation">Video Consultation</option>
-                  <option value="Home Visit">Home Visit</option>
-                </select>
+                {!isMobile ? (
+                  <select
+                    value={consultationType}
+                    onChange={(e) => setConsultationType(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      padding: '0 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '13.5px',
+                      color: '#1e293b',
+                      backgroundColor: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="In-clinic Visit">In-clinic Visit</option>
+                    <option value="Video Consultation">Video Consultation</option>
+                  </select>
+                ) : (
+                  <AdminMobileSelect
+                    id="mobile-consultation-type"
+                    value={consultationType}
+                    onChange={(e) => setConsultationType(e.target.value)}
+                    options={[
+                      { value: 'In-clinic Visit', label: 'In-clinic Visit' },
+                      { value: 'Video Consultation', label: 'Video Consultation' },
+                    ]}
+                  />
+                )}
               </div>
             </div>
 
@@ -909,6 +1197,7 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
 
           {/* Modal Footer Buttons */}
           <div
+            className="new-appointment-footer-btns"
             style={{
               display: 'flex',
               alignItems: 'center',

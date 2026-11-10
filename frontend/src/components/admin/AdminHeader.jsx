@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import brandLogoImg from '../../assets/brand-logo.png';
 import useAuth from '../../hooks/useAuth';
@@ -230,15 +231,6 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     const handlePrescriptionRemainingEvent = (e) => {
       const detail = e?.detail;
       if (!detail) return;
-      try {
-        const saved = localStorage.getItem('clinic_notification_settings');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.prescriptionUpdates === false) {
-            return;
-          }
-        }
-      } catch {}
 
       const aptNum = detail.appointment_id || (detail.id ? `APT-${detail.id}` : 'APT-0000');
       const pName = detail.patient_name || detail.name || 'Patient';
@@ -268,6 +260,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
 
     return () => {
       clearInterval(interval);
@@ -280,6 +273,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       window.removeEventListener('prescription-created', handleAppointmentChanged);
       window.removeEventListener('prescription-remaining-notification', handlePrescriptionRemainingEvent);
       document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
     };
   }, []);
 
@@ -487,6 +481,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
             <button
               type="button"
               id="admin-header-confirmed-reminders-pill"
+              className={`admin-header-reminder-pill ${(isReminderPillVisible || isPillHovered) ? 'pill-visible' : ''}`}
               onClick={() => {
                 navigateToFilteredAppointments('Confirmed');
               }}
@@ -524,8 +519,14 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                 <line x1="8" y1="2" x2="8" y2="6" />
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
-              <span>
+              <span className="reminder-pill-full-text">
                 <strong style={{ fontWeight: '700' }}>{confirmedReminders.length}</strong> Confirmed {confirmedReminders.length === 1 ? 'Reminder' : 'Reminders'}
+              </span>
+              <span className="reminder-pill-short-text">
+                <strong style={{ fontWeight: '700' }}>{confirmedReminders.length}</strong> Reminders
+              </span>
+              <span className="reminder-pill-mini-text">
+                <strong style={{ fontWeight: '700' }}>{confirmedReminders.length}</strong>
               </span>
             </button>
           )}
@@ -536,7 +537,10 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
             type="button"
             id="admin-notifications-toggle-btn"
             className="admin-header-notif-btn"
-            onClick={() => setNotificationsOpen((prev) => !prev)}
+            onClick={() => {
+              setNotificationsOpen((prev) => !prev);
+              setDropdownOpen(false);
+            }}
             aria-label={`Notifications, ${unreadCount} unread`}
             style={{
               position: 'relative',
@@ -1254,6 +1258,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                       <div
                         key={notif.id}
                         onClick={() => handleNotificationClick(notif)}
+                        className="other-notification-item"
                         style={{
                           padding: '14px 18px',
                           borderBottom: '1px solid #f8fafc',
@@ -1463,7 +1468,10 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
           {/* Profile Trigger (Avatar + Doctor Info + Arrow) */}
           <div
             className="admin-header-profile-trigger"
-            onClick={() => setDropdownOpen((prev) => !prev)}
+            onClick={() => {
+              setDropdownOpen((prev) => !prev);
+              setNotificationsOpen(false);
+            }}
             title="Doctor Profile Menu"
             style={{
               display: 'flex',
@@ -1703,7 +1711,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       </div>
 
       {/* Floating Immediate Prescription Remaining Notification Banner */}
-      {floatingNotification && prescriptionUpdatesEnabled && (
+      {floatingNotification && typeof document !== 'undefined' && createPortal(
         <div
           id="floating-prescription-notification"
           onClick={() => handleFloatingNotificationClick(floatingNotification)}
@@ -1719,7 +1727,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
             border: '1.5px solid #fed7aa',
             borderLeft: '5px solid #f59e0b',
             padding: '14px 18px',
-            zIndex: 99999,
+            zIndex: 100000,
             cursor: 'pointer',
             animation: 'adminNotifSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
             fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -1860,7 +1868,8 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
               <span>→</span>
             </span>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <style>{`

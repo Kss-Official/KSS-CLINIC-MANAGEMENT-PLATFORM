@@ -12,7 +12,8 @@ from apps.core.permissions import IsStaffOrAdmin, IsPatientUser
 from .models import Appointment, Notification, Prescription, Patient
 from apps.users.models import User
 from .serializers import AppointmentSerializer, NotificationSerializer, ClinicSettingsSerializer, AppointmentSettingsSerializer
-from datetime import datetime
+from datetime import datetime, time, date
+import zoneinfo
 from django.utils import timezone
 from .services.whatsapp_service import whatsapp_service
 from .services.prescription_pdf import generate_prescription_pdf_bytes
@@ -59,12 +60,25 @@ def is_upcoming_or_today(date_str):
 def normalize_time_str(time_str):
     if not time_str:
         return ''
-    t = str(time_str).strip().upper()
-    for fmt in ['%I:%M %p', '%H:%M', '%I:%M%p', '%I:%M %P']:
+    import re
+    raw = str(time_str).strip()
+    parts = re.split(r'\s*[-–—]\s*|\s+to\s+', raw, flags=re.IGNORECASE)
+    t = parts[0].strip().upper() if parts else raw.upper()
+    for fmt in ['%I:%M %p', '%H:%M', '%I:%M%p', '%I:%M %P', '%I:%M']:
         try:
             return datetime.strptime(t, fmt).strftime('%I:%M %p')
         except (ValueError, TypeError):
             continue
+    m = re.match(r'^(\d{1,2}):(\d{2})\s*(AM|PM)?$', t, re.IGNORECASE)
+    if m:
+        h, mn, p = m.groups()
+        h_int = int(h)
+        if p:
+            return f"{h_int:02d}:{mn} {p.upper()}"
+        else:
+            period = 'AM' if h_int < 12 else 'PM'
+            disp_h = h_int if 1 <= h_int <= 12 else (h_int - 12 if h_int > 12 else 12)
+            return f"{disp_h:02d}:{mn} {period}"
     return t
 
 def parse_time_to_minutes(time_str):
@@ -187,7 +201,15 @@ class AppointmentSlotsView(APIView):
 
     def get(self, request):
         date_param = request.query_params.get('date') or request.query_params.get('appointment_date')
+        exclude_id = request.query_params.get('exclude_id') or request.query_params.get('exclude_appointment_id')
+
         active_appointments = Appointment.objects.exclude(status__iexact='Cancelled')
+        if exclude_id:
+            if str(exclude_id).isdigit():
+                active_appointments = active_appointments.exclude(pk=int(exclude_id))
+            else:
+                active_appointments = active_appointments.exclude(appointment_id=str(exclude_id))
+
         all_booked = {}
 
         for apt in active_appointments:
@@ -196,15 +218,17 @@ class AppointmentSlotsView(APIView):
             if not d_norm or not t_norm:
                 continue
 
+            t_variants = {t_norm, t_norm.lstrip('0')}
+
             if d_norm not in all_booked:
                 all_booked[d_norm] = set()
-            all_booked[d_norm].add(t_norm)
+            all_booked[d_norm].update(t_variants)
 
             raw_d = (apt.appointment_date or '').strip()
             if raw_d:
                 if raw_d not in all_booked:
                     all_booked[raw_d] = set()
-                all_booked[raw_d].add(t_norm)
+                all_booked[raw_d].update(t_variants)
 
         all_booked_serialized = {k: sorted(list(v)) for k, v in all_booked.items()}
 
@@ -239,6 +263,15 @@ class AppointmentSlotsView(APIView):
         consultation_hours = clinic_settings.get('consultationHours') or clinic_settings.get('consultation_hours') or '09:00 AM - 06:00 PM'
         generated_slots = generate_time_slots(effective_start, effective_end, slot_duration)
 
+        booked_slots_set = {normalize_time_str(s) for s in booked_slots}
+        booked_slots_set.update({s.lstrip('0') for s in booked_slots if s})
+
+        # Calculate truly available slots: generated slots that are not booked
+        available_slots = [
+            s for s in generated_slots
+            if normalize_time_str(s) not in booked_slots_set and s.lstrip('0') not in booked_slots_set
+        ]
+
         return Response({
             'date': date_param,
             'normalized_date': target_norm,
@@ -262,7 +295,47 @@ class AppointmentSlotsView(APIView):
             'consultation_hours': consultation_hours,
             'consultationHours': consultation_hours,
             'slots': generated_slots,
-            'available_slots': generated_slots,
+            'available_slots': available_slots,
+        })
+
+
+class AppointmentStatsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        tz = zoneinfo.ZoneInfo('Asia/Kolkata')
+        now_kolkata = timezone.now().astimezone(tz)
+        today_date = now_kolkata.date()
+
+        start_of_today = datetime.combine(today_date, time.min, tzinfo=tz)
+        end_of_today = datetime.combine(today_date, time.max, tzinfo=tz)
+
+        total_count = Appointment.objects.count()
+        today_appointments_count = Appointment.objects.filter(
+            created_at__gte=start_of_today,
+            created_at__lte=end_of_today
+        ).count()
+
+        completed_count = Appointment.objects.filter(
+            status__in=['Complete', 'Completed', 'complete', 'completed']
+        ).count()
+
+        pending_count = Appointment.objects.filter(
+            status__in=['Pending', 'Confirmed', 'pending', 'confirmed']
+        ).count()
+
+        cancelled_count = Appointment.objects.filter(
+            status__in=['Cancelled', 'cancelled']
+        ).count()
+
+        return Response({
+            'today_appointments_count': today_appointments_count,
+            'todayAppointments': today_appointments_count,
+            'total_appointments_count': total_count,
+            'completed_count': completed_count,
+            'pending_count': pending_count,
+            'cancelled_count': cancelled_count,
+            'current_date': str(today_date),
         })
 
 
@@ -276,16 +349,16 @@ class AppointmentListCreateView(APIView):
         phone = request.query_params.get('phone') or request.query_params.get('mobile')
         email = request.query_params.get('email')
         patient_id = request.query_params.get('patient_id') or request.query_params.get('patientId')
+        created_today = (request.query_params.get('created_today') or '').lower() in ['true', '1']
+        created_date = request.query_params.get('created_date')
+        apt_date = request.query_params.get('appointment_date') or request.query_params.get('date')
+        wants_stats = (request.query_params.get('stats') or '').lower() in ['true', '1']
 
         if request.user.is_authenticated:
             if getattr(request.user, 'role', None) == 'PATIENT':
                 q = models.Q(user=request.user) | models.Q(patient_record__user=request.user)
                 if request.user.email:
-                    q |= models.Q(patient_email__iexact=request.user.email)
-                if getattr(request.user, 'phone_number', None):
-                    clean_u = ''.join(c for c in request.user.phone_number if c.isdigit())
-                    if clean_u:
-                        q |= models.Q(patient_phone__endswith=clean_u[-10:])
+                    q |= (models.Q(patient_email__iexact=request.user.email) & (models.Q(user__isnull=True) | models.Q(user=request.user)))
                 appointments = Appointment.objects.filter(q).order_by('-created_at')
             else:
                 appointments = Appointment.objects.all().order_by('-created_at')
@@ -314,6 +387,46 @@ class AppointmentListCreateView(APIView):
                 appointments = Appointment.objects.filter(q).order_by('-created_at')
             else:
                 appointments = Appointment.objects.all().order_by('-created_at')
+
+        # Date and creation-date filters
+        tz = zoneinfo.ZoneInfo('Asia/Kolkata')
+        now_kolkata = timezone.now().astimezone(tz)
+        today_date = now_kolkata.date()
+
+        if created_today or (created_date and str(created_date).strip().lower() == 'today'):
+            start_of_day = datetime.combine(today_date, time.min, tzinfo=tz)
+            end_of_day = datetime.combine(today_date, time.max, tzinfo=tz)
+            appointments = appointments.filter(created_at__gte=start_of_day, created_at__lte=end_of_day)
+        elif created_date:
+            norm_c = normalize_date_str(created_date)
+            try:
+                c_date = datetime.strptime(norm_c, '%Y-%m-%d').date()
+                start_of_day = datetime.combine(c_date, time.min, tzinfo=tz)
+                end_of_day = datetime.combine(c_date, time.max, tzinfo=tz)
+                appointments = appointments.filter(created_at__gte=start_of_day, created_at__lte=end_of_day)
+            except Exception:
+                pass
+
+        if apt_date:
+            target_norm = normalize_date_str(apt_date)
+            matching_ids = [
+                a.id for a in appointments if normalize_date_str(a.appointment_date) == target_norm
+            ]
+            appointments = appointments.filter(id__in=matching_ids)
+
+        if wants_stats:
+            start_of_today = datetime.combine(today_date, time.min, tzinfo=tz)
+            end_of_today = datetime.combine(today_date, time.max, tzinfo=tz)
+            today_count = Appointment.objects.filter(created_at__gte=start_of_today, created_at__lte=end_of_today).count()
+            return Response({
+                'today_appointments_count': today_count,
+                'todayAppointments': today_count,
+                'total_appointments_count': appointments.count(),
+                'completed_count': appointments.filter(status__in=['Complete', 'Completed', 'complete', 'completed']).count(),
+                'pending_count': appointments.filter(status__in=['Pending', 'Confirmed', 'pending', 'confirmed']).count(),
+                'cancelled_count': appointments.filter(status__in=['Cancelled', 'cancelled']).count(),
+                'current_date': str(today_date),
+            })
 
         serializer = AppointmentSerializer(appointments, many=True)
         return Response(serializer.data)
@@ -399,6 +512,7 @@ class AppointmentListCreateView(APIView):
             req_gender = (request.data.get('gender') or request.data.get('patient_gender') or '').strip()
             req_dob = (request.data.get('date_of_birth') or request.data.get('dateOfBirth') or request.data.get('dob') or request.data.get('patient_dob') or '').strip()
             req_age = str(request.data.get('age') or '').strip()
+            req_city = (request.data.get('city') or request.data.get('address') or request.data.get('patient_city') or '').strip()
 
             if req_gender:
                 save_kwargs['patient_gender'] = req_gender
@@ -419,12 +533,12 @@ class AppointmentListCreateView(APIView):
             patient = None
             if user:
                 patient = Patient.objects.filter(user=user).first()
-            if not patient and p_phone_digits:
-                patient = Patient.objects.filter(phone__endswith=p_phone_digits[-10:]).first()
             if not patient and p_email:
-                patient = Patient.objects.filter(email__iexact=p_email).first()
-            if not patient and p_name:
-                patient = Patient.objects.filter(name__iexact=p_name).first()
+                patient = Patient.objects.filter(email__iexact=p_email, user__isnull=True).first()
+            if not patient and not user and p_phone_digits:
+                patient = Patient.objects.filter(phone__endswith=p_phone_digits[-10:], user__isnull=True).first()
+            if not patient and not user and p_name:
+                patient = Patient.objects.filter(name__iexact=p_name, user__isnull=True).first()
 
             if patient:
                 if not patient.user and user:
@@ -437,6 +551,8 @@ class AppointmentListCreateView(APIView):
                     patient.gender = req_gender
                 if req_dob:
                     patient.date_of_birth = req_dob
+                if req_city:
+                    patient.address = req_city
                 if req_age or req_gender:
                     age_str = f"{req_age} yrs" if req_age else ''
                     patient.age_gender = f"{age_str} / {req_gender}".strip(' /') if (age_str or req_gender) else patient.age_gender
@@ -455,12 +571,13 @@ class AppointmentListCreateView(APIView):
                     gender=req_gender,
                     date_of_birth=req_dob,
                     age_gender=age_gender_val,
+                    address=req_city,
                     primary_concern=appointment.reason_for_visit or 'General Consultation',
                     known_allergies='None',
                     status='Active'
                 )
 
-            # Also update authenticated User profile if gender or dob were supplied
+            # Also update authenticated User profile if gender, dob, or city were supplied
             if user:
                 user_updated = False
                 if req_gender and hasattr(user, 'gender') and (not user.gender or user.gender != req_gender):
@@ -473,6 +590,9 @@ class AppointmentListCreateView(APIView):
                         user_updated = True
                     except Exception:
                         pass
+                if req_city and hasattr(user, 'address') and (not user.address or user.address != req_city):
+                    user.address = req_city
+                    user_updated = True
                 if user_updated:
                     user.save()
 
@@ -593,6 +713,77 @@ class AppointmentDetailView(APIView):
         if is_attempting_reschedule and current_status_lower in ['complete', 'completed', 'cancelled']:
             return Response({'error': 'Completed or cancelled appointments cannot be rescheduled.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Target date and time when rescheduling or modifying appointment slot
+        target_date = new_date if new_date else apt.appointment_date
+        target_time = new_time if new_time else apt.time_slot
+        norm_target_date = normalize_date_str(target_date)
+        norm_target_time = normalize_time_str(target_time)
+
+        # Validate schedule changes (new_date or new_time provided, or reschedule requested)
+        if new_date or new_time:
+            # 1. Date not in the past
+            if new_date:
+                try:
+                    if norm_target_date and len(norm_target_date.split('-')) == 3:
+                        apt_date_obj = datetime.strptime(norm_target_date, '%Y-%m-%d').date()
+                        today_d = timezone.now().astimezone(zoneinfo.ZoneInfo('Asia/Kolkata')).date()
+                        if apt_date_obj < today_d:
+                            return Response({
+                                'error': 'Cannot reschedule an appointment to a past date. Please select today or a future date.',
+                                'detail': f"Target date '{target_date}' is in the past."
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                except Exception as ex:
+                    logger.warning(f"Error checking past date during reschedule: {ex}")
+
+            clinic_settings = load_clinic_settings()
+
+            # 2. Date restrictions check
+            if new_date:
+                restrictions = clinic_settings.get('dateRestrictions') or clinic_settings.get('date_restrictions') or []
+                is_restr, restr_reason = check_date_restriction(norm_target_date, restrictions)
+                if is_restr:
+                    return Response({
+                        'error': f"Appointments are unavailable on {target_date} ({restr_reason or 'Clinic closed on this date'}). Please select an open date.",
+                        'detail': f"Target date '{target_date}' is restricted: {restr_reason}"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # 3. Working days check
+                working_days = clinic_settings.get('workingDays') or clinic_settings.get('working_days') or ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                try:
+                    apt_date_obj = datetime.strptime(norm_target_date, '%Y-%m-%d').date()
+                    day_abbr = apt_date_obj.strftime('%a')
+                    day_full = apt_date_obj.strftime('%A')
+                    if day_abbr not in working_days:
+                        return Response({
+                            'error': f"The clinic is closed on {day_full}s. Please select an available working day.",
+                            'detail': f"Target date '{target_date}' falls on {day_full}, which is a disabled non-working day."
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                except Exception:
+                    pass
+
+            # 4. Working hours check
+            eff_start, eff_end, is_custom, custom_lbl = get_working_hours_for_date(norm_target_date, clinic_settings)
+            slot_mins = parse_time_to_minutes(norm_target_time)
+            start_mins = parse_time_to_minutes(eff_start)
+            end_mins = parse_time_to_minutes(eff_end)
+            if slot_mins is not None and start_mins is not None and end_mins is not None:
+                if slot_mins < start_mins or slot_mins >= end_mins:
+                    hours_desc = f"{eff_start} - {eff_end}" + (f" ({custom_lbl})" if custom_lbl else "")
+                    return Response({
+                        'error': f"The requested time slot '{target_time}' is outside clinic working hours ({hours_desc}) for this date.",
+                        'detail': f"Slot {target_time} is not within {eff_start} - {eff_end}."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 5. Prevent double booking: ensure target slot on target date is NOT already booked by another active appointment
+            other_active_apts = Appointment.objects.exclude(pk=apt.pk).exclude(status__iexact='Cancelled')
+            for existing in other_active_apts:
+                if (normalize_date_str(existing.appointment_date) == norm_target_date and
+                    normalize_time_str(existing.time_slot) == norm_target_time):
+                    return Response({
+                        'error': f"The appointment slot '{target_time}' on {target_date} has already been booked. Please select an available slot.",
+                        'detail': f"Slot {target_time} on {target_date} is already taken by appointment {existing.appointment_id}."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
         fields_to_update = ['updated_at']
         is_rescheduled = False
 
@@ -613,6 +804,15 @@ class AppointmentDetailView(APIView):
         if new_status:
             apt.status = new_status
             fields_to_update.append('status')
+
+        req_city = (request.data.get('city') or request.data.get('address') or request.data.get('patient_city') or '').strip()
+        if req_city:
+            if apt.patient_record:
+                apt.patient_record.address = req_city
+                apt.patient_record.save(update_fields=['address'])
+            if apt.user and hasattr(apt.user, 'address'):
+                apt.user.address = req_city
+                apt.user.save(update_fields=['address'])
 
             # When an appointment is marked as completed:
             if str(new_status).strip().lower() in ['complete', 'completed']:
@@ -923,9 +1123,11 @@ class PatientHistoryListView(APIView):
             p_apts = p.appointments.all().order_by('-created_at')
             apts_data = [{
                 'id': apt.appointment_id,
+                'appointment_id': apt.appointment_id,
                 'date': apt.appointment_date,
                 'time': apt.time_slot,
                 'reason': apt.reason_for_visit,
+                'reason_for_visit': apt.reason_for_visit,
                 'status': apt.status,
                 'consultationType': apt.consultation_type,
             } for apt in p_apts]
@@ -933,15 +1135,21 @@ class PatientHistoryListView(APIView):
             p_rxs = p.prescriptions.all().order_by('-created_at')
             rxs_data = [{
                 'id': rx.prescription_id,
+                'rxId': rx.prescription_id,
                 'database_id': rx.id,
                 'name': rx.patient_name,
                 'patientId': p.patient_id,
                 'patient_id_ref': p.patient_id,
+                'appointment_id': rx.appointment.appointment_id if rx.appointment else '',
+                'apt_number': rx.appointment.appointment_id if rx.appointment else '',
+                'aptNumber': rx.appointment.appointment_id if rx.appointment else '',
                 'mobile': rx.patient_phone or p.phone,
                 'ageGender': rx.age_gender or p.age_gender,
                 'date': rx.date,
                 'time': rx.time,
                 'complaint': rx.complaint,
+                'reason': (rx.appointment.reason_for_visit if rx.appointment else '') or rx.complaint,
+                'reason_for_visit': (rx.appointment.reason_for_visit if rx.appointment else '') or rx.complaint,
                 'symptoms': rx.symptoms,
                 'diagnosis': rx.diagnosis,
                 'medicines': rx.medicines or [],
@@ -1014,24 +1222,37 @@ class PatientDetailUpdateView(APIView):
             'lastVisit': p_apts[0].appointment_date if p_apts.exists() else 'N/A',
             'appointments': [{
                 'id': a.appointment_id,
+                'appointment_id': a.appointment_id,
                 'date': a.appointment_date,
                 'time': a.time_slot,
                 'reason': a.reason_for_visit,
+                'reason_for_visit': a.reason_for_visit,
                 'status': a.status,
                 'consultationType': a.consultation_type,
             } for a in p_apts],
             'prescriptions': [{
                 'id': r.prescription_id,
                 'rxId': r.prescription_id,
+                'database_id': r.id,
+                'name': r.patient_name or patient.name,
+                'patientName': r.patient_name or patient.name,
+                'mobile': r.patient_phone or patient.phone,
+                'ageGender': r.age_gender or patient.age_gender,
+                'appointment_id': r.appointment.appointment_id if r.appointment else '',
+                'apt_number': r.appointment.appointment_id if r.appointment else '',
+                'aptNumber': r.appointment.appointment_id if r.appointment else '',
                 'date': r.date,
                 'time': r.time,
                 'diagnosis': r.diagnosis,
                 'complaint': r.complaint,
+                'reason': (r.appointment.reason_for_visit if r.appointment else '') or r.complaint,
+                'reason_for_visit': (r.appointment.reason_for_visit if r.appointment else '') or r.complaint,
                 'symptoms': r.symptoms,
                 'status': r.status,
                 'medicines': r.medicines or [],
                 'additionalInstructions': r.additional_instructions,
                 'patientId': patient.patient_id,
+                'patient_id_ref': patient.patient_id,
             } for r in p_rxs],
         })
 
@@ -1061,13 +1282,10 @@ class PrescriptionListView(APIView):
 
         if request.user.is_authenticated:
             if getattr(request.user, 'role', None) == 'PATIENT':
-                q = models.Q(patient_record__user=request.user)
+                p_ids = list(Patient.objects.filter(user=request.user).values_list('patient_id', flat=True))
+                q = models.Q(patient_record__user=request.user) | models.Q(patient_id_ref__in=p_ids)
                 if request.user.email:
-                    q |= models.Q(patient_record__email__iexact=request.user.email)
-                if getattr(request.user, 'phone_number', None):
-                    clean_u = ''.join(c for c in request.user.phone_number if c.isdigit())
-                    if clean_u:
-                        q |= models.Q(patient_phone__endswith=clean_u[-10:])
+                    q |= (models.Q(patient_record__email__iexact=request.user.email) & (models.Q(patient_record__user=request.user) | models.Q(patient_record__user__isnull=True)))
                 prescriptions = Prescription.objects.filter(q).order_by('-created_at')
             else:
                 prescriptions = Prescription.objects.all().order_by('-created_at')
@@ -1115,6 +1333,7 @@ class PrescriptionListView(APIView):
                 if linked_apt and linked_apt.appointment_id:
                     apt_num = linked_apt.appointment_id
 
+            rx_reason = (rx.appointment.reason_for_visit if rx.appointment else '') or complaint_val or rx.complaint
             data.append({
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -1134,6 +1353,9 @@ class PrescriptionListView(APIView):
                 'date': rx.date,
                 'time': rx.time,
                 'complaint': complaint_val or rx.complaint,
+                'reason': rx_reason,
+                'reason_for_visit': rx_reason,
+                'reasonForVisit': rx_reason,
                 'symptoms': rx.symptoms,
                 'diagnosis': rx.diagnosis,
                 'medicines': rx.medicines or [],
@@ -1150,6 +1372,41 @@ class PrescriptionListView(APIView):
         patient_phone = (payload.get('patient_phone') or patient_info.get('phone') or patient_info.get('mobile') or payload.get('mobile') or '').strip()
         patient_id_ref = (payload.get('patient_id_ref') or payload.get('patientId') or patient_info.get('id') or '').strip()
         age_gender = (payload.get('age_gender') or payload.get('ageGender') or patient_info.get('ageGender') or f"{patient_info.get('age', '')} / {patient_info.get('gender', '')}").strip(' /')
+
+        # Validate mandatory medicines and dosage instructions
+        medicines_data = payload.get('medicines') or []
+        if not isinstance(medicines_data, list) or len(medicines_data) == 0:
+            return Response(
+                {'error': 'Please add at least one medicine and complete the prescription before proceeding.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        valid_medicines = []
+        for m in medicines_data:
+            if not isinstance(m, dict):
+                continue
+            name = (m.get('name') or m.get('medicine_name') or '').strip()
+            potency = (m.get('potency') or '').strip()
+            dosage = (m.get('dosage') or '').strip()
+            duration = (m.get('duration') or '').strip()
+            if not name or not potency or not dosage or not duration:
+                return Response(
+                    {'error': 'Please add at least one medicine and complete the prescription before proceeding.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            valid_medicines.append({
+                'name': name,
+                'potency': potency,
+                'dosage': dosage,
+                'duration': duration,
+                'instructions': (m.get('instructions') or '').strip(),
+            })
+
+        if not valid_medicines:
+            return Response(
+                {'error': 'Please add at least one medicine and complete the prescription before proceeding.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Find or create corresponding permanent Patient in Neon
         patient = None
@@ -1284,7 +1541,7 @@ class PrescriptionListView(APIView):
             complaint=raw_complaint,
             symptoms=payload.get('symptoms') or '',
             diagnosis=payload.get('diagnosis') or (raw_complaint if raw_complaint else 'Clinical Consultation'),
-            medicines=payload.get('medicines') or [],
+            medicines=valid_medicines,
             additional_instructions=payload.get('additionalInstructions') or payload.get('additional_instructions') or '',
             status=payload.get('status') or 'Pending',
         )
@@ -1342,6 +1599,9 @@ class PrescriptionListView(APIView):
             'date': rx.date,
             'time': rx.time,
             'complaint': rx.complaint,
+            'reason': (matched_apt.reason_for_visit if matched_apt else '') or rx.complaint,
+            'reason_for_visit': (matched_apt.reason_for_visit if matched_apt else '') or rx.complaint,
+            'reasonForVisit': (matched_apt.reason_for_visit if matched_apt else '') or rx.complaint,
             'symptoms': rx.symptoms,
             'diagnosis': rx.diagnosis,
             'medicines': rx.medicines or [],
@@ -1376,10 +1636,7 @@ class PrescriptionListView(APIView):
 
 
 class PrescriptionDetailView(APIView):
-    def get_permissions(self):
-        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return [AllowAny()]
-        return [IsAuthenticated(), IsStaffOrAdmin()]
+    permission_classes = [AllowAny]
 
     def get(self, request, pk_or_id):
         try:
@@ -1409,6 +1666,7 @@ class PrescriptionDetailView(APIView):
                 if linked_apt and linked_apt.appointment_id:
                     apt_num = linked_apt.appointment_id
 
+            rx_reason = (rx.appointment.reason_for_visit if rx.appointment else '') or complaint_val or rx.complaint
             return Response({
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -1425,6 +1683,9 @@ class PrescriptionDetailView(APIView):
                 'date': rx.date,
                 'time': rx.time,
                 'complaint': complaint_val or rx.complaint,
+                'reason': rx_reason,
+                'reason_for_visit': rx_reason,
+                'reasonForVisit': rx_reason,
                 'diagnosis': rx.diagnosis,
                 'symptoms': rx.symptoms,
                 'medicines': rx.medicines or [],
@@ -1434,12 +1695,12 @@ class PrescriptionDetailView(APIView):
             return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
 
     def patch(self, request, pk_or_id):
-        try:
-            if str(pk_or_id).isdigit():
-                rx = Prescription.objects.get(pk=int(pk_or_id))
-            else:
-                rx = Prescription.objects.get(prescription_id=pk_or_id)
-        except Prescription.DoesNotExist:
+        cleaned_id = str(pk_or_id).strip()
+        lookup = models.Q(prescription_id__iexact=cleaned_id)
+        if cleaned_id.isdigit():
+            lookup |= models.Q(pk=int(cleaned_id))
+        rx = Prescription.objects.filter(lookup).first()
+        if not rx:
             return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
 
         new_status = request.data.get('status')
@@ -1508,81 +1769,44 @@ class PatientMyProfileView(APIView):
     permission_classes = [IsAuthenticated, IsPatientUser]
 
     def get(self, request):
-        phone = request.query_params.get('phone') or request.query_params.get('mobile') or ''
-        email = request.query_params.get('email') or ''
-        patient_id = request.query_params.get('patient_id') or request.query_params.get('patientId') or ''
-        name = (request.query_params.get('name') or '').strip()
+        if not request.user or not request.user.is_authenticated:
+            return Response({'error': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        patient = None
-        if request.user.is_authenticated:
-            # 1. Primary lookup: Patient record directly associated with this authenticated User
-            patient = Patient.objects.filter(user=request.user).first()
-            if not patient and request.user.email:
-                patient = Patient.objects.filter(email__iexact=request.user.email, user__isnull=True).first()
-                if patient:
-                    patient.user = request.user
-                    patient.save(update_fields=['user'])
+        # 1. Primary lookup: Patient record directly associated with this authenticated User
+        patient = Patient.objects.filter(user=request.user).first()
+        if not patient and request.user.email:
+            patient = Patient.objects.filter(email__iexact=request.user.email, user__isnull=True).first()
+            if patient:
+                patient.user = request.user
+                patient.save(update_fields=['user'])
 
-            user_phone = getattr(request.user, 'phone_number', '') or ''
-            clean_u = ''.join(c for c in user_phone if c.isdigit())
-            if not patient and clean_u:
-                patient = Patient.objects.filter(phone__endswith=clean_u[-10:], user__isnull=True).first()
-                if patient:
-                    patient.user = request.user
-                    patient.save(update_fields=['user'])
+        # 2. If authenticated patient has no record yet, create an isolated new record for them
+        if not patient:
+            full_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+            patient = Patient.objects.create(
+                user=request.user,
+                name=full_name,
+                email=request.user.email or f"{request.user.username}@gmail.com",
+                phone=getattr(request.user, 'phone_number', '') or '',
+                status='Active',
+                primary_concern='General Consultation',
+                known_allergies='None'
+            )
 
-            # 2. If authenticated patient has no record yet, create an isolated new record for them
-            if not patient:
-                full_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
-                patient = Patient.objects.create(
-                    user=request.user,
-                    name=full_name,
-                    email=request.user.email or f"{request.user.username}@gmail.com",
-                    phone=user_phone,
-                    status='Active',
-                    primary_concern='General Consultation',
-                    known_allergies='None'
-                )
-        else:
-            # For unauthenticated guest lookup, require valid identifier and never leak first patient
-            clean_p = ''.join(c for c in phone if c.isdigit())
-            if patient_id:
-                patient = Patient.objects.filter(patient_id__iexact=patient_id).first()
-            if not patient and clean_p:
-                patient = Patient.objects.filter(phone__endswith=clean_p[-10:]).first()
-            if not patient and email:
-                patient = Patient.objects.filter(email__iexact=email).first()
-            if not patient and name:
-                patient = Patient.objects.filter(name__iexact=name).first()
-
-            if not patient:
-                return Response({
-                    'id': '',
-                    'name': '',
-                    'initials': '',
-                    'ageGender': '',
-                    'mobile': '',
-                    'email': '',
-                    'address': '',
-                    'bloodGroup': '',
-                    'knownAllergies': '',
-                    'primaryConcern': '',
-                    'notes': '',
-                    'status': 'Inactive',
-                    'totalVisits': 0,
-                    'lastVisit': 'N/A',
-                    'appointments': [],
-                    'prescriptions': [],
-                })
+        # Ensure patient name matches user's full name if set
+        user_full_name = f"{request.user.first_name} {request.user.last_name}".strip()
+        if user_full_name and patient.name != user_full_name:
+            patient.name = user_full_name
+            patient.save(update_fields=['name'])
 
         # Fetch appointments strictly belonging to this patient
-        p_q = models.Q(patient_record=patient)
-        if patient.user:
-            p_q |= models.Q(user=patient.user)
+        p_q = models.Q(patient_record=patient) | models.Q(user=request.user)
         p_apts = Appointment.objects.filter(p_q).order_by('-created_at')
 
         # Fetch prescriptions strictly belonging to this patient
-        rx_q = models.Q(patient_record=patient) | models.Q(patient_id_ref=patient.patient_id)
+        rx_q = models.Q(patient_record=patient)
+        if patient.patient_id:
+            rx_q |= models.Q(patient_id_ref=patient.patient_id)
         p_rxs = Prescription.objects.filter(rx_q).order_by('-created_at')
 
         parts = patient.name.strip().split()
@@ -1599,6 +1823,14 @@ class PatientMyProfileView(APIView):
             or ''
         )
         city_val = patient.address or (getattr(request.user, 'address', '') if request.user.is_authenticated else '') or ''
+        if request.user.is_authenticated:
+            if not patient.address and getattr(request.user, 'address', None):
+                patient.address = request.user.address
+                patient.save(update_fields=['address'])
+                city_val = patient.address
+            elif patient.address and hasattr(request.user, 'address') and not request.user.address:
+                request.user.address = patient.address
+                request.user.save(update_fields=['address'])
 
         profile_image_url = None
         if request.user.is_authenticated and getattr(request.user, 'profile_image', None):
@@ -1683,23 +1915,27 @@ class PatientMyProfileView(APIView):
         })
 
     def patch(self, request):
-        patient = None
-        if request.user.is_authenticated:
-            patient = Patient.objects.filter(user=request.user).first()
-            if not patient and request.user.email:
-                patient = Patient.objects.filter(email__iexact=request.user.email).first()
-                if patient:
-                    patient.user = request.user
-                    patient.save(update_fields=['user'])
-        if not patient and request.data.get('patient_id'):
-            patient = Patient.objects.filter(patient_id=request.data.get('patient_id')).first()
-        if not patient and request.data.get('phone'):
-            clean_p = ''.join(c for c in str(request.data.get('phone')) if c.isdigit())
-            if clean_p:
-                patient = Patient.objects.filter(phone__endswith=clean_p[-10:]).first()
+        if not request.user or not request.user.is_authenticated:
+            return Response({'error': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        patient = Patient.objects.filter(user=request.user).first()
+        if not patient and request.user.email:
+            patient = Patient.objects.filter(email__iexact=request.user.email, user__isnull=True).first()
+            if patient:
+                patient.user = request.user
+                patient.save(update_fields=['user'])
 
         if not patient:
-            return Response({'error': 'Patient record not found.'}, status=status.HTTP_404_NOT_FOUND)
+            full_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+            patient = Patient.objects.create(
+                user=request.user,
+                name=full_name,
+                email=request.user.email or f"{request.user.username}@gmail.com",
+                phone=getattr(request.user, 'phone_number', '') or '',
+                status='Active',
+                primary_concern='General Consultation',
+                known_allergies='None'
+            )
 
         # 1. Update patient fields
         if 'name' in request.data and request.data['name']:
@@ -2073,12 +2309,19 @@ class SendPrescriptionWhatsAppView(APIView):
         )
 
         if success:
-            if rx and rx.status != 'Delivered':
+            if not rx and rx_data.get('patientName'):
+                rx = Prescription.objects.filter(
+                    patient_name__iexact=rx_data.get('patientName')
+                ).order_by('-created_at').first()
+
+            if rx:
                 rx.status = 'Delivered'
                 rx.save(update_fields=['status'])
 
             return Response({
                 'success': True,
+                'status': 'Delivered',
+                'rxId': rx.prescription_id if rx else rx_data.get('rxId'),
                 'message': f"Prescription PDF successfully sent via WhatsApp to {rx_data.get('patientName')} (+{result.get('recipient')})!",
                 'whatsapp_message_id': result.get('message_id'),
                 'recipient': result.get('recipient'),

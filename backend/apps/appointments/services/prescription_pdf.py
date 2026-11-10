@@ -202,21 +202,29 @@ def generate_prescription_pdf_bytes(prescription_data):
     p_age_gender = prescription_data.get('ageGender') or prescription_data.get('age_gender') or ''
     p_phone = prescription_data.get('mobile') or prescription_data.get('patient_phone') or prescription_data.get('phone') or ''
     rx_date = prescription_data.get('date') or ''
-    consultation_type = prescription_data.get('consultationType') or prescription_data.get('consultation_type') or 'Consultation'
+    reason_for_visit = (
+        prescription_data.get('reasonForVisit') or
+        prescription_data.get('reason_for_visit') or
+        prescription_data.get('reason') or
+        prescription_data.get('mainComplaint') or
+        prescription_data.get('complaint') or
+        prescription_data.get('consultationType') or
+        'General Consultation'
+    )
     p_apt = prescription_data.get('aptNumber') or prescription_data.get('appointment_id') or prescription_data.get('apt_number') or prescription_data.get('appointmentId') or ''
 
     meta_rows = [
         [
             Paragraph(f"<font color='#64748b'>Patient Name&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{p_name}</b>", meta_style),
-            Paragraph(f"<font color='#64748b'>Patient ID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{p_id}</b>", meta_style),
+            Paragraph(f"<font color='#64748b'>Patient ID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{p_id}</b>", meta_style),
         ],
         [
             Paragraph(f"<font color='#64748b'>Age / Gender&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{p_age_gender}</b>", meta_style),
-            Paragraph(f"<font color='#64748b'>Date&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{rx_date}</b>", meta_style),
+            Paragraph(f"<font color='#64748b'>Date&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{rx_date}</b>", meta_style),
         ],
         [
             Paragraph(f"<font color='#64748b'>Contact&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{p_phone}</b>", meta_style),
-            Paragraph(f"<font color='#64748b'>Consultation&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{consultation_type}</b>", meta_style),
+            Paragraph(f"<font color='#64748b'>Reason for Visit&nbsp;&nbsp;:</font>&nbsp;&nbsp;<b>{reason_for_visit}</b>", meta_style),
         ]
     ]
     if p_apt:
@@ -255,11 +263,8 @@ def generate_prescription_pdf_bytes(prescription_data):
     ]
 
     raw_medicines = prescription_data.get('medicines') or []
-    if not raw_medicines or not isinstance(raw_medicines, list) or len(raw_medicines) == 0:
-        raw_medicines = [
-            {'name': 'Rhus Tox', 'potency': '30C', 'dosage': '5 drops', 'duration': '15 Days', 'instructions': 'Twice daily'},
-            {'name': 'Apis Mellifica', 'potency': '200C', 'dosage': '5 drops', 'duration': '10 Days', 'instructions': 'Once daily'},
-        ]
+    if not isinstance(raw_medicines, list):
+        raw_medicines = []
 
     for idx, med in enumerate(raw_medicines, 1):
         if not isinstance(med, dict):

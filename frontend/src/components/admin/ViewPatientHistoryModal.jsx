@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminPagination from './AdminPagination';
+import appointmentApi from '../../api/appointmentApi';
 
 const ViewPatientHistoryModal = ({
   isOpen,
@@ -18,6 +19,89 @@ const ViewPatientHistoryModal = ({
   const scrollContainerRef = useRef(null);
   const appointmentCardRef = useRef(null);
   const prescriptionCardRef = useRef(null);
+
+  const [enrichedPatient, setEnrichedPatient] = useState(patient || null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // Synchronize and enrich patient data whenever modal opens or patient prop updates
+  useEffect(() => {
+    if (!isOpen || !patient) {
+      setEnrichedPatient(patient || null);
+      setIsLoadingDetails(false);
+      return;
+    }
+
+    // Set initial patient object immediately
+    setEnrichedPatient(patient);
+
+    const targetPatientId = patient.id || patient.patientId || patient.patient_id_ref || patient.database_id;
+    const hasFullRecords = Array.isArray(patient.appointments) && patient.appointments.length > 0 && patient.email;
+
+    // If patient already has full records, no extra fetch needed
+    if (hasFullRecords) {
+      setIsLoadingDetails(false);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchCompleteData = async () => {
+      setIsLoadingDetails(true);
+      let fullData = null;
+
+      if (targetPatientId) {
+        try {
+          fullData = await appointmentApi.getPatientDetail(targetPatientId);
+        } catch (e) {
+          // fallback to getPatients list
+        }
+      }
+
+      if (!fullData || !fullData.appointments) {
+        try {
+          const allPatients = await appointmentApi.getPatients();
+          if (Array.isArray(allPatients)) {
+            const cleanPhone = String(patient.mobile || patient.phone || patient.contact || '').replace(/\D/g, '').slice(-10);
+            const patName = (patient.name || patient.patientName || '').trim().toLowerCase();
+
+            fullData = allPatients.find((p) => {
+              if (targetPatientId && (p.id === targetPatientId || p.patient_id === targetPatientId || String(p.database_id) === String(targetPatientId))) {
+                return true;
+              }
+              const pPhone = String(p.mobile || p.phone || '').replace(/\D/g, '').slice(-10);
+              if (cleanPhone && pPhone && cleanPhone === pPhone) {
+                return true;
+              }
+              if (patName && p.name && p.name.trim().toLowerCase() === patName) {
+                return true;
+              }
+              return false;
+            });
+          }
+        } catch (err) {
+          console.error('Error fetching patients list in modal:', err);
+        }
+      }
+
+      if (isMounted && fullData) {
+        setEnrichedPatient((prev) => ({
+          ...(prev || {}),
+          ...fullData,
+          appointments: fullData.appointments || [],
+          prescriptions: fullData.prescriptions || [],
+        }));
+      }
+
+      if (isMounted) {
+        setIsLoadingDetails(false);
+      }
+    };
+
+    fetchCompleteData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, patient]);
 
   // Lock background screen scroll and handle ESC key to close
   useEffect(() => {
@@ -66,8 +150,8 @@ const ViewPatientHistoryModal = ({
 
   if (!isOpen) return null;
 
-  // Real patient data from database
-  const currentPatient = patient || {
+  // Real patient data from database (enriched or fallback to prop)
+  const currentPatient = enrichedPatient || patient || {
     id: '',
     name: '',
     initials: '',
@@ -81,8 +165,8 @@ const ViewPatientHistoryModal = ({
     notes: '',
   };
 
-  const appointmentsList = patient?.appointments || [];
-  const prescriptionsList = patient?.prescriptions || [];
+  const appointmentsList = currentPatient?.appointments || [];
+  const prescriptionsList = currentPatient?.prescriptions || [];
 
   const getStatusBadge = (status) => {
     const s = String(status || '').trim().toLowerCase();
@@ -233,7 +317,13 @@ const ViewPatientHistoryModal = ({
             </tr>
           </thead>
           <tbody>
-            {filteredAppointments.length === 0 ? (
+            {isLoadingDetails ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#64748b', fontSize: '13px' }}>
+                  Loading appointments from database...
+                </td>
+              </tr>
+            ) : filteredAppointments.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '13px' }}>
                   No appointments found matching your filter.
@@ -465,7 +555,13 @@ const ViewPatientHistoryModal = ({
             </tr>
           </thead>
           <tbody>
-            {filteredPrescriptions.length === 0 ? (
+            {isLoadingDetails ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#64748b', fontSize: '13px' }}>
+                  Loading prescriptions from database...
+                </td>
+              </tr>
+            ) : filteredPrescriptions.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '13px' }}>
                   No prescriptions found matching your filter.

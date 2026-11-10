@@ -58,7 +58,7 @@ const isValidInitialPatient = (p) => {
   const hasApt = Boolean(p.appointment_id || (p.id && String(p.id).startsWith('APT-')) || p.rawId);
   const hasPatId = Boolean(p.patient_id_ref || p.patient_record_id || p.patient_id || (p.id && String(p.id).startsWith('PAT-')));
   const hasRx = Boolean(p.rxId || (p.id && String(p.id).startsWith('RX-')) || p.prescriptionId);
-  
+
   // Must have a real non-placeholder name, or real appointment / patient ID / prescription ID
   if (typeof name === 'string' && name.trim() && name.trim().toLowerCase() !== 'patient') {
     return true;
@@ -86,20 +86,35 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
   const [symptoms, setSymptoms] = useState('');
   const [diagnosis, setDiagnosis] = useState('Skin allergy due to seasonal change.');
 
-  const [medicines, setMedicines] = useState([
-    {
-      id: 1,
-      name: '',
-      potency: '',
-      dosage: '',
-      duration: '',
-      instructions: '',
-    },
-  ]);
+  const [medicines, setMedicines] = useState([]);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   const [additionalInstructions, setAdditionalInstructions] = useState(
     'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'
   );
+
+  const [isMobileAptDropdownOpen, setIsMobileAptDropdownOpen] = useState(false);
+  const [isMobileConsultDropdownOpen, setIsMobileConsultDropdownOpen] = useState(false);
+  const mobileAptDropdownRef = useRef(null);
+  const mobileConsultDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (mobileAptDropdownRef.current && !mobileAptDropdownRef.current.contains(e.target)) {
+        setIsMobileAptDropdownOpen(false);
+      }
+      if (mobileConsultDropdownRef.current && !mobileConsultDropdownRef.current.contains(e.target)) {
+        setIsMobileConsultDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, []);
 
   const prevIsOpenRef = useRef(false);
 
@@ -109,7 +124,12 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
       setStep(initialStep || 1);
       setSearchQuery('');
       setSuccessMessage('');
+      setErrorMessage('');
+      setAttemptedSubmit(false);
       setIsSaving(false);
+      setIsMobileAptDropdownOpen(false);
+      setIsMobileConsultDropdownOpen(false);
+      setIsCalendarOpen(false);
 
       if (isValidInitialPatient(initialPatient)) {
         const isPrescription = Boolean(
@@ -151,6 +171,12 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
             initialPatient.apt_number ||
             initialPatient.aptNumber ||
             '';
+          const rxReason =
+            initialPatient.reason_for_visit ||
+            initialPatient.reason ||
+            initialPatient.mainComplaint ||
+            initialPatient.complaint ||
+            '';
           if (aptNum) {
             setSelectedAppointment({
               id: aptNum,
@@ -158,9 +184,26 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
               appointmentId: aptNum,
               date: initialPatient.date,
               time: initialPatient.time,
-              reason: initialPatient.complaint || initialPatient.diagnosis || '',
-              reason_for_visit: initialPatient.complaint || initialPatient.diagnosis || '',
+              reason: rxReason,
+              reason_for_visit: rxReason,
             });
+            // Also automatically fetch the corresponding appointment details to ensure the exact reason for visit
+            appointmentApi.getAppointments().then((list) => {
+              if (Array.isArray(list)) {
+                const foundApt = list.find((a) => (a.appointment_id === aptNum || a.id === aptNum || String(a.id) === String(aptNum)));
+                if (foundApt && (foundApt.reason_for_visit || foundApt.reason)) {
+                  const fetchedReason = foundApt.reason_for_visit || foundApt.reason;
+                  setSelectedAppointment((prev) => ({
+                    ...(prev || {}),
+                    id: aptNum,
+                    appointment_id: aptNum,
+                    reason: fetchedReason,
+                    reason_for_visit: fetchedReason,
+                  }));
+                  setMainComplaint((prev) => (prev && prev !== 'General Consultation' && prev !== 'Follow-up' && prev !== 'Clinical Consultation' ? prev : fetchedReason));
+                }
+              }
+            }).catch((err) => console.warn('Could not fetch appointment details for prescription:', err));
           } else {
             setSelectedAppointment(null);
           }
@@ -174,8 +217,8 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
             setConsultationType(initialPatient.consultationType || initialPatient.consultation_type);
           }
 
-          if (initialPatient.complaint || initialPatient.mainComplaint || initialPatient.reason) {
-            setMainComplaint(initialPatient.complaint || initialPatient.mainComplaint || initialPatient.reason);
+          if (rxReason) {
+            setMainComplaint(rxReason);
           }
 
           if (initialPatient.symptoms) {
@@ -308,6 +351,9 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         setSelectedAppointment(null);
         setAppointmentDate(getTodayIso());
         setMainComplaint('');
+        setMedicines([]);
+        setErrorMessage('');
+        setAttemptedSubmit(false);
       }
     } else if (!isOpen && prevIsOpenRef.current) {
       // When modal closes: clean up completely
@@ -320,18 +366,14 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
       setMainComplaint('');
       setSymptoms('');
       setDiagnosis('Skin allergy due to seasonal change.');
-      setMedicines([
-        {
-          id: 1,
-          name: '',
-          potency: '',
-          dosage: '',
-          duration: '',
-          instructions: '',
-        },
-      ]);
+      setMedicines([]);
       setSuccessMessage('');
+      setErrorMessage('');
+      setAttemptedSubmit(false);
       setIsSaving(false);
+      setIsMobileAptDropdownOpen(false);
+      setIsMobileConsultDropdownOpen(false);
+      setIsCalendarOpen(false);
     }
 
     prevIsOpenRef.current = isOpen;
@@ -462,11 +504,38 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
 
   if (!isOpen) return null;
 
+  const validateMedicines = () => {
+    if (!medicines || medicines.length === 0) {
+      return {
+        isValid: false,
+        message: 'Please add at least one medicine and complete the prescription before proceeding.',
+      };
+    }
+
+    const hasIncomplete = medicines.some((m) => {
+      const name = (m.name || '').trim();
+      const potency = (m.potency || '').trim();
+      const dosage = (m.dosage || '').trim();
+      const duration = (m.duration || '').trim();
+      return !name || !potency || !dosage || !duration;
+    });
+
+    if (hasIncomplete) {
+      return {
+        isValid: false,
+        message: 'Please add at least one medicine and complete the prescription before proceeding.',
+      };
+    }
+
+    return { isValid: true };
+  };
+
   const handleAddMedicine = () => {
+    setErrorMessage('');
     setMedicines((prev) => [
       ...prev,
       {
-        id: Date.now(),
+        id: Date.now() + Math.random(),
         name: '',
         potency: '',
         dosage: '',
@@ -477,12 +546,12 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
   };
 
   const handleRemoveMedicine = (id) => {
-    if (medicines.length > 1) {
-      setMedicines((prev) => prev.filter((m) => m.id !== id));
-    }
+    setErrorMessage('');
+    setMedicines((prev) => prev.filter((m) => m.id !== id));
   };
 
   const handleMedicineChange = (id, field, value) => {
+    setErrorMessage('');
     setMedicines((prev) =>
       prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
     );
@@ -490,10 +559,23 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setErrorMessage('');
+
     if (!selectedPatient || !selectedPatient.name) {
-      alert('Please search and select a patient first.');
+      const msg = 'Please search and select a patient first.';
+      setErrorMessage(msg);
+      alert(msg);
       return;
     }
+
+    const val = validateMedicines();
+    if (!val.isValid) {
+      setAttemptedSubmit(true);
+      setErrorMessage(val.message);
+      alert(val.message);
+      return;
+    }
+
     // Advance to Step 2: Prescription Preview Screen
     setStep(2);
   };
@@ -501,9 +583,12 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
   const handleSavePrescription = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isSaving) return; // Prevent duplicate submissions
+    setErrorMessage('');
 
     if (!selectedPatient || !selectedPatient.name) {
-      alert('Please select a patient before saving the prescription.');
+      const msg = 'Please select a patient before saving the prescription.';
+      setErrorMessage(msg);
+      alert(msg);
       return;
     }
 
@@ -513,12 +598,31 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
     const todayZero = new Date();
     todayZero.setHours(0, 0, 0, 0);
     if (checkDate < todayZero) {
-      alert('Cannot select a past date. Please choose today or a future date.');
+      const msg = 'Cannot select a past date. Please choose today or a future date.';
+      setErrorMessage(msg);
+      alert(msg);
+      return;
+    }
+
+    const val = validateMedicines();
+    if (!val.isValid) {
+      setAttemptedSubmit(true);
+      setErrorMessage(val.message);
+      alert(val.message);
       return;
     }
 
     setIsSaving(true);
     try {
+      const validMeds = medicines.map((m) => ({
+        id: m.id,
+        name: (m.name || '').trim(),
+        potency: (m.potency || '').trim(),
+        dosage: (m.dosage || '').trim(),
+        duration: (m.duration || '').trim(),
+        instructions: (m.instructions || '').trim(),
+      }));
+
       const payload = {
         patient: selectedPatient,
         patient_name: selectedPatient.name,
@@ -536,7 +640,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         complaint: mainComplaint,
         symptoms,
         diagnosis: diagnosis || 'Clinical Consultation',
-        medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
+        medicines: validMeds,
         additionalInstructions,
         status: 'Pending',
       };
@@ -556,13 +660,23 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
       }, 1000);
     } catch (err) {
       console.error('Failed to save prescription to database:', err);
-      alert('Failed to save prescription to database. Please check your connection and try again.');
+      const errDetail = err?.response?.data?.error || 'Failed to save prescription to database. Please check your connection and try again.';
+      setErrorMessage(errDetail);
+      alert(errDetail);
       setIsSaving(false);
     }
   };
 
   const handleFinalSave = async (deliveryMethod = 'WhatsApp') => {
     if (isSaving) return;
+    const val = validateMedicines();
+    if (!val.isValid) {
+      setAttemptedSubmit(true);
+      setErrorMessage(val.message);
+      alert(val.message);
+      setStep(1);
+      return;
+    }
     setIsSaving(true);
     try {
       const effectiveAptNum =
@@ -622,150 +736,209 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
   };
 
   return (
-    <div
-      onClick={onClose}
-      onWheel={(e) => {
-        if (e.target === e.currentTarget) e.preventDefault();
-      }}
-      onTouchMove={(e) => {
-        if (e.target === e.currentTarget) e.preventDefault();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.45)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px 16px',
-        boxSizing: 'border-box',
-        overflow: 'hidden',
-        overscrollBehavior: 'contain',
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      }}
-    >
+    <>
+      <style>{`
+        .new-rx-desktop-select {
+          display: block;
+        }
+        .new-rx-mobile-select {
+          display: none;
+        }
+        .new-rx-visit-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 14px;
+        }
+        .new-rx-symptoms-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 14px;
+        }
+        .new-rx-footer-buttons {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 12px;
+          padding-top: 16px;
+          border-top: 1px solid #f1f5f9;
+        }
+
+        @media (max-width: 640px) {
+          .new-rx-desktop-select {
+            display: none !important;
+          }
+          .new-rx-mobile-select {
+            display: block !important;
+          }
+          .new-rx-modal-overlay {
+            padding: 10px 8px !important;
+          }
+          .new-rx-modal-card {
+            max-height: 94vh !important;
+            border-radius: 16px !important;
+          }
+          .new-rx-modal-scroll {
+            padding: 16px 14px 20px !important;
+          }
+          .new-rx-visit-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .new-rx-symptoms-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .new-rx-medicines-table-wrapper {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+          }
+          .new-rx-medicines-table-wrapper table {
+            min-width: 580px;
+          }
+          .new-rx-footer-buttons {
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+            justify-content: stretch !important;
+          }
+          .new-rx-footer-buttons button {
+            flex: 1 1 auto !important;
+            min-height: 40px !important;
+            padding: 8px 14px !important;
+            font-size: 13px !important;
+            justify-content: center !important;
+          }
+        }
+      `}</style>
+
       <div
-        onClick={(e) => e.stopPropagation()}
+        className="new-rx-modal-overlay"
+        onClick={onClose}
+        onWheel={(e) => {
+          if (e.target === e.currentTarget) e.preventDefault();
+        }}
+        onTouchMove={(e) => {
+          if (e.target === e.currentTarget) e.preventDefault();
+        }}
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '24px',
-          width: '100%',
-          maxWidth: step === 2 ? '680px' : '780px',
-          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.25)',
-          boxSizing: 'border-box',
-          position: 'relative',
-          maxHeight: 'calc(100vh - 48px)',
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          zIndex: 1000,
           display: 'flex',
-          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px 16px',
+          boxSizing: 'border-box',
           overflow: 'hidden',
+          overscrollBehavior: 'contain',
+          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         }}
       >
         <div
-          className="admin-modal-scroll"
+          className="new-rx-modal-card"
+          onClick={(e) => e.stopPropagation()}
           style={{
-            overflowY: 'auto',
-            overscrollBehavior: 'contain',
-            padding: '32px 36px',
-            flex: 1,
+            backgroundColor: '#ffffff',
+            borderRadius: '24px',
             width: '100%',
+            maxWidth: step === 2 ? '680px' : '780px',
+            boxShadow: '0 25px 70px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box',
+            position: 'relative',
+            maxHeight: 'calc(100vh - 48px)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
           }}
         >
-        {/* Modal Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '22px' }}>
-          <div>
-            <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0f172a', margin: '0 0 4px 0' }}>
-              {step === 2 ? 'Prescription Details' : 'New Prescription'}
-            </h2>
-            <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0 }}>
-              {step === 2
-                ? 'View and review the prescription for the selected patient.'
-                : 'Create a new prescription for the selected patient.'}
-            </p>
-          </div>
-          {/* Close X Button */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close modal"
+          <div
+            className="admin-modal-scroll new-rx-modal-scroll"
             style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '20px',
-              color: '#64748b',
-              cursor: 'pointer',
-              padding: '4px',
-              lineHeight: 1,
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              overflowY: 'auto',
+              overscrollBehavior: 'contain',
+              padding: '32px 36px',
+              flex: 1,
+              width: '100%',
+              boxSizing: 'border-box',
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        {step === 2 ? (
-          <div>
-            {/* Back to Edit Button */}
-            <div style={{ marginBottom: '14px' }}>
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'none',
-                  border: 'none',
-                  color: '#1e4620',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  padding: '4px 0',
-                }}
-              >
-                <span>←</span>
-                <span>Edit Prescription Details</span>
-              </button>
+          {/* Modal Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '22px' }}>
+            <div>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0f172a', margin: '0 0 4px 0' }}>
+                {step === 2 ? 'Prescription Details' : 'New Prescription'}
+              </h2>
+              <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0 }}>
+                {step === 2
+                  ? 'View and review the prescription for the selected patient.'
+                  : 'Create a new prescription for the selected patient.'}
+              </p>
             </div>
-
-            <PrescriptionPreviewCard
-              prescriptionId={existingRxId}
-              patient={{
-                ...selectedPatient,
-                appointment_id: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
-                appointmentId: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
-                aptNumber: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
-                apt_number: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
+            {/* Close X Button */}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close modal"
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '20px',
+                color: '#64748b',
+                cursor: 'pointer',
+                padding: '4px',
+                lineHeight: 1,
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
-              aptNumber={
-                selectedAppointment?.appointment_id ||
-                selectedAppointment?.id ||
-                selectedPatient?.appointmentId ||
-                selectedPatient?.appointment_id ||
-                selectedPatient?.aptNumber ||
-                initialPatient?.appointment_id ||
-                initialPatient?.aptNumber ||
-                ''
-              }
-              date={formatDateForDisplay(appointmentDate)}
-              consultationType={consultationType}
-              diagnosis={diagnosis || mainComplaint || 'Skin allergy due to seasonal change.'}
-              medicines={medicines.filter((m) => m.name && m.name.trim() !== '')}
-              additionalInstructions={
-                additionalInstructions ||
-                'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'
-              }
-              onSendWhatsApp={async (extraData = {}) => {
-                const effectiveAptNum =
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          {step === 2 ? (
+            <div>
+              {/* Back to Edit Button */}
+              <div style={{ marginBottom: '14px' }}>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'none',
+                    border: 'none',
+                    color: '#1e4620',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    padding: '4px 0',
+                  }}
+                >
+                  <span>←</span>
+                  <span>Edit Prescription Details</span>
+                </button>
+              </div>
+
+              <PrescriptionPreviewCard
+                prescriptionId={existingRxId}
+                patient={{
+                  ...selectedPatient,
+                  appointment_id: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
+                  appointmentId: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
+                  aptNumber: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
+                  apt_number: selectedAppointment?.appointment_id || selectedAppointment?.id || selectedPatient?.appointmentId || selectedPatient?.appointment_id || selectedPatient?.aptNumber || initialPatient?.appointment_id || initialPatient?.aptNumber || '',
+                  reason_for_visit: mainComplaint || selectedAppointment?.reason_for_visit || selectedAppointment?.reason || initialPatient?.reason_for_visit || initialPatient?.reason || initialPatient?.complaint || '',
+                  reason: mainComplaint || selectedAppointment?.reason_for_visit || selectedAppointment?.reason || initialPatient?.reason_for_visit || initialPatient?.reason || initialPatient?.complaint || '',
+                }}
+                aptNumber={
                   selectedAppointment?.appointment_id ||
                   selectedAppointment?.id ||
                   selectedPatient?.appointmentId ||
@@ -773,336 +946,645 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                   selectedPatient?.aptNumber ||
                   initialPatient?.appointment_id ||
                   initialPatient?.aptNumber ||
-                  '';
-                const payload = {
-                  patient: selectedPatient,
-                  patient_name: selectedPatient?.name || 'Patient',
-                  patient_phone: selectedPatient?.phone,
-                  patient_id_ref: selectedPatient?.id,
-                  appointment_id: effectiveAptNum || null,
-                  appointmentId: effectiveAptNum || null,
-                  apt_number: effectiveAptNum || null,
-                  aptNumber: effectiveAptNum || null,
-                  age_gender: selectedPatient?.ageGender || `${selectedPatient?.age} / ${selectedPatient?.gender}`,
-                  date: formatDateForDisplay(appointmentDate),
-                  appointmentDate,
-                  consultationType,
-                  mainComplaint,
-                  symptoms,
-                  diagnosis: diagnosis || mainComplaint || 'Skin allergy due to seasonal change.',
-                  medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
-                  additionalInstructions: additionalInstructions || 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.',
-                  status: 'Pending',
-                };
-
-                let rxIdToSend = existingRxId;
-                if (!rxIdToSend) {
-                  const savedRx = await appointmentApi.createPrescription(payload);
-                  rxIdToSend = savedRx.id || savedRx.rxId;
+                  ''
                 }
-
-                try {
-                  const res = await appointmentApi.sendPrescriptionWhatsApp(rxIdToSend, {
-                    phone: selectedPatient?.phone,
-                    patientName: selectedPatient?.name,
-                    patientId: selectedPatient?.id,
-                    ageGender: selectedPatient?.ageGender,
+                date={formatDateForDisplay(appointmentDate)}
+                consultationType={consultationType}
+                reasonForVisit={mainComplaint || selectedAppointment?.reason_for_visit || selectedAppointment?.reason || initialPatient?.reason_for_visit || initialPatient?.reason || initialPatient?.complaint || ''}
+                diagnosis={diagnosis || mainComplaint || 'Skin allergy due to seasonal change.'}
+                medicines={medicines.filter((m) => m.name && m.name.trim() !== '')}
+                additionalInstructions={
+                  additionalInstructions ||
+                  'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.'
+                }
+                onSendWhatsApp={async (extraData = {}) => {
+                  const effectiveAptNum =
+                    selectedAppointment?.appointment_id ||
+                    selectedAppointment?.id ||
+                    selectedPatient?.appointmentId ||
+                    selectedPatient?.appointment_id ||
+                    selectedPatient?.aptNumber ||
+                    initialPatient?.appointment_id ||
+                    initialPatient?.aptNumber ||
+                    '';
+                  const payload = {
+                    patient: selectedPatient,
+                    patient_name: selectedPatient?.name || 'Patient',
+                    patient_phone: selectedPatient?.phone,
+                    patient_id_ref: selectedPatient?.id,
+                    appointment_id: effectiveAptNum || null,
+                    appointmentId: effectiveAptNum || null,
+                    apt_number: effectiveAptNum || null,
+                    aptNumber: effectiveAptNum || null,
+                    age_gender: selectedPatient?.ageGender || `${selectedPatient?.age} / ${selectedPatient?.gender}`,
                     date: formatDateForDisplay(appointmentDate),
+                    appointmentDate,
                     consultationType,
-                    diagnosis: payload.diagnosis,
-                    medicines: payload.medicines,
-                    additionalInstructions: payload.additionalInstructions,
-                    aptNumber: effectiveAptNum,
-                    pdf_base64: extraData.pdf_base64,
-                  });
-                  await appointmentApi.updatePrescriptionStatus(rxIdToSend, 'Delivered');
-                  if (onSave) {
-                    onSave({ id: rxIdToSend, rxId: rxIdToSend, status: 'Delivered', ...payload });
-                  }
-                  window.dispatchEvent(new CustomEvent('prescription-whatsapp-sent', {
-                    detail: { rxId: rxIdToSend, status: 'Delivered' }
-                  }));
-                  return res;
-                } catch (sendErr) {
-                  if (onSave) {
-                    onSave({ id: rxIdToSend, rxId: rxIdToSend, status: 'Pending', ...payload });
-                  }
-                  throw sendErr;
-                }
-              }}
-              onDownloadPdf={() => {
-                handleFinalSave('PDF');
-              }}
-            />
-          </div>
-        ) : (
-        <form onSubmit={handleSubmit}>
-          {/* Section 1: Patient Details */}
-          <div style={{ marginBottom: '22px' }}>
-            <h3 style={{ fontSize: '14.5px', fontWeight: '700', color: '#1e293b', margin: '0 0 2px 0' }}>
-              Patient Details
-            </h3>
-            <p style={{ fontSize: '12.5px', color: '#64748b', margin: '0 0 12px 0' }}>
-              Search and select a patient for the prescription.
-            </p>
+                    mainComplaint,
+                    reason_for_visit: mainComplaint || selectedAppointment?.reason_for_visit || selectedAppointment?.reason || initialPatient?.reason_for_visit || initialPatient?.reason || '',
+                    reasonForVisit: mainComplaint || selectedAppointment?.reason_for_visit || selectedAppointment?.reason || initialPatient?.reason_for_visit || initialPatient?.reason || '',
+                    symptoms,
+                    diagnosis: diagnosis || mainComplaint || 'Skin allergy due to seasonal change.',
+                    medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
+                    additionalInstructions: additionalInstructions || 'Avoid spicy food. Drink plenty of water. Follow-up after 15 days.',
+                    status: 'Pending',
+                  };
 
-            {/* Search Patient */}
-            <div style={{ position: 'relative', marginBottom: '12px' }}>
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '14px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#94a3b8',
-                  display: 'flex',
-                  alignItems: 'center',
-                  pointerEvents: 'none',
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                id="prescription-modal-patient-search-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by patient name, mobile number or patient ID..."
-                style={{
-                  width: '100%',
-                  height: '42px',
-                  paddingLeft: '40px',
-                  paddingRight: '14px',
-                  borderRadius: '10px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13.5px',
-                  color: '#1e293b',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-                onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
-                onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
-              />
-              {/* Search results dropdown */}
-              {searchQuery.trim() && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    marginTop: '4px',
-                    maxHeight: '160px',
-                    overflowY: 'auto',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    zIndex: 20,
-                  }}
-                >
-                  {(() => {
-                    const q = searchQuery.toLowerCase().trim();
-                    const filtered = availablePatients.filter((p) => {
-                      return (
-                        (p.name && p.name.toLowerCase().includes(q)) ||
-                        (p.mobile && p.mobile.includes(q)) ||
-                        (p.id && p.id.toLowerCase().includes(q))
-                      );
+                  let rxIdToSend = existingRxId;
+                  if (!rxIdToSend) {
+                    const savedRx = await appointmentApi.createPrescription(payload);
+                    rxIdToSend = savedRx.id || savedRx.rxId;
+                  }
+
+                  try {
+                    const res = await appointmentApi.sendPrescriptionWhatsApp(rxIdToSend, {
+                      phone: selectedPatient?.phone,
+                      patientName: selectedPatient?.name,
+                      patientId: selectedPatient?.id,
+                      ageGender: selectedPatient?.ageGender,
+                      date: formatDateForDisplay(appointmentDate),
+                      consultationType,
+                      diagnosis: payload.diagnosis,
+                      medicines: payload.medicines,
+                      additionalInstructions: payload.additionalInstructions,
+                      aptNumber: effectiveAptNum,
+                      pdf_base64: extraData.pdf_base64,
                     });
-
-                    if (filtered.length === 0) {
-                      return (
-                        <div style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b' }}>
-                          No patient found matching "{searchQuery}"
-                        </div>
-                      );
+                    await appointmentApi.updatePrescriptionStatus(rxIdToSend, 'Delivered');
+                    if (onSave) {
+                      onSave({ id: rxIdToSend, rxId: rxIdToSend, status: 'Delivered', ...payload });
                     }
-
-                    return filtered.map((p) => (
-                      <div
-                        key={p.id}
-                        className="patient-search-result-item"
-                        onClick={() => {
-                          setSelectedPatient({
-                            id: p.id,
-                            name: p.name,
-                            phone: p.mobile,
-                            age: p.ageGender?.split('/')[0]?.trim() || '28 Years',
-                            gender: p.ageGender?.split('/')[1]?.trim() || 'Adult',
-                            ageGender: p.ageGender || '28 Years / Adult',
-                            initials: p.initials || 'PT',
-                            appointments: p.appointments || [],
-                          });
-                          const apts = p.appointments || [];
-                          if (apts.length > 0) {
-                            const latestApt = apts[0];
-                            setSelectedAppointment(latestApt);
-                            if (latestApt.reason || latestApt.reason_for_visit) {
-                              setMainComplaint(latestApt.reason || latestApt.reason_for_visit);
-                            }
-                            if (latestApt.consultationType) {
-                              setConsultationType(latestApt.consultationType);
-                            }
-                            const iso = parseDisplayDateToIso(latestApt.date);
-                            if (iso) setAppointmentDate(iso);
-                          } else if (p.primaryConcern) {
-                            setMainComplaint(p.primaryConcern);
-                          }
-                          setSearchQuery('');
-                        }}
-                        style={{
-                          padding: '10px 14px',
-                          borderBottom: '1px solid #f1f5f9',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          fontSize: '13px',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                      >
-                        <span style={{ fontWeight: '600', color: '#0f172a' }}>{p.name} ({p.id})</span>
-                        <span style={{ color: '#64748b', fontSize: '12px' }}>{p.mobile}</span>
-                      </div>
-                    ));
-                  })()}
-                </div>
-              )}
-            </div>
-
-            {/* Selected Patient Card */}
-            {selectedPatient && (
-              <div
-                id="new-prescription-selected-patient-card"
-                style={{
-                  backgroundColor: '#edf7ed',
-                  border: '1px solid #c7e6c9',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
+                    window.dispatchEvent(new CustomEvent('prescription-whatsapp-sent', {
+                      detail: { rxId: rxIdToSend, status: 'Delivered' }
+                    }));
+                    return res;
+                  } catch (sendErr) {
+                    if (onSave) {
+                      onSave({ id: rxIdToSend, rxId: rxIdToSend, status: 'Pending', ...payload });
+                    }
+                    throw sendErr;
+                  }
                 }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                onDownloadPdf={() => {
+                  handleFinalSave('PDF');
+                }}
+              />
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              {/* Section 1: Patient Details */}
+              <div style={{ marginBottom: '22px' }}>
+                <h3 style={{ fontSize: '14.5px', fontWeight: '700', color: '#1e293b', margin: '0 0 2px 0' }}>
+                  Patient Details
+                </h3>
+                <p style={{ fontSize: '12.5px', color: '#64748b', margin: '0 0 12px 0' }}>
+                  Search and select a patient for the prescription.
+                </p>
+
+                {/* Search Patient */}
+                <div style={{ position: 'relative', marginBottom: '12px' }}>
                   <div
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '50%',
-                      backgroundColor: '#bbf7d0',
-                      color: '#166534',
+                      position: 'absolute',
+                      left: '14px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#94a3b8',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: '700',
-                      fontSize: '13px',
-                      flexShrink: 0,
+                      pointerEvents: 'none',
                     }}
                   >
-                    {selectedPatient.initials}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
-                      {selectedPatient.name}
+                  <input
+                    type="text"
+                    id="prescription-modal-patient-search-input"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by patient name, mobile number or patient ID..."
+                    style={{
+                      width: '100%',
+                      height: '42px',
+                      paddingLeft: '40px',
+                      paddingRight: '14px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '13.5px',
+                      color: '#1e293b',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                    onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                  />
+                  {/* Search results dropdown */}
+                  {searchQuery.trim() && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        marginTop: '4px',
+                        maxHeight: '160px',
+                        overflowY: 'auto',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        zIndex: 20,
+                      }}
+                    >
+                      {(() => {
+                        const q = searchQuery.toLowerCase().trim();
+                        const filtered = availablePatients.filter((p) => {
+                          return (
+                            (p.name && p.name.toLowerCase().includes(q)) ||
+                            (p.mobile && p.mobile.includes(q)) ||
+                            (p.id && p.id.toLowerCase().includes(q))
+                          );
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b' }}>
+                              No patient found matching "{searchQuery}"
+                            </div>
+                          );
+                        }
+
+                        return filtered.map((p) => (
+                          <div
+                            key={p.id}
+                            className="patient-search-result-item"
+                            onClick={() => {
+                              setSelectedPatient({
+                                id: p.id,
+                                name: p.name,
+                                phone: p.mobile,
+                                age: p.ageGender?.split('/')[0]?.trim() || '28 Years',
+                                gender: p.ageGender?.split('/')[1]?.trim() || 'Adult',
+                                ageGender: p.ageGender || '28 Years / Adult',
+                                initials: p.initials || 'PT',
+                                appointments: p.appointments || [],
+                              });
+                              const apts = p.appointments || [];
+                              if (apts.length > 0) {
+                                const latestApt = apts[0];
+                                setSelectedAppointment(latestApt);
+                                if (latestApt.reason || latestApt.reason_for_visit) {
+                                  setMainComplaint(latestApt.reason || latestApt.reason_for_visit);
+                                }
+                                if (latestApt.consultationType) {
+                                  setConsultationType(latestApt.consultationType);
+                                }
+                                const iso = parseDisplayDateToIso(latestApt.date);
+                                if (iso) setAppointmentDate(iso);
+                              } else if (p.primaryConcern) {
+                                setMainComplaint(p.primaryConcern);
+                              }
+                              setSearchQuery('');
+                            }}
+                            style={{
+                              padding: '10px 14px',
+                              borderBottom: '1px solid #f1f5f9',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: '13px',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                          >
+                            <span style={{ fontWeight: '600', color: '#0f172a' }}>{p.name} ({p.id})</span>
+                            <span style={{ color: '#64748b', fontSize: '12px' }}>{p.mobile}</span>
+                          </div>
+                        ));
+                      })()}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#52606d', marginTop: '2px' }}>
-                      {selectedPatient.id} &nbsp;|&nbsp; {selectedPatient.phone} &nbsp;|&nbsp; {selectedPatient.age} &nbsp;|&nbsp; {selectedPatient.gender}
+                  )}
+                </div>
+
+                {/* Selected Patient Card */}
+                {selectedPatient && (
+                  <div
+                    id="new-prescription-selected-patient-card"
+                    style={{
+                      backgroundColor: '#edf7ed',
+                      border: '1px solid #c7e6c9',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          backgroundColor: '#bbf7d0',
+                          color: '#166534',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: '700',
+                          fontSize: '13px',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {selectedPatient.initials}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
+                          {selectedPatient.name}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#52606d', marginTop: '2px' }}>
+                          {selectedPatient.id} &nbsp;|&nbsp; {selectedPatient.phone} &nbsp;|&nbsp; {selectedPatient.age} &nbsp;|&nbsp; {selectedPatient.gender}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPatient(null)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#16a34a',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      title="Remove patient selection"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Visit Details */}
+              <div style={{ marginBottom: '22px' }}>
+                <h3 style={{ fontSize: '14.5px', fontWeight: '700', color: '#1e293b', margin: '0 0 2px 0' }}>
+                  Visit Details
+                </h3>
+                <p style={{ fontSize: '12.5px', color: '#64748b', margin: '0 0 12px 0' }}>
+                  Enter the consultation information.
+                </p>
+
+                {patientAppointments && patientAppointments.length > 0 && (
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                      Select Linked Appointment
+                    </label>
+
+                    {/* Desktop Select */}
+                    <div className="new-rx-desktop-select">
+                      <select
+                        value={selectedAppointment?.id || ''}
+                        onChange={(e) => {
+                          const aptId = e.target.value;
+                          const apt = patientAppointments.find((a) => a.id === aptId);
+                          if (apt) {
+                            setSelectedAppointment(apt);
+                            const iso = parseDisplayDateToIso(apt.date);
+                            if (iso) setAppointmentDate(iso);
+                            if (apt.consultationType) setConsultationType(apt.consultationType);
+                            if (apt.reason) setMainComplaint(apt.reason);
+                          } else {
+                            setSelectedAppointment(null);
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          height: '42px',
+                          padding: '0 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '13px',
+                          backgroundColor: '#ffffff',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="">-- Match appointment automatically by date --</option>
+                        {patientAppointments.map((a) => {
+                          const timeStr = a.time ? ` (${a.time})` : '';
+                          return (
+                            <option key={a.id} value={a.id}>
+                              {a.id} — {a.date}{timeStr}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    {/* Mobile Custom Dropdown (full-width within mobile screen, scrollable) */}
+                    <div className="new-rx-mobile-select" ref={mobileAptDropdownRef} style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMobileAptDropdownOpen((prev) => !prev);
+                          setIsMobileConsultDropdownOpen(false);
+                          setIsCalendarOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          minHeight: '42px',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: isMobileAptDropdownOpen ? '1.5px solid #1e4620' : '1px solid #cbd5e1',
+                          fontSize: '13px',
+                          backgroundColor: '#ffffff',
+                          color: selectedAppointment ? '#0f172a' : '#64748b',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          boxSizing: 'border-box',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                          {selectedAppointment
+                            ? `${selectedAppointment.id} — ${selectedAppointment.date}${selectedAppointment.time ? ` (${selectedAppointment.time})` : ''}`
+                            : '-- Match appointment automatically by date --'}
+                        </span>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#64748b"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{
+                            flexShrink: 0,
+                            transform: isMobileAptDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s ease',
+                          }}
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </button>
+
+                      {isMobileAptDropdownOpen && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 4px)',
+                            left: 0,
+                            right: 0,
+                            maxHeight: '220px',
+                            overflowY: 'auto',
+                            WebkitOverflowScrolling: 'touch',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+                            zIndex: 1050,
+                          }}
+                        >
+                          <div
+                            onClick={() => {
+                              setSelectedAppointment(null);
+                              setIsMobileAptDropdownOpen(false);
+                            }}
+                            style={{
+                              padding: '10px 12px',
+                              fontSize: '13px',
+                              color: !selectedAppointment ? '#1e4620' : '#475569',
+                              fontWeight: !selectedAppointment ? '600' : '400',
+                              backgroundColor: !selectedAppointment ? '#f0fdf4' : 'transparent',
+                              borderBottom: '1px solid #f1f5f9',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            -- Match appointment automatically by date --
+                          </div>
+                          {patientAppointments.map((a) => {
+                            const isSelected = selectedAppointment?.id === a.id;
+                            const timeStr = a.time ? ` (${a.time})` : '';
+                            return (
+                              <div
+                                key={a.id}
+                                onClick={() => {
+                                  setSelectedAppointment(a);
+                                  const iso = parseDisplayDateToIso(a.date);
+                                  if (iso) setAppointmentDate(iso);
+                                  if (a.consultationType) setConsultationType(a.consultationType);
+                                  if (a.reason) setMainComplaint(a.reason);
+                                  setIsMobileAptDropdownOpen(false);
+                                }}
+                                style={{
+                                  padding: '10px 12px',
+                                  fontSize: '13px',
+                                  color: isSelected ? '#1e4620' : '#0f172a',
+                                  fontWeight: isSelected ? '600' : '400',
+                                  backgroundColor: isSelected ? '#f0fdf4' : 'transparent',
+                                  borderBottom: '1px solid #f1f5f9',
+                                  cursor: 'pointer',
+                                  wordBreak: 'break-word',
+                                }}
+                              >
+                                {a.id} — {a.date}{timeStr}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="new-rx-visit-grid">
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                      Appointment Date
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <div
+                        onClick={() => {
+                          setIsCalendarOpen((prev) => !prev);
+                          setIsMobileAptDropdownOpen(false);
+                          setIsMobileConsultDropdownOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          height: '42px',
+                          padding: '0 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '13px',
+                          color: '#1e293b',
+                          backgroundColor: '#ffffff',
+                          boxSizing: 'border-box',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <span>{formatDateForDisplay(appointmentDate)}</span>
+                        <span style={{ fontSize: '14px' }}>📅</span>
+                      </div>
+                      <AdminCalendarPopover
+                        isOpen={isCalendarOpen}
+                        onClose={() => setIsCalendarOpen(false)}
+                        selectedDate={appointmentDate}
+                        disablePastDates={true}
+                        onSelectDate={(displayStr, isoStr) => {
+                          if (isoStr) setAppointmentDate(isoStr);
+                          setIsCalendarOpen(false);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                      Consultation Type
+                    </label>
+
+                    {/* Desktop Select */}
+                    <div className="new-rx-desktop-select">
+                      <select
+                        value={consultationType}
+                        onChange={(e) => setConsultationType(e.target.value)}
+                        style={{
+                          width: '100%',
+                          height: '42px',
+                          padding: '0 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '13px',
+                          backgroundColor: '#ffffff',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="In-clinic Visit">In-clinic Visit</option>
+                        <option value="Online Video">Online Video</option>
+                        <option value="Follow-up Call">Follow-up Call</option>
+                      </select>
+                    </div>
+
+                    {/* Mobile Custom Dropdown */}
+                    <div className="new-rx-mobile-select" ref={mobileConsultDropdownRef} style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMobileConsultDropdownOpen((prev) => !prev);
+                          setIsMobileAptDropdownOpen(false);
+                          setIsCalendarOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          height: '42px',
+                          padding: '0 12px',
+                          borderRadius: '8px',
+                          border: isMobileConsultDropdownOpen ? '1.5px solid #1e4620' : '1px solid #cbd5e1',
+                          fontSize: '13px',
+                          backgroundColor: '#ffffff',
+                          color: '#0f172a',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          boxSizing: 'border-box',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span>{consultationType}</span>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#64748b"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{
+                            flexShrink: 0,
+                            transform: isMobileConsultDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s ease',
+                          }}
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </button>
+
+                      {isMobileConsultDropdownOpen && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 4px)',
+                            left: 0,
+                            right: 0,
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+                            zIndex: 1050,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {['In-clinic Visit', 'Online Video', 'Follow-up Call'].map((cType) => {
+                            const isSelected = consultationType === cType;
+                            return (
+                              <div
+                                key={cType}
+                                onClick={() => {
+                                  setConsultationType(cType);
+                                  setIsMobileConsultDropdownOpen(false);
+                                }}
+                                style={{
+                                  padding: '10px 12px',
+                                  fontSize: '13px',
+                                  color: isSelected ? '#1e4620' : '#0f172a',
+                                  fontWeight: isSelected ? '600' : '400',
+                                  backgroundColor: isSelected ? '#f0fdf4' : 'transparent',
+                                  borderBottom: '1px solid #f1f5f9',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                {cType}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPatient(null)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#16a34a',
-                    cursor: 'pointer',
-                    padding: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                  title="Remove patient selection"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
 
-          {/* Section 2: Visit Details */}
-          <div style={{ marginBottom: '22px' }}>
-            <h3 style={{ fontSize: '14.5px', fontWeight: '700', color: '#1e293b', margin: '0 0 2px 0' }}>
-              Visit Details
-            </h3>
-            <p style={{ fontSize: '12.5px', color: '#64748b', margin: '0 0 12px 0' }}>
-              Enter the consultation information.
-            </p>
-
-            {patientAppointments && patientAppointments.length > 0 && (
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-                  Select Linked Appointment
-                </label>
-                <select
-                  value={selectedAppointment?.id || ''}
-                  onChange={(e) => {
-                    const aptId = e.target.value;
-                    const apt = patientAppointments.find((a) => a.id === aptId);
-                    if (apt) {
-                      setSelectedAppointment(apt);
-                      const iso = parseDisplayDateToIso(apt.date);
-                      if (iso) setAppointmentDate(iso);
-                      if (apt.consultationType) setConsultationType(apt.consultationType);
-                      if (apt.reason) setMainComplaint(apt.reason);
-                    } else {
-                      setSelectedAppointment(null);
-                    }
-                  }}
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '13px',
-                    backgroundColor: '#ffffff',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="">-- Match appointment automatically by date --</option>
-                  {patientAppointments.map((a) => {
-                    const timeStr = a.time ? ` (${a.time})` : '';
-                    return (
-                      <option key={a.id} value={a.id}>
-                        {a.id} — {a.date}{timeStr}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-                  Appointment Date
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <div
-                    onClick={() => setIsCalendarOpen((prev) => !prev)}
+                {/* Main Complaint / Reason for Visit field auto-populated from Appointment */}
+                <div style={{ marginTop: '14px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                    Main Complaint (Reason for Visit)
+                  </label>
+                  <input
+                    type="text"
+                    value={mainComplaint}
+                    onChange={(e) => setMainComplaint(e.target.value)}
+                    placeholder="Reason for Visit from appointment booking"
                     style={{
                       width: '100%',
                       height: '42px',
@@ -1112,104 +1594,362 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                       fontSize: '13px',
                       color: '#1e293b',
                       backgroundColor: '#ffffff',
+                      outline: 'none',
                       boxSizing: 'border-box',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span>{formatDateForDisplay(appointmentDate)}</span>
-                    <span style={{ fontSize: '14px' }}>📅</span>
-                  </div>
-                  <AdminCalendarPopover
-                    isOpen={isCalendarOpen}
-                    onClose={() => setIsCalendarOpen(false)}
-                    selectedDate={appointmentDate}
-                    disablePastDates={true}
-                    onSelectDate={(displayStr, isoStr) => {
-                      if (isoStr) setAppointmentDate(isoStr);
-                      setIsCalendarOpen(false);
                     }}
                   />
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-                  Consultation Type
-                </label>
-                <select
-                  value={consultationType}
-                  onChange={(e) => setConsultationType(e.target.value)}
+              {/* Section 3: Symptoms & Diagnosis */}
+              <div style={{ marginBottom: '22px' }}>
+                <h3 style={{ fontSize: '14.5px', fontWeight: '700', color: '#1e293b', margin: '0 0 2px 0' }}>
+                  Symptoms & Diagnosis
+                </h3>
+                <p style={{ fontSize: '12.5px', color: '#64748b', margin: '0 0 12px 0' }}>
+                  Record patient's symptoms and your clinical diagnosis.
+                </p>
+
+                <div className="new-rx-symptoms-grid">
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                      Symptoms (Optional)
+                    </label>
+                    <textarea
+                      value={symptoms}
+                      onChange={(e) => {
+                        if (e.target.value.length <= 500) setSymptoms(e.target.value);
+                      }}
+                      rows={3}
+                      placeholder="Enter symptoms observed or shared by the patient..."
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '13px',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        resize: 'vertical',
+                      }}
+                    />
+                    <div style={{ textAlign: 'right', fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
+                      {symptoms.length}/500
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                      Diagnosis / Case Notes (Optional)
+                    </label>
+                    <textarea
+                      value={diagnosis}
+                      onChange={(e) => {
+                        if (e.target.value.length <= 500) setDiagnosis(e.target.value);
+                      }}
+                      rows={3}
+                      placeholder="Enter your diagnosis, observations or case notes..."
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '13px',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        resize: 'vertical',
+                      }}
+                    />
+                    <div style={{ textAlign: 'right', fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
+                      {diagnosis.length}/500
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Prescription Details */}
+              <div style={{ marginBottom: '22px' }}>
+                <h3 style={{ fontSize: '14.5px', fontWeight: '700', color: '#1e293b', margin: '0 0 2px 0' }}>
+                  Prescription Details
+                </h3>
+                <p style={{ fontSize: '12.5px', color: '#64748b', margin: '0 0 12px 0' }}>
+                  Add medicines and dosage instructions.
+                </p>
+
+                {/* Validation Error Message Banner if attempted without valid medicines */}
+                {errorMessage && (
+                  <div
+                    id="rx-medicines-error-banner"
+                    style={{
+                      marginBottom: '12px',
+                      padding: '10px 14px',
+                      backgroundColor: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '8px',
+                      color: '#b91c1c',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                {/* Medicines Table */}
+                <div className="new-rx-medicines-table-wrapper" style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden', marginBottom: '12px' }}>
+                  <table id="rx-medicines-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '10px 12px', color: '#64748b', width: '36px' }}>No.</th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px' }}>Medicine Name <span style={{ color: '#ef4444' }}>*</span></th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', width: '110px' }}>Potency <span style={{ color: '#ef4444' }}>*</span></th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', width: '125px' }}>Dosage <span style={{ color: '#ef4444' }}>*</span></th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', width: '105px' }}>Duration <span style={{ color: '#ef4444' }}>*</span></th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px' }}>Instructions (Optional)</th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', width: '45px', textAlign: 'center' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {medicines.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={7}
+                            style={{
+                              padding: '24px 16px',
+                              textAlign: 'center',
+                              color: '#64748b',
+                              fontSize: '13px',
+                              backgroundColor: '#f8fafc',
+                            }}
+                          >
+                            No medicines added. Click{' '}
+                            <button
+                              type="button"
+                              id="rx-empty-add-medicine-btn"
+                              onClick={handleAddMedicine}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#166534',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                padding: 0,
+                              }}
+                            >
+                              + Add Medicine
+                            </button>{' '}
+                            to add medicines and dosage instructions.
+                          </td>
+                        </tr>
+                      ) : (
+                        medicines.map((med, idx) => {
+                          const isInvalidName = attemptedSubmit && !med.name?.trim();
+                          const isInvalidPotency = attemptedSubmit && !med.potency?.trim();
+                          const isInvalidDosage = attemptedSubmit && !med.dosage?.trim();
+                          const isInvalidDuration = attemptedSubmit && !med.duration?.trim();
+
+                          return (
+                            <tr key={med.id || idx} style={{ borderBottom: idx < medicines.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                              <td style={{ padding: '10px 12px', color: '#64748b', fontWeight: '600' }}>
+                                {idx + 1}
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input
+                                  type="text"
+                                  value={med.name}
+                                  onChange={(e) => handleMedicineChange(med.id, 'name', e.target.value)}
+                                  placeholder="Medicine name"
+                                  style={{
+                                    width: '100%',
+                                    height: '36px',
+                                    padding: '0 10px',
+                                    borderRadius: '6px',
+                                    border: isInvalidName ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                    backgroundColor: isInvalidName ? '#fff5f5' : '#ffffff',
+                                    fontSize: '12.5px',
+                                    color: '#1e293b',
+                                    outline: 'none',
+                                    boxSizing: 'border-box',
+                                  }}
+                                  onFocus={(e) => (e.target.style.borderColor = isInvalidName ? '#ef4444' : '#1e4620')}
+                                  onBlur={(e) => (e.target.style.borderColor = isInvalidName ? '#ef4444' : '#cbd5e1')}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input
+                                  type="text"
+                                  value={med.potency}
+                                  onChange={(e) => handleMedicineChange(med.id, 'potency', e.target.value)}
+                                  placeholder="e.g. 30C, 200C"
+                                  style={{
+                                    width: '100%',
+                                    height: '36px',
+                                    padding: '0 10px',
+                                    borderRadius: '6px',
+                                    border: isInvalidPotency ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                    backgroundColor: isInvalidPotency ? '#fff5f5' : '#ffffff',
+                                    fontSize: '12.5px',
+                                    color: '#1e293b',
+                                    outline: 'none',
+                                    boxSizing: 'border-box',
+                                  }}
+                                  onFocus={(e) => (e.target.style.borderColor = isInvalidPotency ? '#ef4444' : '#1e4620')}
+                                  onBlur={(e) => (e.target.style.borderColor = isInvalidPotency ? '#ef4444' : '#cbd5e1')}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input
+                                  type="text"
+                                  value={med.dosage}
+                                  onChange={(e) => handleMedicineChange(med.id, 'dosage', e.target.value)}
+                                  placeholder="e.g. 4 pills, 2 drops"
+                                  style={{
+                                    width: '100%',
+                                    height: '36px',
+                                    padding: '0 10px',
+                                    borderRadius: '6px',
+                                    border: isInvalidDosage ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                    backgroundColor: isInvalidDosage ? '#fff5f5' : '#ffffff',
+                                    fontSize: '12.5px',
+                                    color: '#1e293b',
+                                    outline: 'none',
+                                    boxSizing: 'border-box',
+                                  }}
+                                  onFocus={(e) => (e.target.style.borderColor = isInvalidDosage ? '#ef4444' : '#1e4620')}
+                                  onBlur={(e) => (e.target.style.borderColor = isInvalidDosage ? '#ef4444' : '#cbd5e1')}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input
+                                  type="text"
+                                  value={med.duration}
+                                  onChange={(e) => handleMedicineChange(med.id, 'duration', e.target.value)}
+                                  placeholder="e.g. 15 Days"
+                                  style={{
+                                    width: '100%',
+                                    height: '36px',
+                                    padding: '0 10px',
+                                    borderRadius: '6px',
+                                    border: isInvalidDuration ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                    backgroundColor: isInvalidDuration ? '#fff5f5' : '#ffffff',
+                                    fontSize: '12.5px',
+                                    color: '#1e293b',
+                                    outline: 'none',
+                                    boxSizing: 'border-box',
+                                  }}
+                                  onFocus={(e) => (e.target.style.borderColor = isInvalidDuration ? '#ef4444' : '#1e4620')}
+                                  onBlur={(e) => (e.target.style.borderColor = isInvalidDuration ? '#ef4444' : '#cbd5e1')}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input
+                                  type="text"
+                                  value={med.instructions}
+                                  onChange={(e) => handleMedicineChange(med.id, 'instructions', e.target.value)}
+                                  placeholder="e.g. Twice daily"
+                                  style={{
+                                    width: '100%',
+                                    height: '36px',
+                                    padding: '0 10px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #cbd5e1',
+                                    fontSize: '12.5px',
+                                    color: '#1e293b',
+                                    backgroundColor: '#ffffff',
+                                    outline: 'none',
+                                    boxSizing: 'border-box',
+                                  }}
+                                  onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
+                                  onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="rx-delete-row-btn"
+                                  onClick={() => handleRemoveMedicine(med.id)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#94a3b8',
+                                    cursor: 'pointer',
+                                    padding: '6px',
+                                    borderRadius: '6px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.color = '#ef4444';
+                                    e.currentTarget.style.backgroundColor = '#fee2e2';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = '#94a3b8';
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                  }}
+                                  title="Delete row"
+                                  aria-label={`Delete medicine ${idx + 1}`}
+                                >
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  </svg>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* + Add Medicine Button */}
+                <button
+                  type="button"
+                  id="rx-add-medicine-btn"
+                  onClick={handleAddMedicine}
                   style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 12px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
                     borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
+                    border: '1px solid #bbf7d0',
+                    backgroundColor: '#f0fdf4',
+                    color: '#166534',
                     fontSize: '13px',
-                    backgroundColor: '#ffffff',
-                    outline: 'none',
-                    boxSizing: 'border-box',
+                    fontWeight: '600',
                     cursor: 'pointer',
                   }}
                 >
-                  <option value="In-clinic Visit">In-clinic Visit</option>
-                  <option value="Online Video">Online Video</option>
-                  <option value="Follow-up Call">Follow-up Call</option>
-                </select>
+                  <span>+</span>
+                  <span>Add Medicine</span>
+                </button>
               </div>
 
-            </div>
-
-            {/* Main Complaint / Reason for Visit field auto-populated from Appointment */}
-            <div style={{ marginTop: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-                Main Complaint (Reason for Visit)
-              </label>
-              <input
-                type="text"
-                value={mainComplaint}
-                onChange={(e) => setMainComplaint(e.target.value)}
-                placeholder="Reason for Visit from appointment booking"
-                style={{
-                  width: '100%',
-                  height: '42px',
-                  padding: '0 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  color: '#1e293b',
-                  backgroundColor: '#ffffff',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Section 3: Symptoms & Diagnosis */}
-          <div style={{ marginBottom: '22px' }}>
-            <h3 style={{ fontSize: '14.5px', fontWeight: '700', color: '#1e293b', margin: '0 0 2px 0' }}>
-              Symptoms & Diagnosis
-            </h3>
-            <p style={{ fontSize: '12.5px', color: '#64748b', margin: '0 0 12px 0' }}>
-              Record patient's symptoms and your clinical diagnosis.
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-                  Symptoms (Optional)
+              {/* Section 5: Additional Instructions (Optional) */}
+              <div style={{ marginBottom: '26px' }}>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                  Additional Instructions (Optional)
                 </label>
                 <textarea
-                  value={symptoms}
+                  value={additionalInstructions}
                   onChange={(e) => {
-                    if (e.target.value.length <= 500) setSymptoms(e.target.value);
+                    if (e.target.value.length <= 500) setAdditionalInstructions(e.target.value);
                   }}
                   rows={3}
-                  placeholder="Enter symptoms observed or shared by the patient..."
+                  placeholder="Diet suggestions, precautions, follow-up notes, or any additional instructions..."
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -1222,394 +1962,179 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                   }}
                 />
                 <div style={{ textAlign: 'right', fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
-                  {symptoms.length}/500
+                  {additionalInstructions.length}/500
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-                  Diagnosis / Case Notes (Optional)
-                </label>
-                <textarea
-                  value={diagnosis}
-                  onChange={(e) => {
-                    if (e.target.value.length <= 500) setDiagnosis(e.target.value);
-                  }}
-                  rows={3}
-                  placeholder="Enter your diagnosis, observations or case notes..."
+              {/* Success Message Banner */}
+              {successMessage && (
+                <div
                   style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '13px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    resize: 'vertical',
+                    marginBottom: '16px',
+                    padding: '12px 16px',
+                    backgroundColor: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '10px',
+                    color: '#065f46',
+                    fontSize: '13.5px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
                   }}
-                />
-                <div style={{ textAlign: 'right', fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
-                  {diagnosis.length}/500
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 4: Prescription Details */}
-          <div style={{ marginBottom: '22px' }}>
-            <h3 style={{ fontSize: '14.5px', fontWeight: '700', color: '#1e293b', margin: '0 0 2px 0' }}>
-              Prescription Details
-            </h3>
-            <p style={{ fontSize: '12.5px', color: '#64748b', margin: '0 0 12px 0' }}>
-              Add medicines and dosage instructions.
-            </p>
-
-            {/* Medicines Table */}
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden', marginBottom: '12px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={{ padding: '10px 12px', color: '#64748b', width: '36px' }}>No.</th>
-                    <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px' }}>Medicine Name <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ padding: '10px 12px', color: '#64748b', width: '110px' }}>Potency <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ padding: '10px 12px', color: '#64748b', width: '125px' }}>Dosage <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ padding: '10px 12px', color: '#64748b', width: '105px' }}>Duration <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px' }}>Instructions (Optional)</th>
-                    <th style={{ padding: '10px 12px', color: '#64748b', width: '45px', textAlign: 'center' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {medicines.map((med, idx) => (
-                    <tr key={med.id} style={{ borderBottom: idx < medicines.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                      <td style={{ padding: '10px 12px', color: '#64748b', fontWeight: '600' }}>
-                        {idx + 1}
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <input
-                          type="text"
-                          value={med.name}
-                          onChange={(e) => handleMedicineChange(med.id, 'name', e.target.value)}
-                          placeholder="Medicine name"
-                          style={{
-                            width: '100%',
-                            height: '36px',
-                            padding: '0 10px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '12.5px',
-                            color: '#1e293b',
-                            backgroundColor: '#ffffff',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
-                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
-                        />
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <input
-                          type="text"
-                          value={med.potency}
-                          onChange={(e) => handleMedicineChange(med.id, 'potency', e.target.value)}
-                          placeholder="e.g. 30C, 200C"
-                          style={{
-                            width: '100%',
-                            height: '36px',
-                            padding: '0 10px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '12.5px',
-                            color: '#1e293b',
-                            backgroundColor: '#ffffff',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
-                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
-                        />
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <input
-                          type="text"
-                          value={med.dosage}
-                          onChange={(e) => handleMedicineChange(med.id, 'dosage', e.target.value)}
-                          placeholder="e.g. 4 pills, 2 drops"
-                          style={{
-                            width: '100%',
-                            height: '36px',
-                            padding: '0 10px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '12.5px',
-                            color: '#1e293b',
-                            backgroundColor: '#ffffff',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
-                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
-                        />
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <input
-                          type="text"
-                          value={med.duration}
-                          onChange={(e) => handleMedicineChange(med.id, 'duration', e.target.value)}
-                          placeholder="e.g. 15 Days"
-                          style={{
-                            width: '100%',
-                            height: '36px',
-                            padding: '0 10px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '12.5px',
-                            color: '#1e293b',
-                            backgroundColor: '#ffffff',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
-                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
-                        />
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <input
-                          type="text"
-                          value={med.instructions}
-                          onChange={(e) => handleMedicineChange(med.id, 'instructions', e.target.value)}
-                          placeholder="e.g. Twice daily"
-                          style={{
-                            width: '100%',
-                            height: '36px',
-                            padding: '0 10px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '12.5px',
-                            color: '#1e293b',
-                            backgroundColor: '#ffffff',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = '#1e4620')}
-                          onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
-                        />
-                      </td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMedicine(med.id)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: medicines.length > 1 ? '#94a3b8' : '#cbd5e1',
-                            cursor: medicines.length > 1 ? 'pointer' : 'not-allowed',
-                            padding: '4px',
-                          }}
-                          title="Delete row"
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* + Add Medicine Button */}
-            <button
-              type="button"
-              onClick={handleAddMedicine}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                border: '1px solid #bbf7d0',
-                backgroundColor: '#f0fdf4',
-                color: '#166534',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-              }}
-            >
-              <span>+</span>
-              <span>Add Medicine</span>
-            </button>
-          </div>
-
-          {/* Section 5: Additional Instructions (Optional) */}
-          <div style={{ marginBottom: '26px' }}>
-            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-              Additional Instructions (Optional)
-            </label>
-            <textarea
-              value={additionalInstructions}
-              onChange={(e) => {
-                if (e.target.value.length <= 500) setAdditionalInstructions(e.target.value);
-              }}
-              rows={3}
-              placeholder="Diet suggestions, precautions, follow-up notes, or any additional instructions..."
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                outline: 'none',
-                boxSizing: 'border-box',
-                resize: 'vertical',
-              }}
-            />
-            <div style={{ textAlign: 'right', fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
-              {additionalInstructions.length}/500
-            </div>
-          </div>
-
-          {/* Success Message Banner */}
-          {successMessage && (
-            <div
-              style={{
-                marginBottom: '16px',
-                padding: '12px 16px',
-                backgroundColor: '#ecfdf5',
-                border: '1px solid #a7f3d0',
-                borderRadius: '10px',
-                color: '#065f46',
-                fontSize: '13.5px',
-                fontWeight: '600',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          {/* Modal Footer Buttons */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: '12px',
-              paddingTop: '16px',
-              borderTop: '1px solid #f1f5f9',
-            }}
-          >
-            {/* 1. Close Button */}
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSaving}
-              style={{
-                padding: '10px 22px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                color: '#475569',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: isSaving ? 'not-allowed' : 'pointer',
-                opacity: isSaving ? 0.7 : 1,
-              }}
-            >
-              Close
-            </button>
-
-            {/* 2. Save Button (Saves to Neon Database and links to Patient) */}
-            <button
-              type="button"
-              onClick={handleSavePrescription}
-              disabled={isSaving}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 24px',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: isSaving ? '#94a3b8' : '#0f766e',
-                color: '#ffffff',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: isSaving ? 'not-allowed' : 'pointer',
-                transition: 'all 0.15s ease',
-                boxShadow: '0 2px 6px rgba(15, 118, 110, 0.25)',
-              }}
-              onMouseEnter={(e) => {
-                if (!isSaving) e.currentTarget.style.backgroundColor = '#0d655e';
-              }}
-              onMouseLeave={(e) => {
-                if (!isSaving) e.currentTarget.style.backgroundColor = '#0f766e';
-              }}
-            >
-              {isSaving ? (
-                <>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: '14px',
-                      height: '14px',
-                      border: '2px solid #ffffff',
-                      borderTopColor: 'transparent',
-                      borderRadius: '50%',
-                    }}
-                  />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                    <polyline points="17 21 17 13 7 13 7 21" />
-                    <polyline points="7 3 7 8 15 8" />
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
                   </svg>
-                  <span>Save</span>
-                </>
+                  <span>{successMessage}</span>
+                </div>
               )}
-            </button>
 
-            {/* 3. Next Button (Advances to Prescription Preview) */}
-            <button
-              type="submit"
-              disabled={isSaving}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 26px',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: '#1e4620',
-                color: '#ffffff',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: isSaving ? 'not-allowed' : 'pointer',
-                opacity: isSaving ? 0.7 : 1,
-              }}
-            >
-              <span>Next</span>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
-            </button>
-          </div>
-        </form>
-        )}
+              {/* Validation Error Message Banner */}
+              {errorMessage && (
+                <div
+                  id="rx-validation-error-message"
+                  style={{
+                    marginBottom: '16px',
+                    padding: '12px 16px',
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderRadius: '10px',
+                    color: '#b91c1c',
+                    fontSize: '13.5px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {/* Modal Footer Buttons */}
+              <div
+                className="new-rx-footer-buttons"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  gap: '12px',
+                  paddingTop: '16px',
+                  borderTop: '1px solid #f1f5f9',
+                }}
+              >
+                {/* 1. Close Button */}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isSaving}
+                  style={{
+                    padding: '10px 22px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#475569',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    opacity: isSaving ? 0.7 : 1,
+                  }}
+                >
+                  Close
+                </button>
+
+                {/* 2. Save Button (Saves to Neon Database and links to Patient) */}
+                <button
+                  type="button"
+                  onClick={handleSavePrescription}
+                  disabled={isSaving}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 24px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: isSaving ? '#94a3b8' : '#0f766e',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: '0 2px 6px rgba(15, 118, 110, 0.25)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSaving) e.currentTarget.style.backgroundColor = '#0d655e';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSaving) e.currentTarget.style.backgroundColor = '#0f766e';
+                  }}
+                >
+                  {isSaving ? (
+                    <>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: '14px',
+                          height: '14px',
+                          border: '2px solid #ffffff',
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                        }}
+                      />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                        <polyline points="17 21 17 13 7 13 7 21" />
+                        <polyline points="7 3 7 8 15 8" />
+                      </svg>
+                      <span>Save</span>
+                    </>
+                  )}
+                </button>
+
+                {/* 3. Next Button (Advances to Prescription Preview) */}
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 26px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: '#1e4620',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    opacity: isSaving ? 0.7 : 1,
+                  }}
+                >
+                  <span>Next</span>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>
+    </>
   );
 };
 

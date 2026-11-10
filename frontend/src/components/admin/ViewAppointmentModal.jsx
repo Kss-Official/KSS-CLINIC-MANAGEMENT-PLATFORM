@@ -87,6 +87,9 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
           },
         })
       );
+      if (typeof onClose === 'function') {
+        onClose();
+      }
     } catch (err) {
       console.error('Failed to complete appointment:', err);
     }
@@ -655,7 +658,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                   padding: '9px 18px',
                   borderRadius: '8px',
                   border: 'none',
-                  backgroundColor: '#2563eb',
+                  backgroundColor: '#7c3aed',
                   color: '#ffffff',
                   fontSize: '13.5px',
                   fontWeight: '600',
@@ -665,8 +668,8 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                   gap: '6px',
                   transition: 'background-color 0.15s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6d28d9')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#7c3aed')}
               >
                 <span>✓</span>
                 <span>Mark as Complete</span>
