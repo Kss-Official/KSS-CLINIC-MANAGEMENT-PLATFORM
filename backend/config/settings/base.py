@@ -12,7 +12,18 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'default-insecure-key-kss-clinic')
 
 DEBUG = False
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+raw_allowed_hosts = os.getenv('ALLOWED_HOSTS', '*')
+if raw_allowed_hosts.strip() == '*':
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = [h.strip() for h in raw_allowed_hosts.split(',') if h.strip()]
+    if '.vercel.app' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('.vercel.app')
+    if 'localhost' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('localhost')
+    if '127.0.0.1' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('127.0.0.1')
+
 
 # Application definition
 DJANGO_APPS = [
