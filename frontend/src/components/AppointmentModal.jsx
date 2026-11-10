@@ -35,11 +35,50 @@ const AppointmentModal = ({ isOpen, onClose }) => {
   const [customWorkingHours, setCustomWorkingHours] = useState([]);
   const [slotDuration, setSlotDuration] = useState('30 Minutes');
   const [consultationHours, setConsultationHours] = useState('09:00 AM - 06:00 PM');
+  const [bookedSlots, setBookedSlots] = useState([]);
   const [closedDatePopup, setClosedDatePopup] = useState({
     isOpen: false,
     dateFormatted: '',
     reason: '',
   });
+
+  const fetchModalBookedSlots = async (dateStr) => {
+    if (!dateStr) return;
+    try {
+      const data = await appointmentApi.getBookedSlots(dateStr);
+      if (data?.booked_slots && Array.isArray(data.booked_slots)) {
+        setBookedSlots(data.booked_slots);
+      } else {
+        setBookedSlots([]);
+      }
+    } catch {
+      setBookedSlots([]);
+    }
+  };
+
+  useEffect(() => {
+    if (formData.date) {
+      fetchModalBookedSlots(formData.date);
+    }
+    const handleSync = () => {
+      if (formData.date) fetchModalBookedSlots(formData.date);
+    };
+    const handleStorage = (e) => {
+      if (e.key === 'kss_appointment_sync' && formData.date) {
+        fetchModalBookedSlots(formData.date);
+      }
+    };
+    window.addEventListener('appointment-booked', handleSync);
+    window.addEventListener('appointment-updated', handleSync);
+    window.addEventListener('appointment-deleted', handleSync);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('appointment-booked', handleSync);
+      window.removeEventListener('appointment-updated', handleSync);
+      window.removeEventListener('appointment-deleted', handleSync);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [formData.date]);
 
   useEffect(() => {
     appointmentApi.getAppointmentSettings().then((data) => {
@@ -340,9 +379,6 @@ const AppointmentModal = ({ isOpen, onClose }) => {
       .then((res) => {
         setIsSubmitted(true);
         if (typeof window !== 'undefined') {
-          if (formData.phone) sessionStorage.setItem('kss_patient_phone', formData.phone);
-          if (formData.email) sessionStorage.setItem('kss_patient_email', formData.email);
-          if (formData.name) sessionStorage.setItem('kss_patient_name', formData.name);
           const newAptId = res?.appointment?.appointment_id || res?.appointment_id;
           if (newAptId) sessionStorage.setItem('kss_last_appointment_id', newAptId);
           window.dispatchEvent(new CustomEvent('appointment-booked', { detail: res }));
@@ -671,9 +707,18 @@ const AppointmentModal = ({ isOpen, onClose }) => {
                               backgroundColor: '#ffffff',
                             }}
                           >
-                            {slotsToRender.map((s) => (
-                              <option key={s.value} value={s.value}>{s.label}</option>
-                            ))}
+                            {slotsToRender.map((s) => {
+                              const sClean = s.value.split(/[-–—]|to/i)[0].trim().toUpperCase().replace(/^0/, '');
+                              const isBooked = bookedSlots.some((bs) => {
+                                const bsClean = String(bs).split(/[-–—]|to/i)[0].trim().toUpperCase().replace(/^0/, '');
+                                return bsClean === sClean;
+                              });
+                              return (
+                                <option key={s.value} value={s.value} disabled={isBooked} style={{ color: isBooked ? '#94a3b8' : '#111827' }}>
+                                  {s.label}{isBooked ? ' (Booked)' : ''}
+                                </option>
+                              );
+                            })}
                           </select>
                           {eff.isCustom && (
                             <span style={{ fontSize: '11px', color: '#0369a1', display: 'block', marginTop: '3px' }}>

@@ -103,7 +103,7 @@ const ProfilePage = () => {
 
     gender: '',
 
-    city: '',
+    city: user?.address || '',
 
     initials: initialInitials,
 
@@ -114,6 +114,26 @@ const ProfilePage = () => {
     profileImageUrl: user?.profile_image_url || null,
 
   });
+
+  // Synchronize profile state when logged-in user changes
+  useEffect(() => {
+    if (user) {
+      const uName = (user.full_name || user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || '');
+      setProfile((prev) => ({
+        ...prev,
+        fullName: uName,
+        mobileNumber: user.phone_number || prev.mobileNumber || '',
+        email: user.email || prev.email || '',
+        initials: user.initials || getInitials(uName, user),
+        patientId: user.patient_id || prev.patientId || '',
+        address: user.address || prev.address || '',
+        city: user.address || prev.city || '',
+        gender: user.gender || prev.gender || '',
+        dateOfBirth: user.date_of_birth ? String(user.date_of_birth) : prev.dateOfBirth,
+        profileImageUrl: user.profile_image_url || null,
+      }));
+    }
+  }, [user?.id, user?.email]);
 
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
@@ -284,63 +304,50 @@ const ProfilePage = () => {
 
 
   // Fetch real patient profile, appointments, and prescriptions from Neon PostgreSQL
-
   const fetchPatientData = useCallback(async (silent = false) => {
-
     try {
-
       if (!silent) {
-
         setIsLoading(true);
-
       }
 
       const currentUser = userRef.current;
-      const queryParams = {};
-
-      if (currentUser?.patient_id) queryParams.patient_id = currentUser.patient_id;
-      if (currentUser?.email) queryParams.email = currentUser.email;
-      if (currentUser?.phone_number) queryParams.phone = currentUser.phone_number;
-
-      const res = await appointmentApi.getMyProfile(queryParams);
+      // Strictly call /patients/me/ using auth token with no ambiguous query params
+      const res = await appointmentApi.getMyProfile();
 
       if (res) {
-        const loadedName = res.name || currentUser?.full_name || currentUser?.name || '';
+        // Prevent profile mismatch: if res has an email, it must match current logged in user
+        if (currentUser?.email && res.email && res.email.toLowerCase() !== currentUser.email.toLowerCase()) {
+          console.warn('Profile mismatch ignored: data belongs to another user', res.email, currentUser.email);
+          return;
+        }
+
+        const userAuthName = currentUser?.full_name || currentUser?.name || `${currentUser?.first_name || ''} ${currentUser?.last_name || ''}`.trim() || '';
+        const loadedName = userAuthName || res.name || currentUser?.username || 'Patient';
         const loadedInitials = res.initials || getInitials(loadedName, currentUser);
         const loadedImage = res.profile_image_url || null;
 
         setProfile((prev) => ({
-
           ...prev,
-
           fullName: loadedName,
-
-          email: res.email || prev.email || '',
-
-          mobileNumber: res.mobile || prev.mobileNumber || '',
-
+          email: res.email || currentUser?.email || prev.email || '',
+          mobileNumber: res.mobile || currentUser?.phone_number || prev.mobileNumber || '',
           initials: loadedInitials,
-
           patientId: res.id || prev.patientId || '',
-
-          address: res.address || prev.address || '',
-
+          address: res.address || res.city || prev.address || '',
           gender: res.gender || '',
-
           dateOfBirth: res.dateOfBirth || res.date_of_birth || res.dob || '',
-
-          city: res.city || prev.city || '',
-
+          city: res.city || res.address || prev.city || '',
           profileImageUrl: loadedImage,
-
         }));
 
         if (updateUser && currentUser) {
+          const loadedCity = res.city || res.address || '';
           const isNameDiff = (currentUser.name || currentUser.full_name || '') !== loadedName;
           const isInitialsDiff = (currentUser.initials || '') !== loadedInitials;
           const isImgDiff = (currentUser.profile_image_url || null) !== (loadedImage || null);
           const isPatientIdDiff = Boolean(res.id && currentUser.patient_id !== res.id);
-          if (isNameDiff || isInitialsDiff || isImgDiff || isPatientIdDiff) {
+          const isCityDiff = Boolean(loadedCity && currentUser.address !== loadedCity);
+          if (isNameDiff || isInitialsDiff || isImgDiff || isPatientIdDiff || isCityDiff) {
             updateUser({
               ...currentUser,
               name: loadedName,
@@ -350,6 +357,7 @@ const ProfilePage = () => {
               initials: loadedInitials,
               profile_image_url: loadedImage,
               patient_id: res.id || currentUser.patient_id,
+              address: loadedCity || currentUser.address || '',
             });
           }
         }
@@ -1004,6 +1012,7 @@ const ProfilePage = () => {
         first_name: nameTrimmed ? nameTrimmed.split(' ')[0] : user.first_name,
         last_name: nameTrimmed && nameTrimmed.includes(' ') ? nameTrimmed.split(' ').slice(1).join(' ') : '',
         initials: computedInitials,
+        address: editFormData.city || user.address || '',
       });
     }
 

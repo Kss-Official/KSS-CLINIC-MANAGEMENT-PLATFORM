@@ -164,7 +164,7 @@ class Prescription(TimeStampedModel):
     diagnosis = models.TextField(blank=True, default='')
     medicines = models.JSONField(default=list, blank=True)
     additional_instructions = models.TextField(blank=True, default='')
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Confirmed')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending')
 
     class Meta:
         ordering = ['-created_at']

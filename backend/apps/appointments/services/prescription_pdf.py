@@ -263,11 +263,8 @@ def generate_prescription_pdf_bytes(prescription_data):
     ]
 
     raw_medicines = prescription_data.get('medicines') or []
-    if not raw_medicines or not isinstance(raw_medicines, list) or len(raw_medicines) == 0:
-        raw_medicines = [
-            {'name': 'Rhus Tox', 'potency': '30C', 'dosage': '5 drops', 'duration': '15 Days', 'instructions': 'Twice daily'},
-            {'name': 'Apis Mellifica', 'potency': '200C', 'dosage': '5 drops', 'duration': '10 Days', 'instructions': 'Once daily'},
-        ]
+    if not isinstance(raw_medicines, list):
+        raw_medicines = []
 
     for idx, med in enumerate(raw_medicines, 1):
         if not isinstance(med, dict):

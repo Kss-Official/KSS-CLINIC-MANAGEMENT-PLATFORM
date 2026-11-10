@@ -239,11 +239,13 @@ const DashboardPage = () => {
         return {
           bg: '#e8f7ee',
           color: '#1e7e34',
+          border: '#c7e6c9',
         };
       case 'Pending':
         return {
           bg: '#fef7e6',
           color: '#b45309',
+          border: '#fde68a',
         };
       case 'Complete':
       case 'Completed':
@@ -251,16 +253,19 @@ const DashboardPage = () => {
         return {
           bg: '#eaf2ff',
           color: '#2563eb',
+          border: '#bfdbfe',
         };
       case 'Failed':
         return {
           bg: '#fee2e2',
           color: '#dc2626',
+          border: '#fca5a5',
         };
       default:
         return {
-          bg: '#f1f5f9',
-          color: '#475569',
+          bg: '#fef7e6',
+          color: '#b45309',
+          border: '#fde68a',
         };
     }
   };
@@ -1110,14 +1115,14 @@ const DashboardPage = () => {
         </div>
 
         <div className="admin-table-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Patient Name</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Prescription ID</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>Date</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b' }}>WhatsApp Status</th>
-                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b', textAlign: 'center' }}>Action</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b', whiteSpace: 'nowrap' }}>Patient Name</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b', whiteSpace: 'nowrap' }}>Prescription ID</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b', whiteSpace: 'nowrap' }}>Date</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b', textAlign: 'center', whiteSpace: 'nowrap' }}>WhatsApp Status</th>
+                <th style={{ padding: '12px 16px', fontSize: '12.5px', fontWeight: '600', color: '#64748b', textAlign: 'center', whiteSpace: 'nowrap' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1162,31 +1167,35 @@ const DashboardPage = () => {
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fafafa')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
-                    <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                    <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>
                       {row.name}
                     </td>
-                    <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#64748b' }}>
+                    <td style={{ padding: '14px 16px', fontSize: '13.5px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>
                       {row.rxId}
                     </td>
-                    <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#64748b' }}>
+                    <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#64748b', whiteSpace: 'nowrap' }}>
                       {row.date}
                     </td>
-                    <td style={{ padding: '14px 16px' }}>
+                    <td style={{ padding: '14px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <span
                         style={{
-                          display: 'inline-block',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           padding: '4px 12px',
                           borderRadius: '9999px',
                           fontSize: '12px',
                           fontWeight: '600',
                           backgroundColor: badge.bg,
                           color: badge.color,
+                          border: `1px solid ${badge.border || 'transparent'}`,
+                          letterSpacing: '0.2px',
                         }}
                       >
-                        {row.status}
+                        {row.status || 'Pending'}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <td style={{ padding: '14px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                         <button
                           type="button"

@@ -133,15 +133,21 @@ const BookAppointmentPage = () => {
 
         dateOfBirth: prev.dateOfBirth || (user.date_of_birth ? (typeof user.date_of_birth === 'string' ? user.date_of_birth : user.date_of_birth.toISOString().split('T')[0]) : '') || '',
 
+        city: prev.city || user.address || '',
+
       }));
 
       // Prefill from patient profile if available
       appointmentApi.getMyProfile().then((res) => {
         if (res) {
+          if (user?.email && res.email && res.email.toLowerCase() !== user.email.toLowerCase()) {
+            return;
+          }
           setFormData((prev) => ({
             ...prev,
             gender: prev.gender || res.gender || '',
             dateOfBirth: prev.dateOfBirth || res.dateOfBirth || res.date_of_birth || res.dob || '',
+            city: prev.city || res.city || res.address || '',
           }));
         }
       }).catch(() => {});
@@ -616,15 +622,23 @@ const BookAppointmentPage = () => {
 
   const normalizeSlotTime = (t) => {
     if (!t) return '';
-    return t.trim().toUpperCase().replace(/^0/, '');
+    const start = t.split('-')[0].trim();
+    return start.toUpperCase().replace(/^0/, '');
   };
 
-  const fetchBookedSlots = async () => {
+  const fetchBookedSlots = async (targetDateStr) => {
     try {
-      const formattedDate = `${formData.selectedYear}-${String(formData.selectedMonth + 1).padStart(2, '0')}-${String(formData.selectedDay).padStart(2, '0')}`;
+      const formattedDate = targetDateStr || `${formData.selectedYear}-${String(formData.selectedMonth + 1).padStart(2, '0')}-${String(formData.selectedDay).padStart(2, '0')}`;
       const data = await appointmentApi.getBookedSlots(formattedDate);
       if (data?.all_booked_slots) {
         setBookedSlotsMap(data.all_booked_slots);
+      }
+      if (data?.booked_slots && Array.isArray(data.booked_slots)) {
+        setBookedSlotsMap((prev) => ({
+          ...prev,
+          [formattedDate]: data.booked_slots,
+          ...(data.normalized_date ? { [data.normalized_date]: data.booked_slots } : {}),
+        }));
       }
       if (data?.slotDuration || data?.slot_duration) {
         setSlotDuration(data.slotDuration || data.slot_duration);
@@ -640,75 +654,62 @@ const BookAppointmentPage = () => {
     }
   };
 
-
-
   useEffect(() => {
+    const formattedDate = `${formData.selectedYear}-${String(formData.selectedMonth + 1).padStart(2, '0')}-${String(formData.selectedDay).padStart(2, '0')}`;
+    fetchBookedSlots(formattedDate);
 
-    fetchBookedSlots();
-
-    const handleBookedEvent = () => {
-
-      fetchBookedSlots();
-
+    const handleRefreshSlots = () => {
+      fetchBookedSlots(formattedDate);
     };
 
-    window.addEventListener('appointment-booked', handleBookedEvent);
+    const handleStorageSync = (e) => {
+      if (e.key === 'kss_appointment_sync') {
+        fetchBookedSlots(formattedDate);
+      }
+    };
 
-    return () => window.removeEventListener('appointment-booked', handleBookedEvent);
+    window.addEventListener('appointment-booked', handleRefreshSlots);
+    window.addEventListener('appointment-updated', handleRefreshSlots);
+    window.addEventListener('appointment-deleted', handleRefreshSlots);
+    window.addEventListener('storage', handleStorageSync);
 
-  }, []);
-
-
+    return () => {
+      window.removeEventListener('appointment-booked', handleRefreshSlots);
+      window.removeEventListener('appointment-updated', handleRefreshSlots);
+      window.removeEventListener('appointment-deleted', handleRefreshSlots);
+      window.removeEventListener('storage', handleStorageSync);
+    };
+  }, [formData.selectedYear, formData.selectedMonth, formData.selectedDay]);
 
   const getSelectedDateKeys = () => {
-
     const day = formData.selectedDay;
-
     const month = formData.selectedMonth;
-
     const year = formData.selectedYear;
-
     const mStr = String(month + 1).padStart(2, '0');
-
     const dStr = String(day).padStart(2, '0');
-
     const normKey = `${year}-${mStr}-${dStr}`;
-
     const rawKey = `${day} ${months[month]} ${year}`;
-
     const shortRawKey = `${day} ${months[month]?.slice(0, 3)} ${year}`;
-
-    return [normKey, rawKey, shortRawKey];
-
+    const slashKey = `${dStr}/${mStr}/${year}`;
+    const slashKeyAlt = `${day}/${month + 1}/${year}`;
+    return [normKey, rawKey, shortRawKey, slashKey, slashKeyAlt];
   };
-
-
 
   const getBookedSlotsForSelectedDate = () => {
-
     const keys = getSelectedDateKeys();
-
     const set = new Set();
-
     keys.forEach((k) => {
-
       if (bookedSlotsMap[k]) {
-
-        bookedSlotsMap[k].forEach((slot) => set.add(normalizeSlotTime(slot)));
-
+        bookedSlotsMap[k].forEach((slot) => {
+          const norm = normalizeSlotTime(slot);
+          if (norm) set.add(norm);
+        });
       }
-
     });
-
     return set;
-
   };
 
-
-
   const bookedSet = getBookedSlotsForSelectedDate();
-
-
 
   const effectiveHours = getEffectiveWorkingHours(
     formData.selectedYear,
@@ -723,13 +724,6 @@ const BookAppointmentPage = () => {
   }, [generateDynamicSlots, effectiveHours.startTime, effectiveHours.endTime, slotDuration]);
 
   const timeSlots = useMemo(() => {
-    const today = new Date();
-    const isSelectedToday =
-      formData.selectedYear === today.getFullYear() &&
-      formData.selectedMonth === today.getMonth() &&
-      formData.selectedDay === today.getDate();
-    const nowMinutes = today.getHours() * 60 + today.getMinutes();
-
     return baseTimeSlots.map((slot) => {
       const norm = normalizeSlotTime(slot.time);
       const isBooked = bookedSet.has(norm);
@@ -739,18 +733,17 @@ const BookAppointmentPage = () => {
         startMins !== null &&
         endMins !== null &&
         (slotMins < startMins || slotMins >= endMins);
-      const isPast = isSelectedToday && slotMins !== null && slotMins <= nowMinutes;
-      const isAvailable = slot.defaultAvailable && !isBooked && !isOutsideHours && !isPast;
+      // Display only genuinely booked slots as unavailable
+      const isAvailable = slot.defaultAvailable && !isBooked && !isOutsideHours;
 
       return {
         ...slot,
         available: isAvailable,
         isBooked,
         isOutsideHours,
-        isPast,
       };
     });
-  }, [baseTimeSlots, bookedSet, startMins, endMins, formData.selectedYear, formData.selectedMonth, formData.selectedDay]);
+  }, [baseTimeSlots, bookedSet, startMins, endMins]);
 
 
 
@@ -1143,21 +1136,28 @@ const BookAppointmentPage = () => {
           });
           setIsRescheduledSuccess(true);
 
-          // Immediately update bookedSlotsMap so slot is disabled
+          // Immediately update bookedSlotsMap: release original slot and reserve newly selected slot
           const [normK, rawK] = getSelectedDateKeys();
-          setBookedSlotsMap((prev) => ({
-            ...prev,
-            [normK]: [...(prev[normK] || []), formData.selectedTimeSlot],
-            [rawK]: [...(prev[rawK] || []), formData.selectedTimeSlot],
-          }));
+          const oldTimeNorm = normalizeSlotTime(rescheduleData?.time);
+          const newTimeNorm = normalizeSlotTime(formData.selectedTimeSlot);
+
+          setBookedSlotsMap((prev) => {
+            const next = { ...prev };
+            [normK, rawK].forEach((k) => {
+              const currentList = Array.isArray(next[k]) ? next[k] : [];
+              const filtered = currentList.filter((s) => normalizeSlotTime(s) !== oldTimeNorm);
+              next[k] = [...filtered, formData.selectedTimeSlot];
+            });
+            return next;
+          });
+
+          // Also re-fetch booked slots to sync directly with backend truth
+          fetchBookedSlots();
 
           if (typeof window !== 'undefined') {
             try {
               localStorage.removeItem('kss_reschedule_appointment');
             } catch {}
-            if (formData.mobileNumber) localStorage.setItem('kss_patient_phone', formData.mobileNumber);
-            if (formData.email) localStorage.setItem('kss_patient_email', formData.email);
-            if (formData.fullName) localStorage.setItem('kss_patient_name', formData.fullName);
             if (realId) localStorage.setItem('kss_last_appointment_id', realId);
             window.dispatchEvent(new CustomEvent('appointment-updated', { detail: res }));
             window.dispatchEvent(new CustomEvent('appointment-booked', { detail: res }));
@@ -1232,17 +1232,8 @@ const BookAppointmentPage = () => {
 
 
         if (typeof window !== 'undefined') {
-
-          if (formData.mobileNumber) localStorage.setItem('kss_patient_phone', formData.mobileNumber);
-
-          if (formData.email) localStorage.setItem('kss_patient_email', formData.email);
-
-          if (formData.fullName) localStorage.setItem('kss_patient_name', formData.fullName);
-
           if (realId) localStorage.setItem('kss_last_appointment_id', realId);
-
           window.dispatchEvent(new CustomEvent('appointment-booked', { detail: res }));
-
         }
 
         setCurrentStep(3);
@@ -3796,7 +3787,7 @@ const BookAppointmentPage = () => {
                                   setFormData((p) => ({ ...p, selectedTimeSlot: slot.time }));
                                 }
                               }}
-                              title={slot.isBooked ? 'Slot already booked' : slot.isPast ? 'Time slot has already passed for today' : slot.isOutsideHours ? `Outside clinic hours (${effectiveHours.startTime} - ${effectiveHours.endTime})` : isUnavailable ? 'Slot unavailable' : 'Click to select slot'}
+                              title={slot.isBooked ? 'Slot already booked' : slot.isOutsideHours ? `Outside clinic hours (${effectiveHours.startTime} - ${effectiveHours.endTime})` : isUnavailable ? 'Slot unavailable' : 'Click to select slot'}
                               style={{
                                 padding: '10px 6px',
                                 borderRadius: '8px',

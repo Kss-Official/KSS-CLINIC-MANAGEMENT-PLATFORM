@@ -281,38 +281,54 @@ body.admin-mode {
   }
 }
 
+.reminder-pill-full-text {
+  display: inline;
+}
+.reminder-pill-short-text {
+  display: none;
+}
+.reminder-pill-mini-text {
+  display: none;
+}
+
 /* Mobile Responsive View for Admin Portal (<= 640px) */
 @media (max-width: 640px) {
   .admin-header {
     height: 62px !important;
     padding: 0 12px !important;
+    overflow: visible !important;
   }
   .admin-header-logo-img {
     height: 28px !important;
-    max-width: 130px !important;
+    max-width: 120px !important;
     width: auto !important;
   }
   .admin-mobile-menu-btn {
     width: 36px !important;
     height: 36px !important;
+    flex-shrink: 0 !important;
   }
   .admin-header-right-group {
-    gap: 8px !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
   }
   .admin-header-notif-btn {
     padding: 6px !important;
     width: 36px !important;
     height: 36px !important;
+    flex-shrink: 0 !important;
   }
   .admin-header-profile-trigger {
     padding: 2px !important;
     gap: 0 !important;
     border-radius: 50% !important;
+    flex-shrink: 0 !important;
   }
   .admin-header-avatar {
     width: 36px !important;
     height: 36px !important;
     font-size: 13px !important;
+    flex-shrink: 0 !important;
   }
   .admin-header-doctor-text {
     display: none !important;
@@ -323,9 +339,30 @@ body.admin-mode {
   .admin-mobile-dropdown-header {
     display: flex !important;
   }
+  .reminder-pill-full-text {
+    display: none !important;
+  }
+  .reminder-pill-short-text {
+    display: inline !important;
+  }
+  .reminder-pill-mini-text {
+    display: none !important;
+  }
+  .admin-header-reminder-pill.pill-visible {
+    padding: 4px 8px !important;
+    font-size: 11.5px !important;
+    max-width: 120px !important;
+    margin-right: 4px !important;
+  }
   .admin-profile-dropdown {
-    min-width: 190px !important;
+    position: fixed !important;
+    top: 66px !important;
+    right: 12px !important;
+    left: auto !important;
+    min-width: 195px !important;
     max-width: calc(100vw - 24px) !important;
+    z-index: 99999 !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16), 0 4px 10px rgba(0, 0, 0, 0.08) !important;
   }
   .admin-notifications-dropdown {
     position: fixed !important;
@@ -346,26 +383,44 @@ body.admin-mode {
     padding: 0 8px !important;
   }
   .admin-header-logo-img {
-    height: 25px !important;
-    max-width: 110px !important;
+    height: 24px !important;
+    max-width: 95px !important;
   }
   .admin-mobile-menu-btn {
-    width: 34px !important;
-    height: 34px !important;
+    width: 32px !important;
+    height: 32px !important;
   }
   .admin-header-right-group {
-    gap: 6px !important;
+    gap: 4px !important;
   }
   .admin-header-notif-btn {
-    width: 34px !important;
-    height: 34px !important;
+    width: 32px !important;
+    height: 32px !important;
   }
   .admin-header-avatar {
-    width: 34px !important;
-    height: 34px !important;
+    width: 32px !important;
+    height: 32px !important;
     font-size: 12px !important;
   }
+  .reminder-pill-short-text {
+    display: none !important;
+  }
+  .reminder-pill-mini-text {
+    display: inline !important;
+  }
+  .admin-header-reminder-pill.pill-visible {
+    padding: 3px 6px !important;
+    font-size: 11px !important;
+    max-width: 52px !important;
+    margin-right: 2px !important;
+  }
+  .admin-profile-dropdown {
+    top: 60px !important;
+    right: 8px !important;
+    max-width: calc(100vw - 16px) !important;
+  }
   .admin-notifications-dropdown {
+    top: 60px !important;
     left: 8px !important;
     right: 8px !important;
     max-width: calc(100vw - 16px) !important;
@@ -525,5 +580,51 @@ dialog::backdrop {
   .admin-table-container {
     border-radius: 12px;
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* Admin New Appointment Modal Mobile Enhancements */
+  .admin-modal-card.new-appointment-modal-card {
+    border-radius: 20px !important;
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: calc(100dvh - 24px) !important;
+    margin: auto !important;
+  }
+
+  .new-appointment-grid-row {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .new-appointment-footer-btns {
+    flex-direction: row !important;
+    gap: 10px !important;
+  }
+
+  .new-appointment-footer-btns button {
+    flex: 1 1 50% !important;
+    justify-content: center !important;
+  }
+
+  .admin-mobile-select-dropdown {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+
+  .admin-mobile-select-dropdown::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .admin-mobile-select-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .admin-mobile-select-dropdown::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+  }
+
+  .admin-mobile-select-dropdown::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
   }
 }

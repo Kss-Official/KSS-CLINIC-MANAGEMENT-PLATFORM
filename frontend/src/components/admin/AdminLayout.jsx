@@ -140,6 +140,7 @@ const AdminLayout = ({ children }) => {
   }, [location.pathname, location.state]);
 
   const openNewPrescription = (patient = null, initialStep = 1) => {
+    setIsAppointmentDetailsModalOpen(false);
     const validPatient = isValidPatientObject(patient) ? patient : null;
     setSelectedPatientForPrescription(validPatient);
     setPrescriptionModalInitialStep(initialStep || 1);

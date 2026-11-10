@@ -114,16 +114,14 @@ class RegisterView(views.APIView):
             full_name = f"{user.first_name} {user.last_name}".strip() or user.username
             patient = Patient.objects.filter(user=user).first()
             if not patient and user.email:
-                patient = Patient.objects.filter(email__iexact=user.email).first()
-            if not patient and user.phone_number:
-                clean_phone = ''.join(c for c in user.phone_number if c.isdigit())
-                if clean_phone:
-                    patient = Patient.objects.filter(phone__endswith=clean_phone[-10:]).first()
+                # Only link an existing unlinked patient record if it has the EXACT email and no associated user
+                patient = Patient.objects.filter(email__iexact=user.email, user__isnull=True).first()
             if patient:
                 patient.user = user
-                if not patient.phone and user.phone_number:
+                patient.name = full_name
+                if user.phone_number:
                     patient.phone = user.phone_number
-                if not patient.email and user.email:
+                if user.email:
                     patient.email = user.email
                 patient.save()
             else:

@@ -10,8 +10,14 @@ export const appointmentApi = {
   updateAppointmentStatus: async (id, status) => {
     const response = await axiosClient.patch(`/appointments/${id}/`, { status });
     if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('kss_appointment_sync', Date.now().toString());
+      } catch {}
       window.dispatchEvent(
         new CustomEvent('appointment-updated', { detail: response.data })
+      );
+      window.dispatchEvent(
+        new CustomEvent('appointment-booked', { detail: response.data })
       );
     }
     return response.data;
@@ -23,8 +29,14 @@ export const appointmentApi = {
       status: 'Rescheduled',
     });
     if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('kss_appointment_sync', Date.now().toString());
+      } catch {}
       window.dispatchEvent(
         new CustomEvent('appointment-updated', { detail: response.data })
+      );
+      window.dispatchEvent(
+        new CustomEvent('appointment-booked', { detail: response.data })
       );
     }
     return response.data;
@@ -33,8 +45,17 @@ export const appointmentApi = {
   deleteAppointment: async (id) => {
     const response = await axiosClient.delete(`/appointments/${id}/`);
     if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('kss_appointment_sync', Date.now().toString());
+      } catch {}
       window.dispatchEvent(
         new CustomEvent('appointment-deleted', { detail: { id } })
+      );
+      window.dispatchEvent(
+        new CustomEvent('appointment-booked', { detail: { id } })
+      );
+      window.dispatchEvent(
+        new CustomEvent('appointment-updated', { detail: { id } })
       );
     }
     return response.data;
@@ -44,16 +65,29 @@ export const appointmentApi = {
     const response = await axiosClient.post('/appointments/', appointmentData);
     // Notify any active components in the same window
     if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('kss_appointment_sync', Date.now().toString());
+      } catch {}
       window.dispatchEvent(
         new CustomEvent('appointment-booked', { detail: response.data })
+      );
+      window.dispatchEvent(
+        new CustomEvent('appointment-updated', { detail: response.data })
       );
     }
     return response.data;
   },
 
-  getBookedSlots: async (date) => {
-    const params = date ? { date } : {};
+  getBookedSlots: async (date, excludeId = null) => {
+    const params = {};
+    if (date) params.date = date;
+    if (excludeId) params.exclude_id = excludeId;
     const response = await axiosClient.get('/appointments/slots/', { params });
+    return response.data;
+  },
+
+  getAppointmentStats: async () => {
+    const response = await axiosClient.get('/appointments/stats/');
     return response.data;
   },
 

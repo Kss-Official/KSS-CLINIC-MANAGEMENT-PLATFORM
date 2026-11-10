@@ -238,6 +238,7 @@ const AdminCalendarPopover = ({
   return (
     <div
       ref={popoverRef}
+      className="admin-calendar-popover"
       onClick={(e) => e.stopPropagation()}
       style={{
         position: 'absolute',
@@ -245,6 +246,7 @@ const AdminCalendarPopover = ({
         left: position === 'bottom-left' ? 0 : 'auto',
         right: position === 'bottom-right' ? 0 : 'auto',
         width: '272px',
+        maxWidth: 'calc(100vw - 36px)',
         backgroundColor: '#ffffff',
         border: '1px solid #cbd5e1',
         borderRadius: '12px',

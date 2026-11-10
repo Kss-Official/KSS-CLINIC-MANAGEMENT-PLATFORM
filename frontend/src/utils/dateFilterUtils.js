@@ -135,3 +135,25 @@ export const matchesDateFilter = (itemDate, dateFilter) => {
   return String(itemDate).trim().toLowerCase() === String(dateFilter).trim().toLowerCase();
 };
 
+/**
+ * Checks if a given timestamp/date string was created on the current calendar day in Asia/Kolkata timezone.
+ * Resets dynamically to 0 when a new day begins.
+ */
+export const isCreatedToday = (createdAt) => {
+  if (!createdAt) return false;
+  try {
+    const d = new Date(createdAt);
+    if (isNaN(d.getTime())) return false;
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(d) === formatter.format(new Date());
+  } catch (err) {
+    return false;
+  }
+};
+
+

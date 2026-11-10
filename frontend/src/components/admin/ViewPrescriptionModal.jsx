@@ -298,6 +298,11 @@ const ViewPrescriptionModal = ({
                 additionalInstructions: rx.notes || rx.additionalInstructions,
                 pdf_base64: extraData.pdf_base64,
               });
+              try {
+                await appointmentApi.updatePrescriptionStatus(rxIdentifier, 'Delivered');
+              } catch (e) {
+                console.warn('Status update fallback error:', e);
+              }
               setActiveRx((prev) => (prev ? { ...prev, status: 'Delivered' } : prev));
               // Notify parent page to update the list row status instantly
               if (onWhatsAppSent) {
@@ -346,29 +351,31 @@ const ViewPrescriptionModal = ({
       <style>{`
         @media (max-width: 640px) {
           .admin-view-rx-overlay {
-            padding: 10px 8px !important;
+            padding: 8px 6px !important;
           }
           .admin-view-rx-modal {
             width: 100% !important;
             max-width: 100% !important;
-            max-height: 88vh !important;
+            max-height: 94vh !important;
             border-radius: 16px !important;
           }
           .admin-view-rx-scroll {
-            padding: 16px 12px 18px !important;
+            padding: 14px 10px 16px !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
             -webkit-overflow-scrolling: touch !important;
             overscroll-behavior: contain !important;
           }
           .admin-view-rx-header {
-            margin-bottom: 12px !important;
+            margin-bottom: 10px !important;
           }
           .admin-view-rx-title {
-            font-size: 18px !important;
+            font-size: 17px !important;
+            margin: 0 0 2px 0 !important;
           }
           .admin-view-rx-subtitle {
             font-size: 11.5px !important;
+            line-height: 1.35 !important;
           }
           .admin-view-rx-footer-close {
             margin-top: 12px !important;
@@ -377,7 +384,7 @@ const ViewPrescriptionModal = ({
           .admin-view-rx-btn-close {
             width: 100% !important;
             justify-content: center !important;
-            min-height: 40px !important;
+            min-height: 42px !important;
             font-size: 13px !important;
             box-sizing: border-box !important;
           }
@@ -387,10 +394,10 @@ const ViewPrescriptionModal = ({
             padding: 6px 4px !important;
           }
           .admin-view-rx-scroll {
-            padding: 14px 10px 16px !important;
+            padding: 12px 8px 14px !important;
           }
           .admin-view-rx-title {
-            font-size: 16.5px !important;
+            font-size: 16px !important;
           }
         }
       `}</style>
