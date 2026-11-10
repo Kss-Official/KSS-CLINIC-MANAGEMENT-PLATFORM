@@ -26,24 +26,8 @@
   "consultationHours": "09:00 AM - 06:00 PM",
   "slot_duration": "30 Minutes",
   "slotDuration": "30 Minutes",
-  "date_restrictions": [
-    {
-      "id": "restr_1793870335372",
-      "type": "range",
-      "startDate": "2026-11-13",
-      "endDate": "2026-11-13",
-      "reason": "Clinic closed"
-    }
-  ],
-  "dateRestrictions": [
-    {
-      "id": "restr_1793870335372",
-      "type": "range",
-      "startDate": "2026-11-13",
-      "endDate": "2026-11-13",
-      "reason": "Clinic closed"
-    }
-  ],
+  "date_restrictions": [],
+  "dateRestrictions": [],
   "custom_working_hours": [],
   "customWorkingHours": [],
   "notifications": {
