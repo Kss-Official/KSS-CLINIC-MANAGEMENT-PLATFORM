@@ -49,7 +49,7 @@
   "notifications": {
     "newAppointment": true,
     "appointmentReminder": true,
-    "prescriptionUpdates": false
+    "prescriptionUpdates": true
   },
   "notificationChannels": {
     "whatsapp": true,

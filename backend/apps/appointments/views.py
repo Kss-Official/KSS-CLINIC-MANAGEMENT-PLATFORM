@@ -4,6 +4,7 @@ import uuid
 import json
 import base64
 import logging
+import tempfile
 from PIL import Image
 from django.conf import settings
 from django.db import models
@@ -1766,6 +1767,8 @@ class PrescriptionDetailView(APIView):
 
 
 CLINIC_SETTINGS_FILE = os.path.join(settings.BASE_DIR, 'clinic_settings.json')
+TMP_CLINIC_SETTINGS_FILE = os.path.join(tempfile.gettempdir(), 'clinic_settings.json')
+_IN_MEMORY_CLINIC_SETTINGS = {}
 
 DEFAULT_CLINIC_SETTINGS = {
     'clinicName': 'HOMEOPATHY CLINIC',
@@ -1799,6 +1802,8 @@ DEFAULT_CLINIC_SETTINGS = {
 
 def load_clinic_settings():
     base = DEFAULT_CLINIC_SETTINGS.copy()
+
+    # 1. Primary repo file
     if os.path.exists(CLINIC_SETTINGS_FILE):
         try:
             with open(CLINIC_SETTINGS_FILE, 'r', encoding='utf-8') as f:
@@ -1807,13 +1812,43 @@ def load_clinic_settings():
                     base.update(loaded)
         except Exception:
             pass
+
+    # 2. Serverless /tmp writable file
+    if os.path.exists(TMP_CLINIC_SETTINGS_FILE):
+        try:
+            with open(TMP_CLINIC_SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                loaded_tmp = json.load(f)
+                if isinstance(loaded_tmp, dict):
+                    base.update(loaded_tmp)
+        except Exception:
+            pass
+
+    # 3. Active in-memory cache
+    if _IN_MEMORY_CLINIC_SETTINGS:
+        base.update(_IN_MEMORY_CLINIC_SETTINGS)
+
     return base
 
 def save_clinic_settings(data):
     current = load_clinic_settings()
     current.update(data)
-    with open(CLINIC_SETTINGS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(current, f, indent=2)
+    _IN_MEMORY_CLINIC_SETTINGS.update(current)
+
+    # 1. Attempt writing to repo file (works on local development / writable disks)
+    try:
+        with open(CLINIC_SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(current, f, indent=2)
+    except (OSError, IOError, PermissionError) as e:
+        logger.info(f"Primary clinic_settings.json is read-only (serverless environment): {e}")
+
+    # 2. Attempt writing to /tmp directory (always writable on serverless Vercel / AWS Lambda)
+    try:
+        with open(TMP_CLINIC_SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(current, f, indent=2)
+    except Exception as e:
+        logger.info(f"Unable to write to tmp clinic_settings.json: {e}")
+
+    return current
 
 class PatientMyProfileView(APIView):
     permission_classes = [IsAuthenticated, IsPatientUser]
@@ -2193,48 +2228,70 @@ class NotificationSettingsView(APIView):
     permission_classes = [IsAuthenticated, IsStaffOrAdmin]
 
     def get(self, request):
-        clinic_settings = load_clinic_settings()
-        return Response({
-            'notifications': clinic_settings.get('notifications', {
-                'newAppointment': True,
-                'appointmentReminder': True,
-                'prescriptionUpdates': True,
-            }),
-            'notificationChannels': clinic_settings.get('notificationChannels', {
-                'whatsapp': True,
-                'email': True,
-                'sms': False,
+        try:
+            clinic_settings = load_clinic_settings()
+            return Response({
+                'notifications': clinic_settings.get('notifications', {
+                    'newAppointment': True,
+                    'appointmentReminder': True,
+                    'prescriptionUpdates': True,
+                }),
+                'notificationChannels': clinic_settings.get('notificationChannels', {
+                    'whatsapp': True,
+                    'email': True,
+                    'sms': False,
+                })
             })
-        })
+        except Exception as e:
+            logger.error(f"Error reading notification settings: {e}")
+            return Response({
+                'notifications': {
+                    'newAppointment': True,
+                    'appointmentReminder': True,
+                    'prescriptionUpdates': True,
+                },
+                'notificationChannels': {
+                    'whatsapp': True,
+                    'email': True,
+                    'sms': False,
+                }
+            }, status=status.HTTP_200_OK)
 
     def post(self, request):
-        clinic_settings = load_clinic_settings()
-        notifications_data = request.data.get('notifications')
-        channels_data = request.data.get('notificationChannels') or request.data.get('notification_channels')
+        try:
+            clinic_settings = load_clinic_settings()
+            notifications_data = request.data.get('notifications')
+            channels_data = request.data.get('notificationChannels') or request.data.get('notification_channels')
 
-        if notifications_data is None and any(k in request.data for k in ['newAppointment', 'appointmentReminder', 'prescriptionUpdates']):
-            notifications_data = {
-                'newAppointment': request.data.get('newAppointment', True),
-                'appointmentReminder': request.data.get('appointmentReminder', True),
-                'prescriptionUpdates': request.data.get('prescriptionUpdates', True),
-            }
+            if notifications_data is None and any(k in request.data for k in ['newAppointment', 'appointmentReminder', 'prescriptionUpdates']):
+                notifications_data = {
+                    'newAppointment': request.data.get('newAppointment', True),
+                    'appointmentReminder': request.data.get('appointmentReminder', True),
+                    'prescriptionUpdates': request.data.get('prescriptionUpdates', True),
+                }
 
-        if notifications_data is not None and isinstance(notifications_data, dict):
-            current_notifs = clinic_settings.get('notifications') or {}
-            current_notifs.update(notifications_data)
-            clinic_settings['notifications'] = current_notifs
+            if notifications_data is not None and isinstance(notifications_data, dict):
+                current_notifs = clinic_settings.get('notifications') or {}
+                current_notifs.update(notifications_data)
+                clinic_settings['notifications'] = current_notifs
 
-        if channels_data is not None and isinstance(channels_data, dict):
-            current_channels = clinic_settings.get('notificationChannels') or {}
-            current_channels.update(channels_data)
-            clinic_settings['notificationChannels'] = current_channels
+            if channels_data is not None and isinstance(channels_data, dict):
+                current_channels = clinic_settings.get('notificationChannels') or {}
+                current_channels.update(channels_data)
+                clinic_settings['notificationChannels'] = current_channels
 
-        save_clinic_settings(clinic_settings)
-        return Response({
-            'status': 'success',
-            'notifications': clinic_settings.get('notifications'),
-            'notificationChannels': clinic_settings.get('notificationChannels')
-        }, status=status.HTTP_200_OK)
+            save_clinic_settings(clinic_settings)
+            return Response({
+                'status': 'success',
+                'notifications': clinic_settings.get('notifications'),
+                'notificationChannels': clinic_settings.get('notificationChannels')
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error saving notification settings: {e}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request):
         return self.post(request)
