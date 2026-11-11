@@ -40,12 +40,24 @@ axiosClient.interceptors.response.use(
       } catch (e) {}
       // If user was intentionally logging out or calling logout API, do not redirect to /login
       const isLogoutRequest = error.config?.url?.includes('/auth/logout');
+      const publicPaths = [
+        '/',
+        '/book-appointment',
+        '/about',
+        '/services',
+        '/stories',
+        '/contact',
+        '/login',
+        '/admin-login',
+        '/register',
+      ];
+      const isPublicPath = typeof window !== 'undefined' && publicPaths.some(
+        (p) => window.location.pathname === p || window.location.pathname.startsWith(p + '/')
+      );
       if (
         !isLogoutRequest &&
         typeof window !== 'undefined' &&
-        !window.location.pathname.includes('/login') &&
-        !window.location.pathname.includes('/admin-login') &&
-        window.location.pathname !== '/'
+        !isPublicPath
       ) {
         window.location.href = '/login';
       }

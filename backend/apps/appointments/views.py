@@ -954,27 +954,44 @@ class NotificationListView(APIView):
                 Notification.objects.bulk_create(to_create)
 
         notifications_qs = Notification.objects.all()
+
+        # Filter notifications based on active notification settings
+        if not new_appointment_enabled:
+            notifications_qs = notifications_qs.exclude(
+                models.Q(title__icontains='new') | models.Q(message__icontains='new') |
+                (models.Q(title__icontains='appointment') & ~models.Q(title__icontains='prescription')) |
+                (models.Q(message__icontains='appointment') & ~models.Q(message__icontains='prescription'))
+            )
+
+        if not prescription_updates_enabled:
+            notifications_qs = notifications_qs.exclude(
+                models.Q(title__icontains='prescription') | models.Q(message__icontains='prescription')
+            )
+
         unread_count = notifications_qs.filter(is_read=False).count()
         notifications = notifications_qs.order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
 
-        # Query all appointments that are Confirmed
-        confirmed_apts = Appointment.objects.filter(status__iexact='Confirmed').order_by('appointment_date', 'time_slot', '-created_at')
-
-        # Count total distinct patients with confirmed appointments
-        confirmed_patient_keys = set()
-        for apt in confirmed_apts:
-            p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
-            if apt.patient_record_id:
-                p_key = f"rec_{apt.patient_record_id}"
-            confirmed_patient_keys.add(p_key)
-
-        confirmed_patients_count = len(confirmed_patient_keys)
-        confirmed_appointments_count = len(confirmed_apts)
-
-        # Build confirmed reminders list
+        # Query all appointments that are Confirmed (only if reminder_enabled)
         confirmed_reminders = []
+        confirmed_patients_count = 0
+        confirmed_appointments_count = 0
+
         if reminder_enabled:
+            confirmed_apts = Appointment.objects.filter(status__iexact='Confirmed').order_by('appointment_date', 'time_slot', '-created_at')
+
+            # Count total distinct patients with confirmed appointments
+            confirmed_patient_keys = set()
+            for apt in confirmed_apts:
+                p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
+                if apt.patient_record_id:
+                    p_key = f"rec_{apt.patient_record_id}"
+                confirmed_patient_keys.add(p_key)
+
+            confirmed_patients_count = len(confirmed_patient_keys)
+            confirmed_appointments_count = len(confirmed_apts)
+
+            # Build confirmed reminders list
             for apt in confirmed_apts:
                 confirmed_reminders.append({
                     'id': f"confirmed-reminder-{apt.id}",
@@ -995,24 +1012,27 @@ class NotificationListView(APIView):
                     'appointment_details': AppointmentSerializer(apt).data,
                 })
 
-        # Query all upcoming appointments that are still Pending
-        pending_apts = Appointment.objects.filter(status__iexact='Pending').order_by('created_at')
-        upcoming_pending = [apt for apt in pending_apts if is_upcoming_or_today(apt.appointment_date)]
-
-        # Count total distinct patients with pending appointments
-        pending_patient_keys = set()
-        for apt in upcoming_pending:
-            p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
-            if apt.patient_record_id:
-                p_key = f"rec_{apt.patient_record_id}"
-            pending_patient_keys.add(p_key)
-
-        pending_patients_count = len(pending_patient_keys)
-        pending_appointments_count = len(upcoming_pending)
-
-        # Build pending reminders list
+        # Query all upcoming appointments that are still Pending (only if reminder_enabled)
         pending_reminders = []
+        pending_patients_count = 0
+        pending_appointments_count = 0
+
         if reminder_enabled:
+            pending_apts = Appointment.objects.filter(status__iexact='Pending').order_by('created_at')
+            upcoming_pending = [apt for apt in pending_apts if is_upcoming_or_today(apt.appointment_date)]
+
+            # Count total distinct patients with pending appointments
+            pending_patient_keys = set()
+            for apt in upcoming_pending:
+                p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
+                if apt.patient_record_id:
+                    p_key = f"rec_{apt.patient_record_id}"
+                pending_patient_keys.add(p_key)
+
+            pending_patients_count = len(pending_patient_keys)
+            pending_appointments_count = len(upcoming_pending)
+
+            # Build pending reminders list
             for apt in upcoming_pending:
                 pending_reminders.append({
                     'id': f"pending-reminder-{apt.id}",
@@ -1039,12 +1059,12 @@ class NotificationListView(APIView):
             'new_appointment_enabled': new_appointment_enabled,
             'appointment_reminder_enabled': reminder_enabled,
             'prescription_updates_enabled': prescription_updates_enabled,
-            'confirmed_patients_count': confirmed_patients_count if reminder_enabled else 0,
-            'confirmed_appointments_count': confirmed_appointments_count if reminder_enabled else 0,
-            'confirmed_reminders': confirmed_reminders if reminder_enabled else [],
-            'pending_patients_count': pending_patients_count if reminder_enabled else 0,
-            'pending_appointments_count': pending_appointments_count if reminder_enabled else 0,
-            'pending_reminders': pending_reminders if reminder_enabled else [],
+            'confirmed_patients_count': confirmed_patients_count,
+            'confirmed_appointments_count': confirmed_appointments_count,
+            'confirmed_reminders': confirmed_reminders,
+            'pending_patients_count': pending_patients_count,
+            'pending_appointments_count': pending_appointments_count,
+            'pending_reminders': pending_reminders,
         })
 
 

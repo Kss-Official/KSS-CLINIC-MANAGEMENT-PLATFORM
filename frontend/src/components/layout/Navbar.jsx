@@ -175,10 +175,6 @@ const Navbar = ({ onOpenBooking }) => {
   };
 
   const handleBookClick = () => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: '/book-appointment' } });
-      return;
-    }
     if (onOpenBooking) {
       onOpenBooking();
     }
