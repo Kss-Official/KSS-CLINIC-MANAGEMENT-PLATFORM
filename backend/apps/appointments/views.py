@@ -1476,12 +1476,19 @@ class PrescriptionListView(APIView):
             return variations
 
         # 1. First, check if exact appointment ID was provided in payload
-        apt_id = payload.get('appointment_id') or payload.get('appointmentId')
+        apt_id = (
+            payload.get('appointment_id') or
+            payload.get('appointmentId') or
+            payload.get('apt_number') or
+            payload.get('aptNumber') or
+            payload.get('appointment_number')
+        )
         matched_apt = None
         if apt_id:
+            s_apt = str(apt_id).strip()
             matched_apt = Appointment.objects.filter(
-                models.Q(appointment_id=str(apt_id).strip()) |
-                (models.Q(id=int(apt_id)) if str(apt_id).isdigit() else models.Q(appointment_id=str(apt_id).strip()))
+                models.Q(appointment_id__iexact=s_apt) |
+                (models.Q(id=int(s_apt)) if s_apt.isdigit() else models.Q(appointment_id__iexact=s_apt))
             ).first()
 
         # 2. If not found by ID, match specifically by Patient AND Appointment Date
@@ -1623,16 +1630,36 @@ class PrescriptionListView(APIView):
         except Prescription.DoesNotExist:
             return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        new_status = request.data.get('status')
-        if new_status:
-            rx.status = new_status
-            rx.save(update_fields=['status'])
-            return Response({
-                'id': rx.prescription_id,
-                'status': rx.status,
-                'message': f'Prescription {rx.prescription_id} status updated to {rx.status}'
-            })
-        return Response({'error': 'status field required'}, status=status.HTTP_400_BAD_REQUEST)
+        updated_fields = []
+        if 'status' in request.data:
+            rx.status = request.data['status']
+            updated_fields.append('status')
+        if 'medicines' in request.data:
+            rx.medicines = request.data['medicines']
+            updated_fields.append('medicines')
+        if 'diagnosis' in request.data:
+            rx.diagnosis = request.data['diagnosis']
+            updated_fields.append('diagnosis')
+        if 'symptoms' in request.data:
+            rx.symptoms = request.data['symptoms']
+            updated_fields.append('symptoms')
+        if 'additionalInstructions' in request.data or 'additional_instructions' in request.data:
+            rx.additional_instructions = request.data.get('additionalInstructions') or request.data.get('additional_instructions')
+            updated_fields.append('additional_instructions')
+
+        if updated_fields:
+            rx.save(update_fields=updated_fields)
+
+        return Response({
+            'id': rx.prescription_id,
+            'rxId': rx.prescription_id,
+            'status': rx.status,
+            'medicines': rx.medicines,
+            'diagnosis': rx.diagnosis,
+            'symptoms': rx.symptoms,
+            'additionalInstructions': rx.additional_instructions,
+            'message': f'Prescription {rx.prescription_id} updated successfully'
+        })
 
 
 class PrescriptionDetailView(APIView):
@@ -1703,16 +1730,36 @@ class PrescriptionDetailView(APIView):
         if not rx:
             return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        new_status = request.data.get('status')
-        if new_status:
-            rx.status = new_status
-            rx.save(update_fields=['status'])
-            return Response({
-                'id': rx.prescription_id,
-                'status': rx.status,
-                'message': f'Prescription {rx.prescription_id} status updated to {rx.status}'
-            })
-        return Response({'error': 'status field required'}, status=status.HTTP_400_BAD_REQUEST)
+        updated_fields = []
+        if 'status' in request.data:
+            rx.status = request.data['status']
+            updated_fields.append('status')
+        if 'medicines' in request.data:
+            rx.medicines = request.data['medicines']
+            updated_fields.append('medicines')
+        if 'diagnosis' in request.data:
+            rx.diagnosis = request.data['diagnosis']
+            updated_fields.append('diagnosis')
+        if 'symptoms' in request.data:
+            rx.symptoms = request.data['symptoms']
+            updated_fields.append('symptoms')
+        if 'additionalInstructions' in request.data or 'additional_instructions' in request.data:
+            rx.additional_instructions = request.data.get('additionalInstructions') or request.data.get('additional_instructions')
+            updated_fields.append('additional_instructions')
+
+        if updated_fields:
+            rx.save(update_fields=updated_fields)
+
+        return Response({
+            'id': rx.prescription_id,
+            'rxId': rx.prescription_id,
+            'status': rx.status,
+            'medicines': rx.medicines,
+            'diagnosis': rx.diagnosis,
+            'symptoms': rx.symptoms,
+            'additionalInstructions': rx.additional_instructions,
+            'message': f'Prescription {rx.prescription_id} updated successfully'
+        })
 
 
 CLINIC_SETTINGS_FILE = os.path.join(settings.BASE_DIR, 'clinic_settings.json')

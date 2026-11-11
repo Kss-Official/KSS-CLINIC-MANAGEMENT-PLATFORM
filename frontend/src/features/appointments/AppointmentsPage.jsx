@@ -117,20 +117,42 @@ const AppointmentsPage = () => {
   const mapApiAppointment = (item) => {
     const rxStatus = item.prescription_status || item.prescriptionStatus || 'Pending';
     const aptStatus = item.status || 'Confirmed';
+    const aptId = item.appointment_id || (item.id ? (String(item.id).startsWith('APT-') ? item.id : `APT-${item.id}`) : 'APT-0000');
+    const pId = item.patient_record?.patient_id || item.patient_id_ref || (item.patient_id ? (String(item.patient_id).startsWith('PAT-') ? item.patient_id : `PAT-${item.patient_id}`) : '');
 
     return {
-      id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
+      id: aptId,
+      appointment_id: aptId,
+      appointmentId: aptId,
+      apt_number: aptId,
+      aptNumber: aptId,
       rawId: item.id,
+      patient_id: pId,
+      patient_id_ref: pId,
+      patientId: pId,
       name: item.patient_name || item.name || 'Anonymous Patient',
+      patient_name: item.patient_name || item.name || 'Anonymous Patient',
+      patientName: item.patient_name || item.name || 'Anonymous Patient',
       contact: item.patient_phone || item.contact || 'N/A',
+      patient_phone: item.patient_phone || item.contact || 'N/A',
+      patientPhone: item.patient_phone || item.contact || 'N/A',
+      mobile: item.patient_phone || item.contact || 'N/A',
       email: item.patient_email || item.email || '',
+      patient_email: item.patient_email || item.email || '',
       date: item.appointment_date || item.date || '',
+      appointment_date: item.appointment_date || item.date || '',
       time: item.time_slot || item.time || '',
+      time_slot: item.time_slot || item.time || '',
+      timeSlot: item.time_slot || item.time || '',
       reason: item.reason_for_visit || item.reason || '',
+      reason_for_visit: item.reason_for_visit || item.reason || '',
+      reasonForVisit: item.reason_for_visit || item.reason || '',
       consultationType: item.consultation_type || item.consultationType || 'In clinic Visit',
       status: aptStatus,
       prescriptionStatus: rxStatus,
+      prescription_status: rxStatus,
       ageGender: item.age_gender || item.ageGender || 'Adult',
+      age_gender: item.age_gender || item.ageGender || 'Adult',
       notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
       doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
       createdAt: item.created_at || item.createdAt || '',
@@ -181,10 +203,42 @@ const AppointmentsPage = () => {
       fetchAppointments(true);
     };
 
+    const handlePrescriptionCreated = (event) => {
+      const detail = event?.detail;
+      const aptId =
+        detail?.appointment_id ||
+        detail?.appointmentId ||
+        detail?.apt_number ||
+        detail?.aptNumber ||
+        (detail?.appointment?.appointment_id) ||
+        (detail?.appointment?.id);
+
+      const pName = (detail?.patient_name || detail?.patient?.name || '').trim().toLowerCase();
+
+      setAppointmentsList((prev) =>
+        prev.map((apt) => {
+          const matchesId =
+            (aptId && (
+              apt.id === aptId ||
+              apt.appointment_id === aptId ||
+              apt.rawId === aptId ||
+              String(apt.rawId) === String(aptId) ||
+              String(apt.id).toLowerCase() === String(aptId).toLowerCase()
+            ));
+          const matchesPatient = pName && apt.name && apt.name.toLowerCase() === pName;
+          if (matchesId || (matchesPatient && !aptId)) {
+            return { ...apt, prescriptionStatus: 'Complete', prescription_status: 'Complete' };
+          }
+          return apt;
+        })
+      );
+      fetchAppointments(true);
+    };
+
     window.addEventListener('appointment-booked', handleRefresh);
     window.addEventListener('appointment-updated', handleRefresh);
     window.addEventListener('appointment-deleted', handleRefresh);
-    window.addEventListener('prescription-created', handleRefresh);
+    window.addEventListener('prescription-created', handlePrescriptionCreated);
     window.addEventListener('focus', handleRefresh);
 
     const interval = setInterval(() => {
@@ -195,7 +249,7 @@ const AppointmentsPage = () => {
       window.removeEventListener('appointment-booked', handleRefresh);
       window.removeEventListener('appointment-updated', handleRefresh);
       window.removeEventListener('appointment-deleted', handleRefresh);
-      window.removeEventListener('prescription-created', handleRefresh);
+      window.removeEventListener('prescription-created', handlePrescriptionCreated);
       window.removeEventListener('focus', handleRefresh);
       clearInterval(interval);
     };

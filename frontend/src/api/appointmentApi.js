@@ -146,6 +146,19 @@ export const appointmentApi = {
     return response.data;
   },
 
+  updatePrescription: async (rxId, data) => {
+    const response = await axiosClient.patch(`/prescriptions/${encodeURIComponent(rxId)}/`, data);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('prescription-updated', { detail: response.data })
+      );
+      window.dispatchEvent(
+        new CustomEvent('prescription-created', { detail: response.data })
+      );
+    }
+    return response.data;
+  },
+
   // Notifications
   getNotifications: async () => {
     const response = await axiosClient.get('/notifications/');
