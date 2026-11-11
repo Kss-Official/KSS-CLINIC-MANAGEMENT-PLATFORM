@@ -46,13 +46,20 @@ class UserSerializer(serializers.ModelSerializer):
         if not obj.profile_image:
             return None
         try:
-            url = obj.profile_image.url
-            if url.startswith('http://') or url.startswith('https://'):
-                return url
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(url)
-            return f"http://localhost:8000{url}"
+            val = str(obj.profile_image).strip()
+            if not val:
+                return None
+            if val.startswith('data:image/') or val.startswith('http://') or val.startswith('https://'):
+                return val
+            if hasattr(obj.profile_image, 'url'):
+                url = obj.profile_image.url
+                if url.startswith('http://') or url.startswith('https://') or url.startswith('data:image/'):
+                    return url
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(url)
+                return f"https://clinic-ms-kss-backend.vercel.app{url}"
+            return val
         except Exception:
             return None
 

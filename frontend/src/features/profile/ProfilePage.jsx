@@ -171,38 +171,58 @@ const ProfilePage = () => {
     }
 
     setIsUploadingImage(true);
-    try {
-      const formData = new FormData();
-      formData.append('profile_image', file);
+    const prevImage = profile.profileImageUrl;
 
-      const res = await userApi.uploadProfileImage(formData);
-      const newImageUrl = res?.profile_image_url || res?.user?.profile_image_url;
+    // Convert file to Base64 data URL for instant display and robust transfer
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result;
+      setProfile((prev) => ({
+        ...prev,
+        profileImageUrl: dataUrl,
+      }));
 
-      if (newImageUrl) {
-        setProfile((prev) => ({
-          ...prev,
-          profileImageUrl: newImageUrl,
-        }));
-        if (updateUser && user) {
-          updateUser({
-            ...user,
-            profile_image_url: newImageUrl,
-          });
+      try {
+        const formData = new FormData();
+        formData.append('profile_image', file);
+
+        const res = await userApi.uploadProfileImage(formData);
+        const newImageUrl = res?.profile_image_url || res?.user?.profile_image_url || dataUrl;
+
+        if (newImageUrl) {
+          setProfile((prev) => ({
+            ...prev,
+            profileImageUrl: newImageUrl,
+          }));
+          if (updateUser && user) {
+            updateUser({
+              ...user,
+              profile_image_url: newImageUrl,
+            });
+          }
+          window.dispatchEvent(new CustomEvent('profile-image-updated', {
+            detail: { profile_image_url: newImageUrl }
+          }));
         }
-        window.dispatchEvent(new CustomEvent('profile-image-updated', {
-          detail: { profile_image_url: newImageUrl }
-        }));
+      } catch (err) {
+        console.error('Failed to upload profile picture:', err);
+        setProfile((prev) => ({ ...prev, profileImageUrl: prevImage }));
+        const msg = err.response?.data?.error || err.response?.data?.detail || 'Failed to upload profile picture. Please try again.';
+        alert(msg);
+      } finally {
+        setIsUploadingImage(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
-    } catch (err) {
-      console.error('Failed to upload profile picture:', err);
-      const msg = err.response?.data?.error || 'Failed to upload profile picture. Please try again.';
-      alert(msg);
-    } finally {
+    };
+
+    reader.onerror = () => {
       setIsUploadingImage(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
+      alert('Failed to read image file. Please try again.');
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const handleRemoveImage = async (e) => {
@@ -237,6 +257,7 @@ const ProfilePage = () => {
   // Edit Modal State
 
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const [editFormData, setEditFormData] = useState({
 
@@ -322,9 +343,9 @@ const ProfilePage = () => {
         }
 
         const userAuthName = currentUser?.full_name || currentUser?.name || `${currentUser?.first_name || ''} ${currentUser?.last_name || ''}`.trim() || '';
-        const loadedName = userAuthName || res.name || currentUser?.username || 'Patient';
+        const loadedName = res.name || userAuthName || currentUser?.username || 'Patient';
         const loadedInitials = res.initials || getInitials(loadedName, currentUser);
-        const loadedImage = res.profile_image_url || null;
+        const loadedImage = res.profile_image_url || currentUser?.profile_image_url || null;
 
         setProfile((prev) => ({
           ...prev,
@@ -897,137 +918,115 @@ const ProfilePage = () => {
 
 
 
-  const handleSaveProfile = (e) => {
-
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
+    if (isSavingProfile) return;
 
     const errors = {};
 
-
-
-    // 1. Full Name Validation: non-empty, letters & spaces only, max 25 chars
-
+    // 1. Full Name Validation: non-empty, letters & spaces only, max 35 chars
     const nameTrimmed = (editFormData.fullName || '').trim();
-
     if (!nameTrimmed) {
-
       errors.fullName = 'Full Name is required';
-
     } else if (nameTrimmed.length > 35) {
-
       errors.fullName = 'Full Name cannot exceed 35 characters';
-
     } else if (!/^[a-zA-Z\s.()]+$/.test(nameTrimmed)) {
-
       errors.fullName = 'Only alphabets and spaces are allowed';
-
     }
-
-
 
     // 2. Mobile Number Validation: exactly 10 digits, starts with 6, 7, 8, 9
-
     const mobileDigits = (editFormData.mobileNumber || '').replace(/\D/g, '');
-
     if (!mobileDigits) {
-
       errors.mobileNumber = 'Mobile number is required';
-
     } else if (mobileDigits.length !== 10) {
-
       errors.mobileNumber = 'Mobile number must be exactly 10 digits';
-
     } else if (!/^[6-9]/.test(mobileDigits)) {
-
       errors.mobileNumber = 'Mobile number must start with 6, 7, 8, or 9';
-
     }
-
-
 
     // 3. Email Validation: valid email format, no words after .com
-
     const emailVal = (editFormData.email || '').trim();
-
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
     if (!emailVal) {
-
       errors.email = 'Email address is required';
-
     } else if (!emailRegex.test(emailVal)) {
-
       errors.email = 'Please enter a valid email address (e.g. name@example.com)';
-
     } else if (/@.*\.com.+/i.test(emailVal)) {
-
       errors.email = 'No words or characters allowed after .com';
-
     }
-
-
 
     if (Object.keys(errors).length > 0) {
-
       setEditErrors(errors);
-
       return;
-
     }
 
-
-
-    // Compute initials from Full Name
-    const computedInitials = getInitials(nameTrimmed, user);
-
-    // Format mobile for display (+91 98765 43210)
-    const formattedMobile = `+91 ${mobileDigits.slice(0, 5)} ${mobileDigits.slice(5)}`;
-
-    appointmentApi.updateMyProfile({
-      name: nameTrimmed,
-      phone: mobileDigits,
-      email: emailVal,
-      gender: editFormData.gender || '',
-      date_of_birth: editFormData.dateOfBirth || '',
-      city: editFormData.city || '',
-    }).then((res) => {
-      if (res?.user && updateUser) {
-        updateUser(res.user);
-      }
-    }).catch((err) => console.error('Failed to update profile:', err));
-
-    setProfile((prev) => ({
-      ...prev,
-      ...editFormData,
-      fullName: nameTrimmed,
-      mobileNumber: formattedMobile,
-      initials: computedInitials,
-    }));
-
-    if (updateUser && user) {
-      updateUser({
-        ...user,
-        name: nameTrimmed,
-        full_name: nameTrimmed,
-        first_name: nameTrimmed ? nameTrimmed.split(' ')[0] : user.first_name,
-        last_name: nameTrimmed && nameTrimmed.includes(' ') ? nameTrimmed.split(' ').slice(1).join(' ') : '',
-        initials: computedInitials,
-        address: editFormData.city || user.address || '',
-      });
-    }
-
-    window.dispatchEvent(new CustomEvent('profile-updated', {
-      detail: {
-        name: nameTrimmed,
-        full_name: nameTrimmed,
-        initials: computedInitials,
-      }
-    }));
-
+    setIsSavingProfile(true);
     setEditErrors({});
 
-    setIsEditOpen(false);
+    try {
+      // Compute initials from Full Name
+      const computedInitials = getInitials(nameTrimmed, user);
 
+      // Format mobile for display (+91 98765 43210)
+      const formattedMobile = `+91 ${mobileDigits.slice(0, 5)} ${mobileDigits.slice(5)}`;
+
+      const res = await appointmentApi.updateMyProfile({
+        name: nameTrimmed,
+        phone: mobileDigits,
+        email: emailVal,
+        gender: editFormData.gender || '',
+        date_of_birth: editFormData.dateOfBirth || '',
+        city: editFormData.city || '',
+      });
+
+      const updatedUserObj = {
+        ...(user || {}),
+        ...(res?.user || {}),
+        name: nameTrimmed,
+        full_name: nameTrimmed,
+        first_name: nameTrimmed ? nameTrimmed.split(' ')[0] : (user?.first_name || ''),
+        last_name: nameTrimmed && nameTrimmed.includes(' ') ? nameTrimmed.split(' ').slice(1).join(' ') : (user?.last_name || ''),
+        email: emailVal,
+        phone_number: mobileDigits,
+        gender: editFormData.gender || '',
+        date_of_birth: editFormData.dateOfBirth || '',
+        address: editFormData.city || '',
+        initials: computedInitials,
+      };
+
+      if (updateUser) {
+        updateUser(updatedUserObj);
+      }
+
+      setProfile((prev) => ({
+        ...prev,
+        ...editFormData,
+        fullName: nameTrimmed,
+        mobileNumber: formattedMobile,
+        email: emailVal,
+        initials: computedInitials,
+      }));
+
+      window.dispatchEvent(new CustomEvent('profile-updated', {
+        detail: {
+          name: nameTrimmed,
+          full_name: nameTrimmed,
+          email: emailVal,
+          phone: mobileDigits,
+          initials: computedInitials,
+        }
+      }));
+
+      setIsEditOpen(false);
+      await fetchPatientData(true);
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      const msg = err.response?.data?.error || err.response?.data?.detail || 'Failed to update profile. Please try again.';
+      setEditErrors({ submit: msg });
+      alert(msg);
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
 
@@ -4541,35 +4540,25 @@ const ProfilePage = () => {
               </button>
 
               <button
-
                 type="submit"
-
+                disabled={isSavingProfile}
                 style={{
-
                   backgroundColor: '#1b4332',
-
                   color: '#ffffff',
-
                   border: 'none',
-
                   borderRadius: '8px',
-
                   padding: '10px 22px',
-
                   fontSize: '14px',
-
                   fontWeight: '700',
-
-                  cursor: 'pointer',
-
+                  cursor: isSavingProfile ? 'not-allowed' : 'pointer',
+                  opacity: isSavingProfile ? 0.7 : 1,
                   fontFamily: "'Manrope', sans-serif",
-
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
                 }}
-
               >
-
-                Save Changes
-
+                {isSavingProfile ? 'Saving Changes...' : 'Save Changes'}
               </button>
 
             </div>

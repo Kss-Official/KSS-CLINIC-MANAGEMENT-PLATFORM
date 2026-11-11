@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import appointmentApi from '../../api/appointmentApi';
 import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
+import { getEffectiveImageUrl } from '../../utils/imageUrl';
 
 // Validation and formatting helper utilities for Settings form
 const extract10Digits = (phoneStr) => {
@@ -99,7 +100,8 @@ const SettingsPage = () => {
 
   // Clinic Profile Image State & Dropdown
   const [clinicProfileImage, setClinicProfileImage] = useState(() => {
-    return localStorage.getItem('clinic_profile_image') || null;
+    const saved = localStorage.getItem('clinic_profile_image');
+    return saved ? getEffectiveImageUrl(saved) : null;
   });
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadDropdownOpen, setUploadDropdownOpen] = useState(false);
@@ -118,7 +120,8 @@ const SettingsPage = () => {
               localStorage.setItem('clinic_info_settings', JSON.stringify(data));
             } catch {}
           }
-          const imgUrl = data.profile_image_url || data.profileImageUrl || null;
+          const rawImg = data.profile_image_url || data.profileImageUrl || null;
+          const imgUrl = rawImg ? getEffectiveImageUrl(rawImg) : null;
           if (imgUrl) {
             setClinicProfileImage(imgUrl);
             localStorage.setItem('clinic_profile_image', imgUrl);
@@ -184,7 +187,7 @@ const SettingsPage = () => {
   // Listen to clinic-profile-image-updated events and outside clicks
   useEffect(() => {
     const handleClinicImageUpdated = (e) => {
-      const newImg = e?.detail?.profile_image_url || null;
+      const newImg = e?.detail?.profile_image_url ? getEffectiveImageUrl(e.detail.profile_image_url) : null;
       setClinicProfileImage(newImg);
     };
     window.addEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
@@ -207,39 +210,50 @@ const SettingsPage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!validTypes.includes(file.type)) {
+    // Check MIME type and file extension to support all desktop and mobile formats
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/pjpeg', 'image/x-png', 'image/bmp'];
+    const hasValidExt = /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name || '');
+    if (!validTypes.includes(file.type) && !hasValidExt) {
       showToast('Please upload a valid image file (JPG, PNG, WEBP, GIF).');
-      e.target.value = '';
+      if (e.target) e.target.value = '';
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       showToast('Image size should be less than 5MB.');
-      e.target.value = '';
+      if (e.target) e.target.value = '';
       return;
     }
+
+    // Immediate local preview so the user sees their chosen image instantly
+    const localPreviewUrl = URL.createObjectURL(file);
+    const previousImage = clinicProfileImage;
+    setClinicProfileImage(localPreviewUrl);
+    setIsUploadingImage(true);
 
     const formData = new FormData();
     formData.append('profile_image', file);
 
-    setIsUploadingImage(true);
     try {
       const res = await appointmentApi.uploadClinicProfileImage(formData);
-      const newUrl = res.profile_image_url;
-      setClinicProfileImage(newUrl);
-      if (newUrl) {
-        localStorage.setItem('clinic_profile_image', newUrl);
+      const serverUrl = res?.profile_image_url;
+      const effectiveUrl = getEffectiveImageUrl(serverUrl) || localPreviewUrl;
+      setClinicProfileImage(effectiveUrl);
+      if (effectiveUrl) {
+        localStorage.setItem('clinic_profile_image', effectiveUrl);
       }
       window.dispatchEvent(
         new CustomEvent('clinic-profile-image-updated', {
-          detail: { profile_image_url: newUrl },
+          detail: { profile_image_url: effectiveUrl },
         })
       );
       showToast('Clinic profile picture updated successfully!');
     } catch (err) {
       console.error('Error uploading clinic profile image:', err);
-      showToast(err?.message || 'Failed to upload clinic profile picture.');
+      // Revert to previous image if upload failed
+      setClinicProfileImage(previousImage);
+      const errMsg = err?.response?.data?.error || err?.message || 'Failed to upload clinic profile picture.';
+      showToast(errMsg);
     } finally {
       setIsUploadingImage(false);
       if (fileInputRef.current) {
@@ -945,13 +959,20 @@ const SettingsPage = () => {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
               style={{ display: 'none' }}
               onChange={handleImageUpload}
             />
 
             {/* Circular Avatar */}
             <div
+              onClick={() => {
+                if (!isUploadingImage && fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                  fileInputRef.current.click();
+                }
+              }}
+              title="Click to upload/change clinic profile photo"
               style={{
                 width: '80px',
                 height: '80px',
@@ -970,6 +991,18 @@ const SettingsPage = () => {
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                 border: clinicProfileImage ? '2px solid #22c55e' : '1px solid #bbf7d0',
                 flexShrink: 0,
+                cursor: isUploadingImage ? 'wait' : 'pointer',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!isUploadingImage) {
+                  e.currentTarget.style.transform = 'scale(1.03)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 197, 94, 0.25)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)';
               }}
             >
               {clinicProfileImage ? (
@@ -983,9 +1016,9 @@ const SettingsPage = () => {
                     display: 'block',
                     borderRadius: '50%',
                   }}
-                  onError={() => {
-                    setClinicProfileImage(null);
-                    localStorage.removeItem('clinic_profile_image');
+                  onError={(e) => {
+                    console.warn('Failed to load clinic profile image:', clinicProfileImage);
+                    e.currentTarget.style.display = 'none';
                   }}
                 />
               ) : (
@@ -1103,7 +1136,10 @@ const SettingsPage = () => {
                     type="button"
                     onClick={() => {
                       setUploadDropdownOpen(false);
-                      fileInputRef.current?.click();
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                        fileInputRef.current.click();
+                      }
                     }}
                     disabled={isUploadingImage}
                     style={{

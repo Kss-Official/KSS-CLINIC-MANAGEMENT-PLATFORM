@@ -1882,11 +1882,17 @@ class PatientMyProfileView(APIView):
         profile_image_url = None
         if request.user.is_authenticated and getattr(request.user, 'profile_image', None):
             try:
-                url = request.user.profile_image.url
-                if url.startswith('http://') or url.startswith('https://'):
-                    profile_image_url = url
+                val = str(request.user.profile_image).strip()
+                if val.startswith('data:image/') or val.startswith('http://') or val.startswith('https://'):
+                    profile_image_url = val
+                elif hasattr(request.user.profile_image, 'url'):
+                    url = request.user.profile_image.url
+                    if url.startswith('http://') or url.startswith('https://') or url.startswith('data:image/'):
+                        profile_image_url = url
+                    else:
+                        profile_image_url = request.build_absolute_uri(url)
                 else:
-                    profile_image_url = request.build_absolute_uri(url)
+                    profile_image_url = val if val else None
             except Exception:
                 profile_image_url = None
 
@@ -2051,6 +2057,11 @@ class PatientMyProfileView(APIView):
                     user_updated_fields.append('date_of_birth')
                 except Exception:
                     pass
+            if 'profile_image' in request.data or 'profile_image_url' in request.data:
+                img_val = request.data.get('profile_image') or request.data.get('profile_image_url')
+                if img_val is not None:
+                    u.profile_image = str(img_val)
+                    user_updated_fields.append('profile_image')
 
             if user_updated_fields:
                 u.save(update_fields=list(set(user_updated_fields)))
@@ -2063,8 +2074,10 @@ class PatientMyProfileView(APIView):
         )
 
         from apps.users.serializers import UserSerializer
+        user_ser = UserSerializer(request.user, context={'request': request}).data if request.user.is_authenticated else None
         return Response({
             'status': 'success',
+            'message': 'Profile updated successfully.',
             'patient_id': patient.patient_id,
             'name': patient.name,
             'mobile': patient.phone,
@@ -2074,7 +2087,8 @@ class PatientMyProfileView(APIView):
             'date_of_birth': patient.date_of_birth,
             'city': patient.address,
             'address': patient.address,
-            'user': UserSerializer(request.user, context={'request': request}).data if request.user.is_authenticated else None,
+            'profile_image_url': user_ser.get('profile_image_url') if user_ser else None,
+            'user': user_ser,
         })
 
 
@@ -2221,8 +2235,14 @@ class ClinicProfileImageView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
-        if image_file.content_type not in allowed_types:
+        allowed_types = [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+            'image/pjpeg', 'image/x-png', 'image/bmp', 'application/octet-stream'
+        ]
+        file_ext = os.path.splitext(image_file.name)[1].lower() if image_file.name else ''
+        allowed_exts = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp']
+
+        if image_file.content_type not in allowed_types and file_ext not in allowed_exts:
             return Response(
                 {'error': 'Invalid file type. Please upload a JPG, PNG, WEBP, or GIF image.'},
                 status=status.HTTP_400_BAD_REQUEST

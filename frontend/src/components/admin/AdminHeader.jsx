@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import brandLogoImg from '../../assets/brand-logo.png';
 import useAuth from '../../hooks/useAuth';
 import appointmentApi from '../../api/appointmentApi';
+import { getEffectiveImageUrl } from '../../utils/imageUrl';
 
 const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) => {
   const navigate = useNavigate();
@@ -60,13 +61,15 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
   const [clinicProfileImage, setClinicProfileImage] = useState(() => {
-    return localStorage.getItem('clinic_profile_image') || user?.profile_image_url || null;
+    const saved = localStorage.getItem('clinic_profile_image') || user?.profile_image_url || null;
+    return saved ? getEffectiveImageUrl(saved) : null;
   });
 
   const fetchClinicProfileImage = async () => {
     try {
       const data = await appointmentApi.getClinicSettings();
-      const imgUrl = data?.profile_image_url || data?.profileImageUrl || null;
+      const rawImg = data?.profile_image_url || data?.profileImageUrl || null;
+      const imgUrl = rawImg ? getEffectiveImageUrl(rawImg) : null;
       if (imgUrl) {
         setClinicProfileImage(imgUrl);
         localStorage.setItem('clinic_profile_image', imgUrl);
@@ -189,7 +192,8 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
 
     // Listen to custom event when clinic profile image is updated
     const handleClinicImageUpdated = (e) => {
-      const newImg = e?.detail?.profile_image_url || null;
+      const rawImg = e?.detail?.profile_image_url || null;
+      const newImg = rawImg ? getEffectiveImageUrl(rawImg) : null;
       setClinicProfileImage(newImg);
       if (newImg) {
         localStorage.setItem('clinic_profile_image', newImg);
@@ -1503,9 +1507,9 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                   flexShrink: 0,
                   border: '1.5px solid #22c55e',
                 }}
-                onError={() => {
-                  setClinicProfileImage(null);
-                  localStorage.removeItem('clinic_profile_image');
+                onError={(e) => {
+                  console.warn('Failed to load clinic profile image in admin header:', clinicProfileImage);
+                  e.currentTarget.style.display = 'none';
                 }}
               />
             ) : (
