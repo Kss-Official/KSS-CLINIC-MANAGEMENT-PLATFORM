@@ -345,8 +345,6 @@ class AppointmentStatsView(APIView):
 
 class AppointmentListCreateView(APIView):
     def get_permissions(self):
-        if self.request.method == 'POST':
-            return [IsAuthenticated()]
         return [AllowAny()]
 
     def get(self, request):
@@ -436,11 +434,6 @@ class AppointmentListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        if not request.user or not request.user.is_authenticated:
-            return Response(
-                {'error': 'Authentication required. Please log in to book an appointment.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
         serializer = AppointmentSerializer(data=request.data)
         if serializer.is_valid():
             req_date = serializer.validated_data.get('appointment_date')
