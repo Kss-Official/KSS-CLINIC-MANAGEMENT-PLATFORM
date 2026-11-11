@@ -38,7 +38,15 @@ axiosClient.interceptors.response.use(
         localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
         localStorage.removeItem(STORAGE_KEYS.USER_DATA);
       } catch (e) {}
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/admin-login')) {
+      // If user was intentionally logging out or calling logout API, do not redirect to /login
+      const isLogoutRequest = error.config?.url?.includes('/auth/logout');
+      if (
+        !isLogoutRequest &&
+        typeof window !== 'undefined' &&
+        !window.location.pathname.includes('/login') &&
+        !window.location.pathname.includes('/admin-login') &&
+        window.location.pathname !== '/'
+      ) {
         window.location.href = '/login';
       }
     }

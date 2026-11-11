@@ -563,8 +563,8 @@ const Navbar = ({ onOpenBooking }) => {
                     id="patient-nav-logout-btn"
                     onClick={async () => {
                       setDropdownOpen(false);
+                      navigate('/', { replace: true });
                       await logout();
-                      navigate('/');
                     }}
                     style={{
                       display: 'flex',
@@ -720,8 +720,8 @@ const Navbar = ({ onOpenBooking }) => {
                   type="button"
                   onClick={async () => {
                     setMobileMenuOpen(false);
+                    navigate('/', { replace: true });
                     await logout();
-                    navigate('/');
                   }}
                   style={{
                     backgroundColor: '#fee2e2',
