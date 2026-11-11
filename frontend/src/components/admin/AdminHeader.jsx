@@ -62,8 +62,13 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
   const profileRef = useRef(null);
   const [clinicProfileImage, setClinicProfileImage] = useState(() => {
     const saved = localStorage.getItem('clinic_profile_image') || user?.profile_image_url || null;
-    return saved ? getEffectiveImageUrl(saved) : null;
+    const effective = saved ? getEffectiveImageUrl(saved) : null;
+    if (saved && !effective) {
+      try { localStorage.removeItem('clinic_profile_image'); } catch {}
+    }
+    return effective;
   });
+  const [headerImgError, setHeaderImgError] = useState(false);
 
   const fetchClinicProfileImage = async () => {
     try {
@@ -72,15 +77,33 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       const imgUrl = rawImg ? getEffectiveImageUrl(rawImg) : null;
       if (imgUrl) {
         setClinicProfileImage(imgUrl);
+        setHeaderImgError(false);
         localStorage.setItem('clinic_profile_image', imgUrl);
       } else {
-        setClinicProfileImage(null);
-        localStorage.removeItem('clinic_profile_image');
+        const localSaved = localStorage.getItem('clinic_profile_image') || user?.profile_image_url || null;
+        const effectiveLocal = localSaved ? getEffectiveImageUrl(localSaved) : null;
+        if (effectiveLocal) {
+          setClinicProfileImage(effectiveLocal);
+          setHeaderImgError(false);
+        } else {
+          setClinicProfileImage(null);
+          localStorage.removeItem('clinic_profile_image');
+        }
       }
     } catch (err) {
       // Ignore network errors on initial header mount
     }
   };
+
+  useEffect(() => {
+    if (user?.profile_image_url) {
+      const effective = getEffectiveImageUrl(user.profile_image_url);
+      if (effective) {
+        setClinicProfileImage(effective);
+        setHeaderImgError(false);
+      }
+    }
+  }, [user?.profile_image_url]);
 
   const fetchNotifications = async () => {
     try {
@@ -195,6 +218,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       const rawImg = e?.detail?.profile_image_url || null;
       const newImg = rawImg ? getEffectiveImageUrl(rawImg) : null;
       setClinicProfileImage(newImg);
+      setHeaderImgError(false);
       if (newImg) {
         localStorage.setItem('clinic_profile_image', newImg);
       } else {
@@ -202,6 +226,16 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       }
     };
     window.addEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
+
+    // Cross-tab and localStorage sync
+    const handleStorageChange = (e) => {
+      if (e.key === 'clinic_profile_image') {
+        const newImg = e.newValue ? getEffectiveImageUrl(e.newValue) : null;
+        setClinicProfileImage(newImg);
+        setHeaderImgError(false);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
 
     // Listen to custom event when notification settings are updated
     const handleNotificationSettingsUpdated = (e) => {
@@ -269,6 +303,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     return () => {
       clearInterval(interval);
       window.removeEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
+      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('notification-settings-updated', handleNotificationSettingsUpdated);
       window.removeEventListener('appointment-booked', handleAppointmentChanged);
       window.removeEventListener('appointment-updated', handleAppointmentChanged);
@@ -1494,7 +1529,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
             }}
           >
             {/* Circular Avatar (Clinic Profile Picture or Initials 'DT') */}
-            {clinicProfileImage ? (
+            {clinicProfileImage && !headerImgError ? (
               <img
                 src={clinicProfileImage}
                 alt="Clinic Profile"
@@ -1507,9 +1542,8 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                   flexShrink: 0,
                   border: '1.5px solid #22c55e',
                 }}
-                onError={(e) => {
-                  console.warn('Failed to load clinic profile image in admin header:', clinicProfileImage);
-                  e.currentTarget.style.display = 'none';
+                onError={() => {
+                  setHeaderImgError(true);
                 }}
               />
             ) : (

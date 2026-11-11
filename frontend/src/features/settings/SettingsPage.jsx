@@ -101,8 +101,13 @@ const SettingsPage = () => {
   // Clinic Profile Image State & Dropdown
   const [clinicProfileImage, setClinicProfileImage] = useState(() => {
     const saved = localStorage.getItem('clinic_profile_image');
-    return saved ? getEffectiveImageUrl(saved) : null;
+    const effective = saved ? getEffectiveImageUrl(saved) : null;
+    if (saved && !effective) {
+      try { localStorage.removeItem('clinic_profile_image'); } catch {}
+    }
+    return effective;
   });
+  const [avatarImgError, setAvatarImgError] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadDropdownOpen, setUploadDropdownOpen] = useState(false);
   const fileInputRef = useRef(null);
@@ -124,10 +129,23 @@ const SettingsPage = () => {
           const imgUrl = rawImg ? getEffectiveImageUrl(rawImg) : null;
           if (imgUrl) {
             setClinicProfileImage(imgUrl);
+            setAvatarImgError(false);
             localStorage.setItem('clinic_profile_image', imgUrl);
+            window.dispatchEvent(
+              new CustomEvent('clinic-profile-image-updated', {
+                detail: { profile_image_url: imgUrl },
+              })
+            );
           } else {
-            setClinicProfileImage(null);
-            localStorage.removeItem('clinic_profile_image');
+            const localSaved = localStorage.getItem('clinic_profile_image');
+            const effectiveLocal = localSaved ? getEffectiveImageUrl(localSaved) : null;
+            if (effectiveLocal) {
+              setClinicProfileImage(effectiveLocal);
+              setAvatarImgError(false);
+            } else {
+              setClinicProfileImage(null);
+              localStorage.removeItem('clinic_profile_image');
+            }
           }
 
           const days = data.workingDays || data.working_days;
@@ -189,6 +207,7 @@ const SettingsPage = () => {
     const handleClinicImageUpdated = (e) => {
       const newImg = e?.detail?.profile_image_url ? getEffectiveImageUrl(e.detail.profile_image_url) : null;
       setClinicProfileImage(newImg);
+      setAvatarImgError(false);
     };
     window.addEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
 
@@ -225,20 +244,28 @@ const SettingsPage = () => {
       return;
     }
 
-    // Immediate local preview so the user sees their chosen image instantly
+    // Immediate local preview so both Settings and Header switch instantly
     const localPreviewUrl = URL.createObjectURL(file);
     const previousImage = clinicProfileImage;
     setClinicProfileImage(localPreviewUrl);
+    setAvatarImgError(false);
+    window.dispatchEvent(
+      new CustomEvent('clinic-profile-image-updated', {
+        detail: { profile_image_url: localPreviewUrl },
+      })
+    );
     setIsUploadingImage(true);
 
-    const formData = new FormData();
-    formData.append('profile_image', file);
-
     try {
+      const formData = new FormData();
+      formData.append('profile_image', file);
+
       const res = await appointmentApi.uploadClinicProfileImage(formData);
-      const serverUrl = res?.profile_image_url;
+      const serverUrl = res?.profile_image_url || res?.profileImageUrl;
       const effectiveUrl = getEffectiveImageUrl(serverUrl) || localPreviewUrl;
+
       setClinicProfileImage(effectiveUrl);
+      setAvatarImgError(false);
       if (effectiveUrl) {
         localStorage.setItem('clinic_profile_image', effectiveUrl);
       }
@@ -252,6 +279,11 @@ const SettingsPage = () => {
       console.error('Error uploading clinic profile image:', err);
       // Revert to previous image if upload failed
       setClinicProfileImage(previousImage);
+      window.dispatchEvent(
+        new CustomEvent('clinic-profile-image-updated', {
+          detail: { profile_image_url: previousImage },
+        })
+      );
       const errMsg = err?.response?.data?.error || err?.message || 'Failed to upload clinic profile picture.';
       showToast(errMsg);
     } finally {
@@ -1005,7 +1037,7 @@ const SettingsPage = () => {
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)';
               }}
             >
-              {clinicProfileImage ? (
+              {clinicProfileImage && !avatarImgError ? (
                 <img
                   src={clinicProfileImage}
                   alt="Clinic Profile"
@@ -1016,9 +1048,8 @@ const SettingsPage = () => {
                     display: 'block',
                     borderRadius: '50%',
                   }}
-                  onError={(e) => {
-                    console.warn('Failed to load clinic profile image:', clinicProfileImage);
-                    e.currentTarget.style.display = 'none';
+                  onError={() => {
+                    setAvatarImgError(true);
                   }}
                 />
               ) : (

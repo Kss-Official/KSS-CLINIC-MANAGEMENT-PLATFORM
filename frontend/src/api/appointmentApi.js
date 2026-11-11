@@ -220,11 +220,10 @@ export const appointmentApi = {
     return response.data;
   },
 
-  uploadClinicProfileImage: async (formData) => {
-    const response = await axiosClient.post('/settings/clinic/profile-image/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+  uploadClinicProfileImage: async (formDataOrData) => {
+    const isFormData = typeof FormData !== 'undefined' && formDataOrData instanceof FormData;
+    const response = await axiosClient.post('/settings/clinic/profile-image/', formDataOrData, {
+      headers: isFormData ? { 'Content-Type': undefined } : { 'Content-Type': 'application/json' },
     });
     return response.data;
   },

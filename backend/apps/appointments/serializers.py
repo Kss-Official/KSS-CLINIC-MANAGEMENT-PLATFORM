@@ -248,6 +248,10 @@ class ClinicSettingsSerializer(serializers.Serializer):
             res['address'] = (attrs.get('address') or '').strip()
         if 'profile_image_url' in attrs or 'profileImageUrl' in attrs:
             val = attrs.get('profile_image_url') or attrs.get('profileImageUrl') or None
+            if val and ('test_avatar.png' in val or 'placeholder_doctor' in val):
+                val = None
+            elif val and val.startswith('http://') and ('localhost' in val or '127.0.0.1' in val):
+                val = None
             res['profile_image_url'] = val
             res['profileImageUrl'] = val
 
