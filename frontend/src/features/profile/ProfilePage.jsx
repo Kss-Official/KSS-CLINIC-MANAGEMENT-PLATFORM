@@ -133,7 +133,20 @@ const ProfilePage = () => {
         profileImageUrl: user.profile_image_url || null,
       }));
     }
-  }, [user?.id, user?.email]);
+  }, [user?.id, user?.email, user?.profile_image_url, user?.full_name, user?.name]);
+
+  // Synchronize profile picture across Personal Information and Navbar in real time
+  useEffect(() => {
+    const handleProfileImageUpdate = (e) => {
+      const newUrl = e?.detail?.profile_image_url !== undefined ? e.detail.profile_image_url : null;
+      setProfile((prev) => ({
+        ...prev,
+        profileImageUrl: newUrl,
+      }));
+    };
+    window.addEventListener('profile-image-updated', handleProfileImageUpdate);
+    return () => window.removeEventListener('profile-image-updated', handleProfileImageUpdate);
+  }, []);
 
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
@@ -229,7 +242,7 @@ const ProfilePage = () => {
     e?.stopPropagation?.();
     setUploadDropdownOpen(false);
 
-    // 1. Instantly remove image from both Personal Information and Navbar with a single click
+    // 1. Instantly remove image from both Personal Information and Navbar at the exact same instant
     setProfile((prev) => ({ ...prev, profileImageUrl: null }));
     if (updateUser && user) {
       updateUser({
@@ -238,19 +251,17 @@ const ProfilePage = () => {
       });
     }
 
-    window.dispatchEvent(new CustomEvent('profile-image-updated', {
-      detail: { profile_image_url: null }
-    }));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('profile-image-updated', {
+        detail: { profile_image_url: null }
+      }));
+    }
 
-    // 2. Perform backend delete
-    setIsUploadingImage(true);
+    // 2. Perform backend delete in background
     try {
       await userApi.removeProfileImage();
     } catch (err) {
       console.error('Failed to remove profile picture:', err);
-      alert(err.response?.data?.error || 'Failed to remove profile picture.');
-    } finally {
-      setIsUploadingImage(false);
     }
   };
 
@@ -345,7 +356,7 @@ const ProfilePage = () => {
         const userAuthName = currentUser?.full_name || currentUser?.name || `${currentUser?.first_name || ''} ${currentUser?.last_name || ''}`.trim() || '';
         const loadedName = res.name || userAuthName || currentUser?.username || 'Patient';
         const loadedInitials = res.initials || getInitials(loadedName, currentUser);
-        const loadedImage = res.profile_image_url || currentUser?.profile_image_url || null;
+        const loadedImage = (res.profile_image_url !== undefined && res.profile_image_url !== '') ? res.profile_image_url : null;
 
         setProfile((prev) => ({
           ...prev,

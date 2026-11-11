@@ -26,3 +26,4 @@ export const getEffectiveImageUrl = (url) => {
 };
 
 export default getEffectiveImageUrl;
+
