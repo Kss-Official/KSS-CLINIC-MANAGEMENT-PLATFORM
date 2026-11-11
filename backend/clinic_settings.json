@@ -48,7 +48,7 @@
   "customWorkingHours": [],
   "notifications": {
     "newAppointment": true,
-    "appointmentReminder": true,
+    "appointmentReminder": false,
     "prescriptionUpdates": true
   },
   "notificationChannels": {

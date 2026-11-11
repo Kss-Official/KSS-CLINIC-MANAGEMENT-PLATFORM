@@ -43,7 +43,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
         }
       }
     } catch {}
-    return true;
+    return false;
   });
   const [prescriptionUpdatesEnabled, setPrescriptionUpdatesEnabled] = useState(() => {
     try {
@@ -107,25 +107,31 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
 
   const fetchNotifications = async () => {
     try {
-      const data = await appointmentApi.getNotifications();
+      // Prioritize locally saved user settings in localStorage if present
+      let localNotifs = null;
+      try {
+        const saved = localStorage.getItem('clinic_notification_settings');
+        if (saved) localNotifs = JSON.parse(saved);
+      } catch {}
+
+      const hasLocalRem = localNotifs && typeof localNotifs.appointmentReminder === 'boolean';
+      const remActiveParam = hasLocalRem ? localNotifs.appointmentReminder : appointmentReminderEnabled;
+
+      const data = await appointmentApi.getNotifications({
+        appointment_reminder: remActiveParam,
+      });
+
       if (data) {
         setNotifications(data.notifications || []);
         setUnreadCount(data.unread_count || 0);
-
-        // Prioritize locally saved user settings in localStorage if present
-        let localNotifs = null;
-        try {
-          const saved = localStorage.getItem('clinic_notification_settings');
-          if (saved) localNotifs = JSON.parse(saved);
-        } catch {}
 
         const newAptActive = (localNotifs && typeof localNotifs.newAppointment === 'boolean')
           ? localNotifs.newAppointment
           : (typeof data.new_appointment_enabled === 'boolean' ? data.new_appointment_enabled : true);
 
-        const remActive = (localNotifs && typeof localNotifs.appointmentReminder === 'boolean')
+        const remActive = hasLocalRem
           ? localNotifs.appointmentReminder
-          : (typeof data.appointment_reminder_enabled === 'boolean' ? data.appointment_reminder_enabled : true);
+          : (typeof data.appointment_reminder_enabled === 'boolean' ? data.appointment_reminder_enabled : false);
 
         const rxActive = (localNotifs && typeof localNotifs.prescriptionUpdates === 'boolean')
           ? localNotifs.prescriptionUpdates
@@ -135,10 +141,18 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
         setAppointmentReminderEnabled(remActive);
         setPrescriptionUpdatesEnabled(rxActive);
 
-        setConfirmedReminders(remActive ? (data.confirmed_reminders || []) : []);
-        setConfirmedPatientsCount(remActive ? (typeof data.confirmed_patients_count === 'number' ? data.confirmed_patients_count : 0) : 0);
-        setPendingReminders(remActive ? (data.pending_reminders || []) : []);
-        setPendingPatientsCount(remActive ? (typeof data.pending_patients_count === 'number' ? data.pending_patients_count : 0) : 0);
+        if (!remActive) {
+          setIsReminderPillVisible(false);
+          setConfirmedReminders([]);
+          setConfirmedPatientsCount(0);
+          setPendingReminders([]);
+          setPendingPatientsCount(0);
+        } else {
+          setConfirmedReminders(data.confirmed_reminders || []);
+          setConfirmedPatientsCount(typeof data.confirmed_patients_count === 'number' ? data.confirmed_patients_count : 0);
+          setPendingReminders(data.pending_reminders || []);
+          setPendingPatientsCount(typeof data.pending_patients_count === 'number' ? data.pending_patients_count : 0);
+        }
       }
     } catch (err) {
       console.error('Error fetching notifications:', err);

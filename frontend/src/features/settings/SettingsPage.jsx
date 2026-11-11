@@ -183,10 +183,19 @@ const SettingsPage = () => {
             setCustomWorkingHours(loadedCustomHours);
           }
           if (data.notifications && typeof data.notifications === 'object') {
-            setNotifications(data.notifications);
-            setDraftNotifications(data.notifications);
+            let savedLocal = null;
             try {
-              localStorage.setItem('clinic_notification_settings', JSON.stringify(data.notifications));
+              const saved = localStorage.getItem('clinic_notification_settings');
+              if (saved) savedLocal = JSON.parse(saved);
+            } catch {}
+            const effectiveNotifs = {
+              ...data.notifications,
+              ...(savedLocal || {}),
+            };
+            setNotifications(effectiveNotifs);
+            setDraftNotifications(effectiveNotifs);
+            try {
+              localStorage.setItem('clinic_notification_settings', JSON.stringify(effectiveNotifs));
             } catch {}
           }
           if (data.notificationChannels && typeof data.notificationChannels === 'object') {
@@ -759,6 +768,29 @@ const SettingsPage = () => {
       await appointmentApi.updateNotificationSettings({
         notifications: updatedNotifs,
         notificationChannels: updatedChannels,
+      });
+    } catch (err) {
+      console.warn('Backend notification settings sync notice:', err);
+    }
+  };
+
+  const handleDirectToggleNotification = async (key) => {
+    const updatedNotifs = {
+      ...notifications,
+      [key]: !notifications[key],
+    };
+    setNotifications(updatedNotifs);
+    setDraftNotifications(updatedNotifs);
+    try {
+      localStorage.setItem('clinic_notification_settings', JSON.stringify(updatedNotifs));
+    } catch {}
+    window.dispatchEvent(new CustomEvent('notification-settings-updated', { detail: updatedNotifs }));
+    const title = key === 'appointmentReminder' ? 'Appointment Reminder' : (key === 'newAppointment' ? 'New Appointment' : 'Prescription Updates');
+    showToast(`${title} ${updatedNotifs[key] ? 'enabled' : 'disabled'} successfully!`);
+    try {
+      await appointmentApi.updateNotificationSettings({
+        notifications: updatedNotifs,
+        notificationChannels,
       });
     } catch (err) {
       console.warn('Backend notification settings sync notice:', err);
@@ -1607,20 +1639,18 @@ const SettingsPage = () => {
             return (
               <div
                 key={item.key}
-                style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', userSelect: 'none' }}
-                onClick={() => {
-                  showToast("Notification settings are read-only. Click 'Edit' to change settings.");
-                }}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', userSelect: 'none', cursor: 'pointer' }}
+                onClick={() => handleDirectToggleNotification(item.key)}
+                title={`Click to toggle ${item.title}`}
               >
                 <div
-                  title="Notification settings are read-only. Click 'Edit' to change settings."
                   style={{
                     width: '38px',
                     height: '22px',
                     borderRadius: '9999px',
                     backgroundColor: enabled ? '#1e7e34' : '#cbd5e1',
                     position: 'relative',
-                    cursor: 'default',
+                    cursor: 'pointer',
                     flexShrink: 0,
                     transition: 'background-color 0.2s',
                     marginTop: '2px',
@@ -1639,7 +1669,7 @@ const SettingsPage = () => {
                     }}
                   />
                 </div>
-                <div style={{ cursor: 'default' }}>
+                <div style={{ cursor: 'pointer' }}>
                   <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#0f172a' }}>{item.title}</div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', lineHeight: 1.35 }}>{item.desc}</div>
                 </div>

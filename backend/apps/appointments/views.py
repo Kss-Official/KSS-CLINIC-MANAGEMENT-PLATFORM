@@ -911,7 +911,11 @@ class NotificationListView(APIView):
         clinic_settings = load_clinic_settings()
         notif_settings = clinic_settings.get('notifications') or {}
         new_appointment_enabled = bool(notif_settings.get('newAppointment', True))
-        reminder_enabled = bool(notif_settings.get('appointmentReminder', True))
+        reminder_param = request.query_params.get('appointment_reminder') or request.query_params.get('appointmentReminder')
+        if reminder_param is not None:
+            reminder_enabled = str(reminder_param).lower() in ['true', '1', 'yes']
+        else:
+            reminder_enabled = bool(notif_settings.get('appointmentReminder', False))
         prescription_updates_enabled = bool(notif_settings.get('prescriptionUpdates', True))
 
         if prescription_updates_enabled:
@@ -946,9 +950,14 @@ class NotificationListView(APIView):
             if to_create:
                 Notification.objects.bulk_create(to_create)
 
-        notifications_qs = Notification.objects.all()
+        notifications_qs = Notification.objects.exclude(title='__SYSTEM_CLINIC_SETTINGS__')
 
         # Filter notifications based on active notification settings
+        if not reminder_enabled:
+            notifications_qs = notifications_qs.exclude(
+                models.Q(title__icontains='reminder') | models.Q(message__icontains='reminder')
+            )
+
         if not new_appointment_enabled:
             notifications_qs = notifications_qs.exclude(
                 models.Q(title__icontains='new') | models.Q(message__icontains='new') |
@@ -1803,7 +1812,7 @@ DEFAULT_CLINIC_SETTINGS = {
     'customWorkingHours': [],
     'notifications': {
         'newAppointment': True,
-        'appointmentReminder': True,
+        'appointmentReminder': False,
         'prescriptionUpdates': True,
     },
     'notificationChannels': {
@@ -1840,6 +1849,17 @@ def load_clinic_settings():
     if _IN_MEMORY_CLINIC_SETTINGS:
         base.update(_IN_MEMORY_CLINIC_SETTINGS)
 
+    # 4. Neon PostgreSQL persistent storage (consistent across serverless lambda instances)
+    try:
+        from .models import Notification
+        sys_notif = Notification.objects.filter(title='__SYSTEM_CLINIC_SETTINGS__').first()
+        if sys_notif and sys_notif.message:
+            db_settings = json.loads(sys_notif.message)
+            if isinstance(db_settings, dict):
+                base.update(db_settings)
+    except Exception:
+        pass
+
     return base
 
 def save_clinic_settings(data):
@@ -1860,6 +1880,15 @@ def save_clinic_settings(data):
             json.dump(current, f, indent=2)
     except Exception as e:
         logger.info(f"Unable to write to tmp clinic_settings.json: {e}")
+
+    # 3. Persist to Neon PostgreSQL database
+    try:
+        from .models import Notification
+        sys_notif, _ = Notification.objects.get_or_create(title='__SYSTEM_CLINIC_SETTINGS__')
+        sys_notif.message = json.dumps(current)
+        sys_notif.save(update_fields=['message'])
+    except Exception as e:
+        logger.info(f"DB clinic settings save notice: {e}")
 
     return current
 

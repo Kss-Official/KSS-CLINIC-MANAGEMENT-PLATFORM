@@ -160,8 +160,22 @@ export const appointmentApi = {
   },
 
   // Notifications
-  getNotifications: async () => {
-    const response = await axiosClient.get('/notifications/');
+  getNotifications: async (params = {}) => {
+    let localRem = null;
+    try {
+      const saved = localStorage.getItem('clinic_notification_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.appointmentReminder === 'boolean') {
+          localRem = parsed.appointmentReminder;
+        }
+      }
+    } catch {}
+    const queryParams = { ...params };
+    if (localRem !== null && queryParams.appointment_reminder === undefined) {
+      queryParams.appointment_reminder = localRem;
+    }
+    const response = await axiosClient.get('/notifications/', { params: queryParams });
     return response.data;
   },
 
