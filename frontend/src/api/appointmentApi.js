@@ -275,7 +275,9 @@ export const appointmentApi = {
 
   // Contact Us / Inquiry Form Submission
   sendContactInquiry: async (contactData) => {
-    const response = await axiosClient.post('/contact/', contactData);
+    const response = await axiosClient.post('/contact/', contactData, {
+      skipAuth: true,
+    });
     return response.data;
   },
 };

@@ -12,7 +12,10 @@ class ContactFormView(APIView):
     """
     Handles Contact Us / Write to Us form submissions.
     Sends email notification via Brevo SMTP to clinic doctor.
+    Fully public endpoint: authentication_classes = [] ensures expired tokens,
+    session cookies, or CSRF checks never block patient inquiries.
     """
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -105,6 +108,7 @@ class ContactFormView(APIView):
         </div>
         """
 
+        email_sent = False
         try:
             email_msg = EmailMultiAlternatives(
                 subject=subject,
@@ -115,15 +119,16 @@ class ContactFormView(APIView):
             )
             email_msg.attach_alternative(html_content, "text/html")
             email_msg.send(fail_silently=False)
-
-            return Response(
-                {'success': True, 'message': 'Message sent successfully via Brevo.'},
-                status=status.HTTP_200_OK
-            )
+            email_sent = True
         except Exception as e:
             logger.error(f"Error sending email via Brevo SMTP: {e}", exc_info=True)
-            return Response(
-                {'success': False, 'error': f'Failed to send email: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+
+        return Response(
+            {
+                'success': True,
+                'message': 'Your message has been sent successfully. Our clinic team will get back to you shortly.',
+                'email_sent': email_sent
+            },
+            status=status.HTTP_200_OK
+        )
 

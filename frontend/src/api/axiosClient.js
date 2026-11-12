@@ -11,6 +11,15 @@ const axiosClient = axios.create({
 // Request interceptor to attach JWT auth token
 axiosClient.interceptors.request.use(
   (config) => {
+    // Never attach auth token for public endpoints like contact form
+    if (config.skipAuth || config.url?.includes('/contact')) {
+      if (config.headers) {
+        delete config.headers.Authorization;
+        delete config.headers['Authorization'];
+      }
+      return config;
+    }
+
     const token = sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN) || localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     if (token) {
       const authVal = token.startsWith('Token ') || token.startsWith('Bearer ') ? token : `Token ${token}`;

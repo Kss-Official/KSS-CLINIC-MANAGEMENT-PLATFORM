@@ -228,12 +228,16 @@ const ContactPage = () => {
         setTimeout(() => setFormSuccess(false), 8000);
       } else {
         setFormErrorMsg(
-          resData?.error || 'Failed to send your message. Please try again or call our clinic directly.'
+          resData?.error || resData?.message || 'Failed to send your message. Please try again or call our clinic directly.'
         );
       }
     } catch (err) {
       console.error('Contact submission error:', err);
-      const serverMsg = err.response?.data?.error || err.response?.data?.message;
+      const serverMsg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.response?.data?.detail ||
+        (typeof err.response?.data === 'string' && err.response.data.length < 200 ? err.response.data : null);
       setFormErrorMsg(
         serverMsg || 'Failed to send your message. Please try again or call our clinic directly.'
       );
