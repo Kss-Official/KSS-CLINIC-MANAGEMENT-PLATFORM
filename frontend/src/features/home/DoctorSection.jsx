@@ -125,7 +125,7 @@ const DoctorSection = ({ onOpenBooking }) => {
                 fontFamily: "'Manrope', sans-serif",
               }}
             >
-              With years of experience in homeopathic care, Dr. Kalpana Tripathi Ampeh (Pat.) is dedicated to providing compassionate and personalized treatment. Her approach focuses on understanding the root cause of health concerns and supporting each patient's overall well-being.
+              With years of experience in homeopathic care, Dr. K. Tripathi Ampeh (Pat.) is dedicated to providing compassionate and personalized treatment. Her approach focuses on understanding the root cause of health concerns and supporting each patient's overall well-being.
             </p>
 
             {/* 4 Key Points in a balanced 2x2 grid */}

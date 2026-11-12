@@ -643,7 +643,7 @@ const AboutPage = () => {
           >
             <img
               src={doctorDropperImg}
-              alt="Dr. Kumar Tripathi preparing homeopathic remedies with dropper bottle"
+              alt="Dr. Kalpana Tripathi preparing homeopathic remedies with dropper bottle"
               style={{
                 width: '100%',
                 height: '100%',
@@ -682,7 +682,7 @@ const AboutPage = () => {
                 fontFamily: "'Manrope', sans-serif",
               }}
             >
-              Dr. Kumar Tripathi Ampeh (Pat.)
+              Dr. Kalpana Tripathi Ampeh (Pat.)
             </h2>
 
             <p
@@ -707,7 +707,7 @@ const AboutPage = () => {
                 fontFamily: "'Manrope', sans-serif",
               }}
             >
-              With years of experience in homeopathic care, Dr. K. Tripathi Ampeh (Pat.) is dedicated to providing compassionate and personalized treatment. His approach focuses on understanding the complete case and supporting each patient on their path to long-term wellness.
+              With years of experience in homeopathic care, Dr. K. Tripathi Ampeh (Pat.) is dedicated to providing compassionate and personalized treatment. Her approach focuses on understanding the complete case and supporting each patient on their path to long-term wellness.
             </p>
 
             {/* 6 Checkmark Items arranged side-by-side in 2 columns */}
