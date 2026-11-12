@@ -175,10 +175,6 @@ const Navbar = ({ onOpenBooking }) => {
   };
 
   const handleBookClick = () => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: '/book-appointment' } });
-      return;
-    }
     if (onOpenBooking) {
       onOpenBooking();
     }
@@ -563,8 +559,8 @@ const Navbar = ({ onOpenBooking }) => {
                     id="patient-nav-logout-btn"
                     onClick={async () => {
                       setDropdownOpen(false);
+                      navigate('/', { replace: true });
                       await logout();
-                      navigate('/');
                     }}
                     style={{
                       display: 'flex',
@@ -720,8 +716,8 @@ const Navbar = ({ onOpenBooking }) => {
                   type="button"
                   onClick={async () => {
                     setMobileMenuOpen(false);
+                    navigate('/', { replace: true });
                     await logout();
-                    navigate('/');
                   }}
                   style={{
                     backgroundColor: '#fee2e2',

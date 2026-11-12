@@ -67,17 +67,14 @@ export const useAppStore = create((set) => ({
   updateUser: (updatedUser) => {
     if (!updatedUser) return;
     set((state) => {
-      // Guard against cross-user updates: ensure ID or email matches
-      if (state.user && updatedUser.id && state.user.id && state.user.id !== updatedUser.id) {
+      // Guard against cross-user updates: only block if both users have distinct, conflicting IDs
+      if (state.user?.id && updatedUser.id && String(state.user.id) !== String(updatedUser.id)) {
         console.warn('Blocked attempt to overwrite auth user with different user ID');
         return state;
       }
-      if (state.user?.email && updatedUser.email && state.user.email.toLowerCase() !== updatedUser.email.toLowerCase()) {
-        console.warn('Blocked attempt to overwrite auth user with different email');
-        return state;
-      }
-      sessionStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updatedUser));
-      return { user: updatedUser };
+      const mergedUser = { ...(state.user || {}), ...updatedUser };
+      sessionStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(mergedUser));
+      return { user: mergedUser };
     });
   },
 }));

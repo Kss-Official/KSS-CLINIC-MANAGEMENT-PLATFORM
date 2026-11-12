@@ -5,7 +5,7 @@ import bannerHerbsImg from '../../assets/admin-banner-herbs.png';
 import ActionDropdown from '../../components/admin/ActionDropdown';
 import AdminPagination from '../../components/admin/AdminPagination';
 import AdminCalendarPopover from '../../components/admin/AdminCalendarPopover';
-import { formatDateForDataset, parseDateString, matchesDateFilter as checkDateFilter } from '../../utils/dateFilterUtils';
+import { formatDateForDataset, parseDateString, matchesDateFilter as checkDateFilter, isCreatedToday } from '../../utils/dateFilterUtils';
 
 const PrescriptionsPage = () => {
   const { openNewPrescription, openViewPrescription, openPatientHistory } = useAdmin();
@@ -24,50 +24,61 @@ const PrescriptionsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchPrescriptions = useCallback(async () => {
-    setIsLoading(true);
+  const fetchPrescriptions = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError(null);
     try {
       const data = await appointmentApi.getPrescriptions();
       setPrescriptionsList(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load prescriptions from Neon database:', err);
-      setError('Failed to load prescriptions from database.');
+      if (!silent) setError('Failed to load prescriptions from database.');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchPrescriptions();
 
-    const handleRxCreated = () => {
-      fetchPrescriptions();
+    const handleRxCreated = (e) => {
+      const newRx = e?.detail;
+      if (newRx && (newRx.id || newRx.rxId)) {
+        setPrescriptionsList((prev) => {
+          const rxId = newRx.id || newRx.rxId;
+          const exists = prev.some((p) => p.id === rxId || p.rxId === rxId);
+          if (exists) {
+            return prev.map((p) => (p.id === rxId || p.rxId === rxId ? { ...p, ...newRx } : p));
+          }
+          return [newRx, ...prev];
+        });
+      }
+      fetchPrescriptions(true);
     };
 
     // Update row status instantly when WhatsApp send succeeds
-      const handleWhatsAppSent = (e) => {
-        const { rxId, status } = e.detail || {};
-        if (rxId && status) {
-          setPrescriptionsList((prev) =>
-            prev.map((rx) =>
-              (rx.id === rxId || rx.rxId === rxId || rx.prescription_id === rxId)
-                ? { ...rx, status }
-                : rx
-            )
-          );
-        }
-      };
+    const handleWhatsAppSent = (e) => {
+      const { rxId, status } = e.detail || {};
+      if (rxId && status) {
+        setPrescriptionsList((prev) =>
+          prev.map((rx) =>
+            (rx.id === rxId || rx.rxId === rxId || rx.prescription_id === rxId)
+              ? { ...rx, status }
+              : rx
+          )
+        );
+      }
+    };
 
-      window.addEventListener('prescription-created', handleRxCreated);
-      window.addEventListener('prescription-updated', handleRxCreated);
-      window.addEventListener('focus', fetchPrescriptions);
-      window.addEventListener('prescription-whatsapp-sent', handleWhatsAppSent);
-      return () => {
-        window.removeEventListener('prescription-created', handleRxCreated);
-        window.removeEventListener('prescription-updated', handleRxCreated);
-        window.removeEventListener('focus', fetchPrescriptions);
-        window.removeEventListener('prescription-whatsapp-sent', handleWhatsAppSent);
+    window.addEventListener('prescription-created', handleRxCreated);
+    window.addEventListener('prescription-updated', handleRxCreated);
+    window.addEventListener('focus', () => fetchPrescriptions(true));
+    window.addEventListener('prescription-whatsapp-sent', handleWhatsAppSent);
+    return () => {
+      window.removeEventListener('prescription-created', handleRxCreated);
+      window.removeEventListener('prescription-updated', handleRxCreated);
+      window.removeEventListener('focus', () => fetchPrescriptions(true));
+      window.removeEventListener('prescription-whatsapp-sent', handleWhatsAppSent);
     };
   }, [fetchPrescriptions]);
 
@@ -198,8 +209,21 @@ const PrescriptionsPage = () => {
   const paginatedPrescriptions = filteredPrescriptions.slice((validPage - 1) * limit, validPage * limit);
 
   // Dynamic metrics derived directly from Neon database records
-  const issuedTodayCount = prescriptionsList.filter((p) => p.date === 'Today' || p.date === formatDateForDataset(new Date().toISOString().split('T')[0])).length;
-  const sentTodayCount = prescriptionsList.filter((p) => p.status === 'Sent' || p.status === 'Delivered').length;
+  const issuedTodayCount = prescriptionsList.filter(
+    (p) =>
+      p.date === 'Today' ||
+      p.date === formatDateForDataset(new Date().toISOString().split('T')[0]) ||
+      isCreatedToday(p.created_at) ||
+      checkDateFilter(p.date, 'Today')
+  ).length;
+  const sentTodayCount = prescriptionsList.filter(
+    (p) =>
+      (p.status === 'Sent' || p.status === 'Delivered') &&
+      (p.date === 'Today' ||
+        p.date === formatDateForDataset(new Date().toISOString().split('T')[0]) ||
+        isCreatedToday(p.created_at) ||
+        checkDateFilter(p.date, 'Today'))
+  ).length;
   const pendingCount = prescriptionsList.filter((p) => p.status === 'Pending').length;
   const totalCount = prescriptionsList.length;
 

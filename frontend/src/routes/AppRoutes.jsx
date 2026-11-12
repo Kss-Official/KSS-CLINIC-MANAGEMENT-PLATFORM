@@ -44,10 +44,8 @@ const AppRoutes = () => {
       <Route path="/stories" element={<StoriesPage />} />
       <Route path="/contact" element={<ContactPage />} />
 
-      {/* 2. Book Appointment Page (Protected - requires patient/user authentication) */}
-      <Route element={<ProtectedRoute redirectPath="/login" allowedRoles={['PATIENT', 'ADMIN', 'DOCTOR', 'RECEPTIONIST']} />}>
-        <Route path="/book-appointment" element={<BookAppointmentPage />} />
-      </Route>
+      {/* 2. Book Appointment Page (Directly accessible - no login redirect) */}
+      <Route path="/book-appointment" element={<BookAppointmentPage />} />
 
       {/* 3. Protected Patient Portal (Only accessible by authenticated patients) */}
       <Route element={<ProtectedRoute redirectPath="/login" allowedRoles={['PATIENT']} />}>

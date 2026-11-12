@@ -38,6 +38,26 @@ class AppointmentSerializer(serializers.ModelSerializer):
             return f"PAT-{obj.patient_record_id}"
         return ""
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if data.get('prescription_status') != 'Complete':
+            has_rx = False
+            try:
+                if instance.prescriptions.exists():
+                    has_rx = True
+                elif Prescription.objects.filter(appointment=instance).exists():
+                    has_rx = True
+            except Exception:
+                pass
+            if has_rx:
+                data['prescription_status'] = 'Complete'
+                try:
+                    instance.prescription_status = 'Complete'
+                    instance.save(update_fields=['prescription_status'])
+                except Exception:
+                    pass
+        return data
+
     def validate_patient_name(self, value):
         val = (value or '').strip()
         if not val:
@@ -228,6 +248,10 @@ class ClinicSettingsSerializer(serializers.Serializer):
             res['address'] = (attrs.get('address') or '').strip()
         if 'profile_image_url' in attrs or 'profileImageUrl' in attrs:
             val = attrs.get('profile_image_url') or attrs.get('profileImageUrl') or None
+            if val and ('test_avatar.png' in val or 'placeholder_doctor' in val):
+                val = None
+            elif val and val.startswith('http://') and ('localhost' in val or '127.0.0.1' in val):
+                val = None
             res['profile_image_url'] = val
             res['profileImageUrl'] = val
 

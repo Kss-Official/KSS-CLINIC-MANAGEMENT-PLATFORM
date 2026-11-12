@@ -117,6 +117,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
   }, []);
 
   const prevIsOpenRef = useRef(false);
+  const hasAutoSelectedRef = useRef(false);
 
   useEffect(() => {
     // When modal transitions from closed to open:
@@ -132,6 +133,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
       setIsCalendarOpen(false);
 
       if (isValidInitialPatient(initialPatient)) {
+        hasAutoSelectedRef.current = true;
         const isPrescription = Boolean(
           initialPatient.rxId ||
           initialPatient.prescriptionId ||
@@ -346,6 +348,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         }
       } else {
         // Direct open: Patient MUST be empty until user searches and selects a patient!
+        hasAutoSelectedRef.current = false;
         setExistingRxId(null);
         setSelectedPatient(null);
         setSelectedAppointment(null);
@@ -357,6 +360,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
       }
     } else if (!isOpen && prevIsOpenRef.current) {
       // When modal closes: clean up completely
+      hasAutoSelectedRef.current = false;
       setStep(1);
       setSearchQuery('');
       setExistingRxId(null);
@@ -391,26 +395,29 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
       ...(availablePatients.find((p) => p.id === selectedPatient?.id || (p.name && p.name.toLowerCase() === selectedPatient?.name?.toLowerCase()))?.appointments || []),
       ...(selectedPatient?.appointments || []),
     ];
-    if (selectedAppointment && selectedAppointment.id) {
-      if (!list.some((a) => (a.id === selectedAppointment.id || a.appointment_id === selectedAppointment.id))) {
+    const selId = selectedAppointment?.appointment_id || selectedAppointment?.id;
+    if (selectedAppointment && selId) {
+      if (!list.some((a) => String(a.appointment_id || a.id) === String(selId))) {
         list.unshift(selectedAppointment);
       }
     }
     const seen = new Set();
     return list.filter((a) => {
-      const id = a.id || a.appointment_id;
-      if (!id || seen.has(id)) return false;
-      seen.add(id);
+      const id = a.appointment_id || a.id;
+      if (!id || seen.has(String(id))) return false;
+      seen.add(String(id));
       return true;
     });
-  }, [availablePatients, selectedPatient, selectedAppointment]);
+  }, [availablePatients, selectedPatient, selectedAppointment?.appointment_id, selectedAppointment?.id]);
 
   useEffect(() => {
     if (!selectedPatient) {
       setSelectedAppointment(null);
+      hasAutoSelectedRef.current = false;
       return;
     }
-    if (existingRxId && selectedAppointment) {
+    // If an appointment is already selected or auto-selected once, DO NOT overwrite!
+    if (selectedAppointment || hasAutoSelectedRef.current) {
       return;
     }
     if (patientAppointments && patientAppointments.length > 0) {
@@ -420,6 +427,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
       }) || patientAppointments[0];
       if (match) {
         setSelectedAppointment(match);
+        hasAutoSelectedRef.current = true;
         if (match.reason || match.reason_for_visit) {
           setMainComplaint(match.reason || match.reason_for_visit);
         }
@@ -428,7 +436,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         }
       }
     }
-  }, [selectedPatient, appointmentDate, patientAppointments, existingRxId, selectedAppointment]);
+  }, [selectedPatient, patientAppointments, selectedAppointment, appointmentDate]);
 
   // Fetch real patients from Neon PostgreSQL database on modal open
   useEffect(() => {
@@ -557,8 +565,9 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
     );
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSaving) return;
     setErrorMessage('');
 
     if (!selectedPatient || !selectedPatient.name) {
@@ -576,8 +585,104 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
       return;
     }
 
-    // Advance to Step 2: Prescription Preview Screen
-    setStep(2);
+    // Ensure selected date is today or a future date
+    const checkDate = new Date(appointmentDate);
+    checkDate.setHours(0, 0, 0, 0);
+    const todayZero = new Date();
+    todayZero.setHours(0, 0, 0, 0);
+    if (checkDate < todayZero) {
+      const msg = 'Cannot select a past date. Please choose today or a future date.';
+      setErrorMessage(msg);
+      alert(msg);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const validMeds = medicines.map((m) => ({
+        id: m.id,
+        name: (m.name || '').trim(),
+        potency: (m.potency || '').trim(),
+        dosage: (m.dosage || '').trim(),
+        duration: (m.duration || '').trim(),
+        instructions: (m.instructions || '').trim(),
+      }));
+
+      const effectiveAptNum =
+        selectedAppointment?.appointment_id ||
+        selectedAppointment?.id ||
+        selectedPatient?.appointmentId ||
+        selectedPatient?.appointment_id ||
+        selectedPatient?.aptNumber ||
+        selectedPatient?.apt_number ||
+        initialPatient?.appointment_id ||
+        initialPatient?.aptNumber ||
+        initialPatient?.apt_number ||
+        (initialPatient?.id && String(initialPatient.id).startsWith('APT-') ? initialPatient.id : null) ||
+        null;
+
+      const payload = {
+        patient: selectedPatient,
+        patient_name: selectedPatient.name,
+        patient_phone: selectedPatient.phone,
+        patient_id_ref: selectedPatient.id,
+        appointment_id: effectiveAptNum,
+        appointmentId: effectiveAptNum,
+        apt_number: effectiveAptNum,
+        aptNumber: effectiveAptNum,
+        appointment_number: effectiveAptNum,
+        age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
+        date: formatDateForDisplay(appointmentDate),
+        appointmentDate,
+        consultationType,
+        mainComplaint,
+        complaint: mainComplaint,
+        symptoms,
+        diagnosis: diagnosis || mainComplaint || 'Clinical Consultation',
+        medicines: validMeds,
+        additionalInstructions,
+        status: 'Pending',
+      };
+
+      let savedRx;
+      if (existingRxId) {
+        try {
+          savedRx = await appointmentApi.updatePrescription(existingRxId, payload);
+        } catch (updateErr) {
+          console.warn('Update prescription error on Next:', updateErr);
+          savedRx = { id: existingRxId, rxId: existingRxId, ...payload };
+        }
+      } else {
+        savedRx = await appointmentApi.createPrescription(payload);
+        const newRxId = savedRx.id || savedRx.rxId || savedRx.prescription_id;
+        if (newRxId) {
+          setExistingRxId(newRxId);
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('prescription-created', { detail: savedRx }));
+        if (effectiveAptNum) {
+          window.dispatchEvent(
+            new CustomEvent('appointment-updated', {
+              detail: { appointment_id: effectiveAptNum, prescription_status: 'Complete' },
+            })
+          );
+        }
+      }
+
+      // Advance to Step 2: Prescription Preview Screen
+      setStep(2);
+    } catch (err) {
+      console.error('Failed to save prescription on Next:', err);
+      const errDetail =
+        err?.response?.data?.error ||
+        'Failed to save prescription to database. Please check your connection and try again.';
+      setErrorMessage(errDetail);
+      alert(errDetail);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSavePrescription = async (e) => {
@@ -623,15 +728,29 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         instructions: (m.instructions || '').trim(),
       }));
 
+      const effectiveAptNum =
+        selectedAppointment?.appointment_id ||
+        selectedAppointment?.id ||
+        selectedPatient?.appointmentId ||
+        selectedPatient?.appointment_id ||
+        selectedPatient?.aptNumber ||
+        selectedPatient?.apt_number ||
+        initialPatient?.appointment_id ||
+        initialPatient?.aptNumber ||
+        initialPatient?.apt_number ||
+        (initialPatient?.id && String(initialPatient.id).startsWith('APT-') ? initialPatient.id : null) ||
+        null;
+
       const payload = {
         patient: selectedPatient,
         patient_name: selectedPatient.name,
         patient_phone: selectedPatient.phone,
         patient_id_ref: selectedPatient.id,
-        appointment_id: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
-        appointmentId: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
-        apt_number: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
-        aptNumber: selectedAppointment?.appointment_id || selectedAppointment?.id || (selectedPatient?.appointmentId) || (selectedPatient?.appointment_id) || null,
+        appointment_id: effectiveAptNum,
+        appointmentId: effectiveAptNum,
+        apt_number: effectiveAptNum,
+        aptNumber: effectiveAptNum,
+        appointment_number: effectiveAptNum,
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
@@ -639,14 +758,40 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         mainComplaint,
         complaint: mainComplaint,
         symptoms,
-        diagnosis: diagnosis || 'Clinical Consultation',
+        diagnosis: diagnosis || mainComplaint || 'Clinical Consultation',
         medicines: validMeds,
         additionalInstructions,
         status: 'Pending',
       };
 
-      const savedRx = await appointmentApi.createPrescription(payload);
-      setSuccessMessage(`Prescription ${savedRx.id} successfully saved for ${selectedPatient.name}!`);
+      let savedRx;
+      if (existingRxId) {
+        try {
+          savedRx = await appointmentApi.updatePrescription(existingRxId, payload);
+        } catch (updateErr) {
+          console.warn('Update prescription error on Save:', updateErr);
+          savedRx = { id: existingRxId, rxId: existingRxId, ...payload };
+        }
+      } else {
+        savedRx = await appointmentApi.createPrescription(payload);
+        const newRxId = savedRx.id || savedRx.rxId || savedRx.prescription_id;
+        if (newRxId) {
+          setExistingRxId(newRxId);
+        }
+      }
+
+      setSuccessMessage(`Prescription ${savedRx.id || savedRx.rxId || savedRx.prescription_id} successfully saved for ${selectedPatient.name}!`);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('prescription-created', { detail: savedRx }));
+        if (effectiveAptNum) {
+          window.dispatchEvent(
+            new CustomEvent('appointment-updated', {
+              detail: { appointment_id: effectiveAptNum, prescription_status: 'Complete' },
+            })
+          );
+        }
+      }
 
       if (onSave) {
         onSave(savedRx);
@@ -685,19 +830,23 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         selectedPatient?.appointmentId ||
         selectedPatient?.appointment_id ||
         selectedPatient?.aptNumber ||
+        selectedPatient?.apt_number ||
         initialPatient?.appointment_id ||
         initialPatient?.aptNumber ||
-        '';
+        initialPatient?.apt_number ||
+        (initialPatient?.id && String(initialPatient.id).startsWith('APT-') ? initialPatient.id : null) ||
+        null;
 
       const payload = {
         patient: selectedPatient,
         patient_name: selectedPatient.name,
         patient_phone: selectedPatient.phone,
         patient_id_ref: selectedPatient.id,
-        appointment_id: effectiveAptNum || null,
-        appointmentId: effectiveAptNum || null,
-        apt_number: effectiveAptNum || null,
-        aptNumber: effectiveAptNum || null,
+        appointment_id: effectiveAptNum,
+        appointmentId: effectiveAptNum,
+        apt_number: effectiveAptNum,
+        aptNumber: effectiveAptNum,
+        appointment_number: effectiveAptNum,
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
@@ -705,7 +854,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         mainComplaint,
         complaint: mainComplaint,
         symptoms,
-        diagnosis: diagnosis || 'Skin allergy due to seasonal change.',
+        diagnosis: diagnosis || mainComplaint || 'Skin allergy due to seasonal change.',
         medicines: medicines.filter((m) => m.name && m.name.trim() !== ''),
         additionalInstructions,
         status: deliveryMethod === 'WhatsApp' ? 'Delivered' : 'Pending',
@@ -715,14 +864,35 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         if (deliveryMethod === 'WhatsApp') {
           await appointmentApi.updatePrescriptionStatus(existingRxId, 'Delivered');
         }
+        const finalizedRx = { id: existingRxId, rxId: existingRxId, ...payload, status: deliveryMethod === 'WhatsApp' ? 'Delivered' : 'Pending' };
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('prescription-created', { detail: finalizedRx }));
+          if (effectiveAptNum) {
+            window.dispatchEvent(
+              new CustomEvent('appointment-updated', {
+                detail: { appointment_id: effectiveAptNum, prescription_status: 'Complete' },
+              })
+            );
+          }
+        }
         if (onSave) {
-          onSave({ id: existingRxId, rxId: existingRxId, ...payload, status: deliveryMethod === 'WhatsApp' ? 'Delivered' : 'Pending' });
+          onSave(finalizedRx);
         }
         onClose();
         return;
       }
 
       const savedRx = await appointmentApi.createPrescription(payload);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('prescription-created', { detail: savedRx }));
+        if (effectiveAptNum) {
+          window.dispatchEvent(
+            new CustomEvent('appointment-updated', {
+              detail: { appointment_id: effectiveAptNum, prescription_status: 'Complete' },
+            })
+          );
+        }
+      }
       if (onSave) {
         onSave(savedRx);
       }
@@ -1136,16 +1306,21 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                               if (apts.length > 0) {
                                 const latestApt = apts[0];
                                 setSelectedAppointment(latestApt);
+                                hasAutoSelectedRef.current = true;
                                 if (latestApt.reason || latestApt.reason_for_visit) {
                                   setMainComplaint(latestApt.reason || latestApt.reason_for_visit);
                                 }
-                                if (latestApt.consultationType) {
-                                  setConsultationType(latestApt.consultationType);
+                                if (latestApt.consultationType || latestApt.consultation_type) {
+                                  setConsultationType(latestApt.consultationType || latestApt.consultation_type);
                                 }
                                 const iso = parseDisplayDateToIso(latestApt.date);
                                 if (iso) setAppointmentDate(iso);
-                              } else if (p.primaryConcern) {
-                                setMainComplaint(p.primaryConcern);
+                              } else {
+                                setSelectedAppointment(null);
+                                hasAutoSelectedRef.current = false;
+                                if (p.primaryConcern) {
+                                  setMainComplaint(p.primaryConcern);
+                                }
                               }
                               setSearchQuery('');
                             }}
@@ -1213,7 +1388,11 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                     </div>
                     <button
                       type="button"
-                      onClick={() => setSelectedPatient(null)}
+                      onClick={() => {
+                        setSelectedPatient(null);
+                        setSelectedAppointment(null);
+                        hasAutoSelectedRef.current = false;
+                      }}
                       style={{
                         background: 'none',
                         border: 'none',
@@ -1253,16 +1432,25 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                     {/* Desktop Select */}
                     <div className="new-rx-desktop-select">
                       <select
-                        value={selectedAppointment?.id || ''}
+                        value={selectedAppointment?.appointment_id || selectedAppointment?.id || ''}
                         onChange={(e) => {
                           const aptId = e.target.value;
-                          const apt = patientAppointments.find((a) => a.id === aptId);
+                          hasAutoSelectedRef.current = true;
+                          if (!aptId) {
+                            setSelectedAppointment(null);
+                            return;
+                          }
+                          const apt = patientAppointments.find((a) => String(a.id) === String(aptId) || String(a.appointment_id) === String(aptId));
                           if (apt) {
                             setSelectedAppointment(apt);
                             const iso = parseDisplayDateToIso(apt.date);
                             if (iso) setAppointmentDate(iso);
-                            if (apt.consultationType) setConsultationType(apt.consultationType);
-                            if (apt.reason) setMainComplaint(apt.reason);
+                            if (apt.consultationType || apt.consultation_type) {
+                              setConsultationType(apt.consultationType || apt.consultation_type);
+                            }
+                            if (apt.reason || apt.reason_for_visit) {
+                              setMainComplaint(apt.reason || apt.reason_for_visit);
+                            }
                           } else {
                             setSelectedAppointment(null);
                           }
@@ -1282,10 +1470,11 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                       >
                         <option value="">-- Match appointment automatically by date --</option>
                         {patientAppointments.map((a) => {
+                          const aptKey = a.appointment_id || a.id;
                           const timeStr = a.time ? ` (${a.time})` : '';
                           return (
-                            <option key={a.id} value={a.id}>
-                              {a.id} — {a.date}{timeStr}
+                            <option key={aptKey} value={aptKey}>
+                              {aptKey} — {a.date}{timeStr}
                             </option>
                           );
                         })}
@@ -1321,7 +1510,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                       >
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                           {selectedAppointment
-                            ? `${selectedAppointment.id} — ${selectedAppointment.date}${selectedAppointment.time ? ` (${selectedAppointment.time})` : ''}`
+                            ? `${selectedAppointment.appointment_id || selectedAppointment.id} — ${selectedAppointment.date}${selectedAppointment.time ? ` (${selectedAppointment.time})` : ''}`
                             : '-- Match appointment automatically by date --'}
                         </span>
                         <svg
@@ -1362,6 +1551,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                         >
                           <div
                             onClick={() => {
+                              hasAutoSelectedRef.current = true;
                               setSelectedAppointment(null);
                               setIsMobileAptDropdownOpen(false);
                             }}
@@ -1378,17 +1568,24 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                             -- Match appointment automatically by date --
                           </div>
                           {patientAppointments.map((a) => {
-                            const isSelected = selectedAppointment?.id === a.id;
+                            const aptKey = a.appointment_id || a.id;
+                            const currentSelectedKey = selectedAppointment?.appointment_id || selectedAppointment?.id;
+                            const isSelected = currentSelectedKey && String(currentSelectedKey) === String(aptKey);
                             const timeStr = a.time ? ` (${a.time})` : '';
                             return (
                               <div
-                                key={a.id}
+                                key={aptKey}
                                 onClick={() => {
+                                  hasAutoSelectedRef.current = true;
                                   setSelectedAppointment(a);
                                   const iso = parseDisplayDateToIso(a.date);
                                   if (iso) setAppointmentDate(iso);
-                                  if (a.consultationType) setConsultationType(a.consultationType);
-                                  if (a.reason) setMainComplaint(a.reason);
+                                  if (a.consultationType || a.consultation_type) {
+                                    setConsultationType(a.consultationType || a.consultation_type);
+                                  }
+                                  if (a.reason || a.reason_for_visit) {
+                                    setMainComplaint(a.reason || a.reason_for_visit);
+                                  }
                                   setIsMobileAptDropdownOpen(false);
                                 }}
                                 style={{
@@ -1402,7 +1599,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                                   wordBreak: 'break-word',
                                 }}
                               >
-                                {a.id} — {a.date}{timeStr}
+                                {aptKey} — {a.date}{timeStr}
                               </div>
                             );
                           })}
@@ -2122,11 +2319,29 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                     opacity: isSaving ? 0.7 : 1,
                   }}
                 >
-                  <span>Next</span>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="12 5 19 12 12 19" />
-                  </svg>
+                  {isSaving ? (
+                    <>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: '14px',
+                          height: '14px',
+                          border: '2px solid #ffffff',
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                        }}
+                      />
+                      <span>Saving & Next...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Next</span>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12 5 19 12 12 19" />
+                      </svg>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

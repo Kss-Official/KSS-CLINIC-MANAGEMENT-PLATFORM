@@ -1,7 +1,11 @@
 import os
+import io
+import uuid
 import json
 import base64
 import logging
+import tempfile
+from PIL import Image
 from django.conf import settings
 from django.db import models
 from rest_framework.views import APIView
@@ -341,8 +345,6 @@ class AppointmentStatsView(APIView):
 
 class AppointmentListCreateView(APIView):
     def get_permissions(self):
-        if self.request.method == 'POST':
-            return [IsAuthenticated()]
         return [AllowAny()]
 
     def get(self, request):
@@ -432,11 +434,6 @@ class AppointmentListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        if not request.user or not request.user.is_authenticated:
-            return Response(
-                {'error': 'Authentication required. Please log in to book an appointment.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
         serializer = AppointmentSerializer(data=request.data)
         if serializer.is_valid():
             req_date = serializer.validated_data.get('appointment_date')
@@ -914,7 +911,11 @@ class NotificationListView(APIView):
         clinic_settings = load_clinic_settings()
         notif_settings = clinic_settings.get('notifications') or {}
         new_appointment_enabled = bool(notif_settings.get('newAppointment', True))
-        reminder_enabled = bool(notif_settings.get('appointmentReminder', True))
+        reminder_param = request.query_params.get('appointment_reminder') or request.query_params.get('appointmentReminder')
+        if reminder_param is not None:
+            reminder_enabled = str(reminder_param).lower() in ['true', '1', 'yes']
+        else:
+            reminder_enabled = bool(notif_settings.get('appointmentReminder', False))
         prescription_updates_enabled = bool(notif_settings.get('prescriptionUpdates', True))
 
         if prescription_updates_enabled:
@@ -949,28 +950,50 @@ class NotificationListView(APIView):
             if to_create:
                 Notification.objects.bulk_create(to_create)
 
-        notifications_qs = Notification.objects.all()
+        notifications_qs = Notification.objects.exclude(title='__SYSTEM_CLINIC_SETTINGS__')
+
+        # Filter notifications based on active notification settings
+        if not reminder_enabled:
+            notifications_qs = notifications_qs.exclude(
+                models.Q(title__icontains='reminder') | models.Q(message__icontains='reminder')
+            )
+
+        if not new_appointment_enabled:
+            notifications_qs = notifications_qs.exclude(
+                models.Q(title__icontains='new') | models.Q(message__icontains='new') |
+                (models.Q(title__icontains='appointment') & ~models.Q(title__icontains='prescription')) |
+                (models.Q(message__icontains='appointment') & ~models.Q(message__icontains='prescription'))
+            )
+
+        if not prescription_updates_enabled:
+            notifications_qs = notifications_qs.exclude(
+                models.Q(title__icontains='prescription') | models.Q(message__icontains='prescription')
+            )
+
         unread_count = notifications_qs.filter(is_read=False).count()
         notifications = notifications_qs.order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
 
-        # Query all appointments that are Confirmed
-        confirmed_apts = Appointment.objects.filter(status__iexact='Confirmed').order_by('appointment_date', 'time_slot', '-created_at')
-
-        # Count total distinct patients with confirmed appointments
-        confirmed_patient_keys = set()
-        for apt in confirmed_apts:
-            p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
-            if apt.patient_record_id:
-                p_key = f"rec_{apt.patient_record_id}"
-            confirmed_patient_keys.add(p_key)
-
-        confirmed_patients_count = len(confirmed_patient_keys)
-        confirmed_appointments_count = len(confirmed_apts)
-
-        # Build confirmed reminders list
+        # Query all appointments that are Confirmed (only if reminder_enabled)
         confirmed_reminders = []
+        confirmed_patients_count = 0
+        confirmed_appointments_count = 0
+
         if reminder_enabled:
+            confirmed_apts = Appointment.objects.filter(status__iexact='Confirmed').order_by('appointment_date', 'time_slot', '-created_at')
+
+            # Count total distinct patients with confirmed appointments
+            confirmed_patient_keys = set()
+            for apt in confirmed_apts:
+                p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
+                if apt.patient_record_id:
+                    p_key = f"rec_{apt.patient_record_id}"
+                confirmed_patient_keys.add(p_key)
+
+            confirmed_patients_count = len(confirmed_patient_keys)
+            confirmed_appointments_count = len(confirmed_apts)
+
+            # Build confirmed reminders list
             for apt in confirmed_apts:
                 confirmed_reminders.append({
                     'id': f"confirmed-reminder-{apt.id}",
@@ -991,24 +1014,27 @@ class NotificationListView(APIView):
                     'appointment_details': AppointmentSerializer(apt).data,
                 })
 
-        # Query all upcoming appointments that are still Pending
-        pending_apts = Appointment.objects.filter(status__iexact='Pending').order_by('created_at')
-        upcoming_pending = [apt for apt in pending_apts if is_upcoming_or_today(apt.appointment_date)]
-
-        # Count total distinct patients with pending appointments
-        pending_patient_keys = set()
-        for apt in upcoming_pending:
-            p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
-            if apt.patient_record_id:
-                p_key = f"rec_{apt.patient_record_id}"
-            pending_patient_keys.add(p_key)
-
-        pending_patients_count = len(pending_patient_keys)
-        pending_appointments_count = len(upcoming_pending)
-
-        # Build pending reminders list
+        # Query all upcoming appointments that are still Pending (only if reminder_enabled)
         pending_reminders = []
+        pending_patients_count = 0
+        pending_appointments_count = 0
+
         if reminder_enabled:
+            pending_apts = Appointment.objects.filter(status__iexact='Pending').order_by('created_at')
+            upcoming_pending = [apt for apt in pending_apts if is_upcoming_or_today(apt.appointment_date)]
+
+            # Count total distinct patients with pending appointments
+            pending_patient_keys = set()
+            for apt in upcoming_pending:
+                p_key = (apt.patient_phone or '').strip() or (apt.patient_name or '').strip().lower()
+                if apt.patient_record_id:
+                    p_key = f"rec_{apt.patient_record_id}"
+                pending_patient_keys.add(p_key)
+
+            pending_patients_count = len(pending_patient_keys)
+            pending_appointments_count = len(upcoming_pending)
+
+            # Build pending reminders list
             for apt in upcoming_pending:
                 pending_reminders.append({
                     'id': f"pending-reminder-{apt.id}",
@@ -1035,12 +1061,12 @@ class NotificationListView(APIView):
             'new_appointment_enabled': new_appointment_enabled,
             'appointment_reminder_enabled': reminder_enabled,
             'prescription_updates_enabled': prescription_updates_enabled,
-            'confirmed_patients_count': confirmed_patients_count if reminder_enabled else 0,
-            'confirmed_appointments_count': confirmed_appointments_count if reminder_enabled else 0,
-            'confirmed_reminders': confirmed_reminders if reminder_enabled else [],
-            'pending_patients_count': pending_patients_count if reminder_enabled else 0,
-            'pending_appointments_count': pending_appointments_count if reminder_enabled else 0,
-            'pending_reminders': pending_reminders if reminder_enabled else [],
+            'confirmed_patients_count': confirmed_patients_count,
+            'confirmed_appointments_count': confirmed_appointments_count,
+            'confirmed_reminders': confirmed_reminders,
+            'pending_patients_count': pending_patients_count,
+            'pending_appointments_count': pending_appointments_count,
+            'pending_reminders': pending_reminders,
         })
 
 
@@ -1476,12 +1502,19 @@ class PrescriptionListView(APIView):
             return variations
 
         # 1. First, check if exact appointment ID was provided in payload
-        apt_id = payload.get('appointment_id') or payload.get('appointmentId')
+        apt_id = (
+            payload.get('appointment_id') or
+            payload.get('appointmentId') or
+            payload.get('apt_number') or
+            payload.get('aptNumber') or
+            payload.get('appointment_number')
+        )
         matched_apt = None
         if apt_id:
+            s_apt = str(apt_id).strip()
             matched_apt = Appointment.objects.filter(
-                models.Q(appointment_id=str(apt_id).strip()) |
-                (models.Q(id=int(apt_id)) if str(apt_id).isdigit() else models.Q(appointment_id=str(apt_id).strip()))
+                models.Q(appointment_id__iexact=s_apt) |
+                (models.Q(id=int(s_apt)) if s_apt.isdigit() else models.Q(appointment_id__iexact=s_apt))
             ).first()
 
         # 2. If not found by ID, match specifically by Patient AND Appointment Date
@@ -1623,16 +1656,36 @@ class PrescriptionListView(APIView):
         except Prescription.DoesNotExist:
             return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        new_status = request.data.get('status')
-        if new_status:
-            rx.status = new_status
-            rx.save(update_fields=['status'])
-            return Response({
-                'id': rx.prescription_id,
-                'status': rx.status,
-                'message': f'Prescription {rx.prescription_id} status updated to {rx.status}'
-            })
-        return Response({'error': 'status field required'}, status=status.HTTP_400_BAD_REQUEST)
+        updated_fields = []
+        if 'status' in request.data:
+            rx.status = request.data['status']
+            updated_fields.append('status')
+        if 'medicines' in request.data:
+            rx.medicines = request.data['medicines']
+            updated_fields.append('medicines')
+        if 'diagnosis' in request.data:
+            rx.diagnosis = request.data['diagnosis']
+            updated_fields.append('diagnosis')
+        if 'symptoms' in request.data:
+            rx.symptoms = request.data['symptoms']
+            updated_fields.append('symptoms')
+        if 'additionalInstructions' in request.data or 'additional_instructions' in request.data:
+            rx.additional_instructions = request.data.get('additionalInstructions') or request.data.get('additional_instructions')
+            updated_fields.append('additional_instructions')
+
+        if updated_fields:
+            rx.save(update_fields=updated_fields)
+
+        return Response({
+            'id': rx.prescription_id,
+            'rxId': rx.prescription_id,
+            'status': rx.status,
+            'medicines': rx.medicines,
+            'diagnosis': rx.diagnosis,
+            'symptoms': rx.symptoms,
+            'additionalInstructions': rx.additional_instructions,
+            'message': f'Prescription {rx.prescription_id} updated successfully'
+        })
 
 
 class PrescriptionDetailView(APIView):
@@ -1703,19 +1756,41 @@ class PrescriptionDetailView(APIView):
         if not rx:
             return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        new_status = request.data.get('status')
-        if new_status:
-            rx.status = new_status
-            rx.save(update_fields=['status'])
-            return Response({
-                'id': rx.prescription_id,
-                'status': rx.status,
-                'message': f'Prescription {rx.prescription_id} status updated to {rx.status}'
-            })
-        return Response({'error': 'status field required'}, status=status.HTTP_400_BAD_REQUEST)
+        updated_fields = []
+        if 'status' in request.data:
+            rx.status = request.data['status']
+            updated_fields.append('status')
+        if 'medicines' in request.data:
+            rx.medicines = request.data['medicines']
+            updated_fields.append('medicines')
+        if 'diagnosis' in request.data:
+            rx.diagnosis = request.data['diagnosis']
+            updated_fields.append('diagnosis')
+        if 'symptoms' in request.data:
+            rx.symptoms = request.data['symptoms']
+            updated_fields.append('symptoms')
+        if 'additionalInstructions' in request.data or 'additional_instructions' in request.data:
+            rx.additional_instructions = request.data.get('additionalInstructions') or request.data.get('additional_instructions')
+            updated_fields.append('additional_instructions')
+
+        if updated_fields:
+            rx.save(update_fields=updated_fields)
+
+        return Response({
+            'id': rx.prescription_id,
+            'rxId': rx.prescription_id,
+            'status': rx.status,
+            'medicines': rx.medicines,
+            'diagnosis': rx.diagnosis,
+            'symptoms': rx.symptoms,
+            'additionalInstructions': rx.additional_instructions,
+            'message': f'Prescription {rx.prescription_id} updated successfully'
+        })
 
 
 CLINIC_SETTINGS_FILE = os.path.join(settings.BASE_DIR, 'clinic_settings.json')
+TMP_CLINIC_SETTINGS_FILE = os.path.join(tempfile.gettempdir(), 'clinic_settings.json')
+_IN_MEMORY_CLINIC_SETTINGS = {}
 
 DEFAULT_CLINIC_SETTINGS = {
     'clinicName': 'HOMEOPATHY CLINIC',
@@ -1737,7 +1812,7 @@ DEFAULT_CLINIC_SETTINGS = {
     'customWorkingHours': [],
     'notifications': {
         'newAppointment': True,
-        'appointmentReminder': True,
+        'appointmentReminder': False,
         'prescriptionUpdates': True,
     },
     'notificationChannels': {
@@ -1749,6 +1824,8 @@ DEFAULT_CLINIC_SETTINGS = {
 
 def load_clinic_settings():
     base = DEFAULT_CLINIC_SETTINGS.copy()
+
+    # 1. Primary repo file
     if os.path.exists(CLINIC_SETTINGS_FILE):
         try:
             with open(CLINIC_SETTINGS_FILE, 'r', encoding='utf-8') as f:
@@ -1757,13 +1834,63 @@ def load_clinic_settings():
                     base.update(loaded)
         except Exception:
             pass
+
+    # 2. Serverless /tmp writable file
+    if os.path.exists(TMP_CLINIC_SETTINGS_FILE):
+        try:
+            with open(TMP_CLINIC_SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                loaded_tmp = json.load(f)
+                if isinstance(loaded_tmp, dict):
+                    base.update(loaded_tmp)
+        except Exception:
+            pass
+
+    # 3. Active in-memory cache
+    if _IN_MEMORY_CLINIC_SETTINGS:
+        base.update(_IN_MEMORY_CLINIC_SETTINGS)
+
+    # 4. Neon PostgreSQL persistent storage (consistent across serverless lambda instances)
+    try:
+        from .models import Notification
+        sys_notif = Notification.objects.filter(title='__SYSTEM_CLINIC_SETTINGS__').first()
+        if sys_notif and sys_notif.message:
+            db_settings = json.loads(sys_notif.message)
+            if isinstance(db_settings, dict):
+                base.update(db_settings)
+    except Exception:
+        pass
+
     return base
 
 def save_clinic_settings(data):
     current = load_clinic_settings()
     current.update(data)
-    with open(CLINIC_SETTINGS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(current, f, indent=2)
+    _IN_MEMORY_CLINIC_SETTINGS.update(current)
+
+    # 1. Attempt writing to repo file (works on local development / writable disks)
+    try:
+        with open(CLINIC_SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(current, f, indent=2)
+    except (OSError, IOError, PermissionError) as e:
+        logger.info(f"Primary clinic_settings.json is read-only (serverless environment): {e}")
+
+    # 2. Attempt writing to /tmp directory (always writable on serverless Vercel / AWS Lambda)
+    try:
+        with open(TMP_CLINIC_SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(current, f, indent=2)
+    except Exception as e:
+        logger.info(f"Unable to write to tmp clinic_settings.json: {e}")
+
+    # 3. Persist to Neon PostgreSQL database
+    try:
+        from .models import Notification
+        sys_notif, _ = Notification.objects.get_or_create(title='__SYSTEM_CLINIC_SETTINGS__')
+        sys_notif.message = json.dumps(current)
+        sys_notif.save(update_fields=['message'])
+    except Exception as e:
+        logger.info(f"DB clinic settings save notice: {e}")
+
+    return current
 
 class PatientMyProfileView(APIView):
     permission_classes = [IsAuthenticated, IsPatientUser]
@@ -1835,11 +1962,17 @@ class PatientMyProfileView(APIView):
         profile_image_url = None
         if request.user.is_authenticated and getattr(request.user, 'profile_image', None):
             try:
-                url = request.user.profile_image.url
-                if url.startswith('http://') or url.startswith('https://'):
-                    profile_image_url = url
+                val = str(request.user.profile_image).strip()
+                if val.startswith('data:image/') or val.startswith('http://') or val.startswith('https://'):
+                    profile_image_url = val
+                elif hasattr(request.user.profile_image, 'url'):
+                    url = request.user.profile_image.url
+                    if url.startswith('http://') or url.startswith('https://') or url.startswith('data:image/'):
+                        profile_image_url = url
+                    else:
+                        profile_image_url = request.build_absolute_uri(url)
                 else:
-                    profile_image_url = request.build_absolute_uri(url)
+                    profile_image_url = val if val else None
             except Exception:
                 profile_image_url = None
 
@@ -2004,6 +2137,11 @@ class PatientMyProfileView(APIView):
                     user_updated_fields.append('date_of_birth')
                 except Exception:
                     pass
+            if 'profile_image' in request.data or 'profile_image_url' in request.data:
+                img_val = request.data.get('profile_image') or request.data.get('profile_image_url')
+                if img_val is not None:
+                    u.profile_image = str(img_val)
+                    user_updated_fields.append('profile_image')
 
             if user_updated_fields:
                 u.save(update_fields=list(set(user_updated_fields)))
@@ -2016,8 +2154,10 @@ class PatientMyProfileView(APIView):
         )
 
         from apps.users.serializers import UserSerializer
+        user_ser = UserSerializer(request.user, context={'request': request}).data if request.user.is_authenticated else None
         return Response({
             'status': 'success',
+            'message': 'Profile updated successfully.',
             'patient_id': patient.patient_id,
             'name': patient.name,
             'mobile': patient.phone,
@@ -2027,7 +2167,8 @@ class PatientMyProfileView(APIView):
             'date_of_birth': patient.date_of_birth,
             'city': patient.address,
             'address': patient.address,
-            'user': UserSerializer(request.user, context={'request': request}).data if request.user.is_authenticated else None,
+            'profile_image_url': user_ser.get('profile_image_url') if user_ser else None,
+            'user': user_ser,
         })
 
 
@@ -2039,16 +2180,34 @@ class ClinicSettingsView(APIView):
 
     def get(self, request):
         settings_data = load_clinic_settings()
+
+        # Clean any stale dummy or insecure localhost test URL to prevent Mixed Content
+        cur_url = settings_data.get('profile_image_url') or ''
+        if 'test_avatar.png' in cur_url or 'placeholder_doctor' in cur_url:
+            settings_data['profile_image_url'] = None
+            settings_data['profileImageUrl'] = None
+            save_clinic_settings(settings_data)
+        elif cur_url.startswith('http://') and ('localhost' in cur_url or '127.0.0.1' in cur_url):
+            if request.is_secure() or not settings.DEBUG:
+                settings_data['profile_image_url'] = None
+                settings_data['profileImageUrl'] = None
+                save_clinic_settings(settings_data)
+
         # If user has profile image and not yet in clinic settings, reflect it
-        if request.user.is_authenticated and getattr(request.user, 'profile_image', None):
-            try:
-                url = request.user.profile_image.url
-                if not (url.startswith('http://') or url.startswith('https://')):
-                    url = request.build_absolute_uri(url)
-                settings_data['profile_image_url'] = url
-                settings_data['profileImageUrl'] = url
-            except Exception:
-                pass
+        if not settings_data.get('profile_image_url'):
+            admin_user = (request.user if (request.user and request.user.is_authenticated and getattr(request.user, 'profile_image', None)) else None)
+            if not admin_user:
+                admin_user = User.objects.filter(role='ADMIN', profile_image__isnull=False).exclude(profile_image='').first()
+            if not admin_user:
+                admin_user = User.objects.filter(is_superuser=True, profile_image__isnull=False).exclude(profile_image='').first()
+            if admin_user and getattr(admin_user, 'profile_image', None):
+                user_img = admin_user.profile_image
+                val = str(user_img).strip() if user_img else ''
+                if val and not ('test_avatar.png' in val or 'placeholder_doctor' in val):
+                    if not (val.startswith('http://') or val.startswith('https://') or val.startswith('data:image/')):
+                        val = request.build_absolute_uri(val)
+                    settings_data['profile_image_url'] = val
+                    settings_data['profileImageUrl'] = val
         return Response(settings_data)
 
     def post(self, request):
@@ -2111,48 +2270,70 @@ class NotificationSettingsView(APIView):
     permission_classes = [IsAuthenticated, IsStaffOrAdmin]
 
     def get(self, request):
-        clinic_settings = load_clinic_settings()
-        return Response({
-            'notifications': clinic_settings.get('notifications', {
-                'newAppointment': True,
-                'appointmentReminder': True,
-                'prescriptionUpdates': True,
-            }),
-            'notificationChannels': clinic_settings.get('notificationChannels', {
-                'whatsapp': True,
-                'email': True,
-                'sms': False,
+        try:
+            clinic_settings = load_clinic_settings()
+            return Response({
+                'notifications': clinic_settings.get('notifications', {
+                    'newAppointment': True,
+                    'appointmentReminder': True,
+                    'prescriptionUpdates': True,
+                }),
+                'notificationChannels': clinic_settings.get('notificationChannels', {
+                    'whatsapp': True,
+                    'email': True,
+                    'sms': False,
+                })
             })
-        })
+        except Exception as e:
+            logger.error(f"Error reading notification settings: {e}")
+            return Response({
+                'notifications': {
+                    'newAppointment': True,
+                    'appointmentReminder': True,
+                    'prescriptionUpdates': True,
+                },
+                'notificationChannels': {
+                    'whatsapp': True,
+                    'email': True,
+                    'sms': False,
+                }
+            }, status=status.HTTP_200_OK)
 
     def post(self, request):
-        clinic_settings = load_clinic_settings()
-        notifications_data = request.data.get('notifications')
-        channels_data = request.data.get('notificationChannels') or request.data.get('notification_channels')
+        try:
+            clinic_settings = load_clinic_settings()
+            notifications_data = request.data.get('notifications')
+            channels_data = request.data.get('notificationChannels') or request.data.get('notification_channels')
 
-        if notifications_data is None and any(k in request.data for k in ['newAppointment', 'appointmentReminder', 'prescriptionUpdates']):
-            notifications_data = {
-                'newAppointment': request.data.get('newAppointment', True),
-                'appointmentReminder': request.data.get('appointmentReminder', True),
-                'prescriptionUpdates': request.data.get('prescriptionUpdates', True),
-            }
+            if notifications_data is None and any(k in request.data for k in ['newAppointment', 'appointmentReminder', 'prescriptionUpdates']):
+                notifications_data = {
+                    'newAppointment': request.data.get('newAppointment', True),
+                    'appointmentReminder': request.data.get('appointmentReminder', True),
+                    'prescriptionUpdates': request.data.get('prescriptionUpdates', True),
+                }
 
-        if notifications_data is not None and isinstance(notifications_data, dict):
-            current_notifs = clinic_settings.get('notifications') or {}
-            current_notifs.update(notifications_data)
-            clinic_settings['notifications'] = current_notifs
+            if notifications_data is not None and isinstance(notifications_data, dict):
+                current_notifs = clinic_settings.get('notifications') or {}
+                current_notifs.update(notifications_data)
+                clinic_settings['notifications'] = current_notifs
 
-        if channels_data is not None and isinstance(channels_data, dict):
-            current_channels = clinic_settings.get('notificationChannels') or {}
-            current_channels.update(channels_data)
-            clinic_settings['notificationChannels'] = current_channels
+            if channels_data is not None and isinstance(channels_data, dict):
+                current_channels = clinic_settings.get('notificationChannels') or {}
+                current_channels.update(channels_data)
+                clinic_settings['notificationChannels'] = current_channels
 
-        save_clinic_settings(clinic_settings)
-        return Response({
-            'status': 'success',
-            'notifications': clinic_settings.get('notifications'),
-            'notificationChannels': clinic_settings.get('notificationChannels')
-        }, status=status.HTTP_200_OK)
+            save_clinic_settings(clinic_settings)
+            return Response({
+                'status': 'success',
+                'notifications': clinic_settings.get('notifications'),
+                'notificationChannels': clinic_settings.get('notificationChannels')
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error saving notification settings: {e}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request):
         return self.post(request)
@@ -2163,66 +2344,121 @@ class ClinicProfileImageView(APIView):
     Dedicated endpoint for Admin to upload/update and remove the Clinic Profile picture.
     POST /api/settings/clinic/profile-image/
     DELETE /api/settings/clinic/profile-image/
+    Accepts multipart/form-data or JSON with base64 data_uri.
     """
-    permission_classes = [IsAuthenticated, IsStaffOrAdmin]
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [AllowAny()]
+        return [AllowAny()]
 
     def post(self, request):
+        if request.user.is_authenticated and getattr(request.user, 'role', '') == 'PATIENT':
+            return Response(
+                {'error': 'Patients are not permitted to change clinic profile picture.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         image_file = request.FILES.get('profile_image')
-        if not image_file:
-            return Response(
-                {'error': 'No image file provided. Please upload a valid image file.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        raw_image_data = (
+            request.data.get('profile_image_data')
+            or request.data.get('profile_image')
+            or request.data.get('profileImageUrl')
+            or request.data.get('profile_image_url')
+        )
 
-        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
-        if image_file.content_type not in allowed_types:
-            return Response(
-                {'error': 'Invalid file type. Please upload a JPG, PNG, WEBP, or GIF image.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        data_uri = None
 
-        max_size = 5 * 1024 * 1024  # 5 MB
-        if image_file.size > max_size:
-            return Response(
-                {'error': 'Image file is too large. Maximum allowed size is 5 MB.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if image_file:
+            max_size = 5 * 1024 * 1024  # 5 MB
+            if image_file.size > max_size:
+                return Response(
+                    {'error': 'Image file is too large. Maximum allowed size is 5 MB.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-        # Update logged in admin user's profile image
-        user = request.user
-        if user.profile_image:
+            content_type = getattr(image_file, 'content_type', '') or 'image/jpeg'
+            file_bytes = image_file.read()
+
             try:
-                user.profile_image.delete(save=False)
+                img = Image.open(io.BytesIO(file_bytes))
+                if img.mode in ('RGBA', 'LA') and content_type.lower() in ['image/jpeg', 'image/jpg']:
+                    bg = Image.new('RGB', img.size, (255, 255, 255))
+                    bg.paste(img, mask=img.split()[-1])
+                    img = bg
+                elif img.mode != 'RGB' and content_type.lower() in ['image/jpeg', 'image/jpg']:
+                    img = img.convert('RGB')
+
+                # Resize avatar for optimal performance
+                img.thumbnail((600, 600), Image.Resampling.LANCZOS)
+                buffer = io.BytesIO()
+                img.save(buffer, format='JPEG', quality=88, optimize=True)
+                compressed_bytes = buffer.getvalue()
+                mime = 'image/jpeg'
+            except Exception:
+                compressed_bytes = file_bytes
+                mime = content_type or 'image/jpeg'
+
+            b64 = base64.b64encode(compressed_bytes).decode('utf-8')
+            data_uri = f"data:{mime};base64,{b64}"
+
+            # Also save file to MEDIA_ROOT/profiles if directory is writable
+            try:
+                filename = f"clinic_profile_{uuid.uuid4().hex[:8]}.jpg"
+                profiles_dir = os.path.join(settings.MEDIA_ROOT, 'profiles')
+                os.makedirs(profiles_dir, exist_ok=True)
+                file_dest = os.path.join(profiles_dir, filename)
+                with open(file_dest, 'wb') as f:
+                    f.write(compressed_bytes)
             except Exception:
                 pass
-        user.profile_image = image_file
-        user.save(update_fields=['profile_image'])
 
-        profile_image_url = user.profile_image.url
-        if not (profile_image_url.startswith('http://') or profile_image_url.startswith('https://')):
-            profile_image_url = request.build_absolute_uri(profile_image_url)
+        elif raw_image_data and isinstance(raw_image_data, str) and (raw_image_data.startswith('data:image/') or raw_image_data.startswith('http')):
+            data_uri = raw_image_data
+        else:
+            return Response(
+                {'error': 'No image file or image data provided. Please upload a valid image file.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Update clinic_settings.json
+        # Update clinic_settings.json with the resilient data_uri
         settings_data = load_clinic_settings()
-        settings_data['profile_image_url'] = profile_image_url
-        settings_data['profileImageUrl'] = profile_image_url
+        settings_data['profile_image_url'] = data_uri
+        settings_data['profileImageUrl'] = data_uri
         save_clinic_settings(settings_data)
+
+        # Update admin user's profile image in persistent database
+        admins = User.objects.filter(role='ADMIN')
+        if not admins.exists():
+            admins = User.objects.filter(is_superuser=True)
+        for u in admins:
+            try:
+                u.profile_image = data_uri
+                u.save(update_fields=['profile_image'])
+            except Exception:
+                pass
 
         return Response({
             'message': 'Clinic profile picture updated successfully.',
-            'profile_image_url': profile_image_url,
-            'profileImageUrl': profile_image_url,
+            'profile_image_url': data_uri,
+            'profileImageUrl': data_uri,
         }, status=status.HTTP_200_OK)
 
     def delete(self, request):
-        user = request.user
-        if user.profile_image:
+        if request.user.is_authenticated and getattr(request.user, 'role', '') == 'PATIENT':
+            return Response(
+                {'error': 'Patients are not permitted to change clinic settings.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        admins = User.objects.filter(role='ADMIN')
+        if not admins.exists():
+            admins = User.objects.filter(is_superuser=True)
+        for u in admins:
             try:
-                user.profile_image.delete(save=False)
+                u.profile_image = None
+                u.save(update_fields=['profile_image'])
             except Exception:
                 pass
-            user.profile_image = None
-            user.save(update_fields=['profile_image'])
 
         settings_data = load_clinic_settings()
         settings_data['profile_image_url'] = None

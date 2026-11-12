@@ -232,6 +232,28 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [slotDuration, setSlotDuration] = useState('30 Minutes');
   const [consultationHours, setConsultationHours] = useState('09:00 AM - 06:00 PM');
+  const [workingDays, setWorkingDays] = useState(() => {
+    try {
+      const cached = localStorage.getItem('clinic_appointment_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const days = parsed.workingDays || parsed.working_days;
+        if (Array.isArray(days) && days.length > 0) return days;
+      }
+    } catch {}
+    return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  });
+  const [dateRestrictions, setDateRestrictions] = useState(() => {
+    try {
+      const cached = localStorage.getItem('clinic_appointment_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const restrs = parsed.dateRestrictions || parsed.date_restrictions;
+        if (Array.isArray(restrs)) return restrs;
+      }
+    } catch {}
+    return [];
+  });
   const [timeSlot, setTimeSlot] = useState('09:00 AM - 09:30 AM');
   const [bookedSlots, setBookedSlots] = useState([]);
   const [reasonForVisit, setReasonForVisit] = useState('');
@@ -299,9 +321,35 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
       if (data) {
         if (data.slotDuration || data.slot_duration) setSlotDuration(data.slotDuration || data.slot_duration);
         if (data.consultationHours || data.consultation_hours) setConsultationHours(data.consultationHours || data.consultation_hours);
+        const days = data.workingDays || data.working_days;
+        if (Array.isArray(days) && days.length > 0) setWorkingDays(days);
+        const restrs = data.dateRestrictions || data.date_restrictions;
+        if (Array.isArray(restrs)) setDateRestrictions(restrs);
       }
     }).catch(() => {});
   }, [isOpen]);
+
+  const checkDateClosedStatus = (isoDateStr) => {
+    if (!isoDateStr) return { isClosed: false, reason: '' };
+    const parts = isoDateStr.split('-');
+    if (parts.length !== 3) return { isClosed: false, reason: '' };
+    const dObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dObj.getDay()];
+    if (workingDays && workingDays.length > 0 && !workingDays.includes(dayName)) {
+      return { isClosed: true, reason: `Clinic is closed on ${dayName}s (Non-working day)` };
+    }
+    if (dateRestrictions && dateRestrictions.length > 0) {
+      for (const r of dateRestrictions) {
+        if (!r || typeof r !== 'object') continue;
+        const start = r.startDate || r.start_date || r.date;
+        const end = r.endDate || r.end_date || start;
+        if (start && end && isoDateStr >= start && isoDateStr <= end) {
+          return { isClosed: true, reason: `Clinic is closed on this date (${r.reason || 'Restricted'})` };
+        }
+      }
+    }
+    return { isClosed: false, reason: '' };
+  };
 
   const generateAdminSlots = () => {
     const durMatch = String(slotDuration || '').match(/\d+/);
@@ -464,6 +512,12 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
     const trimmedReason = (reasonForVisit || '').trim();
     if (!trimmedReason) {
       newErrors.reasonForVisit = 'Reason for visit is required.';
+    }
+
+    // 5. Clinic Closed / Restricted Date check
+    const dateCheck = checkDateClosedStatus(appointmentDate);
+    if (dateCheck.isClosed) {
+      newErrors.appointmentDate = dateCheck.reason;
     }
 
     setErrors(newErrors);
@@ -1019,12 +1073,31 @@ const NewAppointmentModal = ({ isOpen, onClose, onSave }) => {
                     isOpen={isCalendarOpen}
                     onClose={() => setIsCalendarOpen(false)}
                     selectedDate={appointmentDate}
+                    disablePastDates={true}
+                    workingDays={workingDays}
+                    dateRestrictions={dateRestrictions}
                     onSelectDate={(displayStr, isoStr) => {
-                      if (isoStr) setAppointmentDate(isoStr);
+                      if (isoStr) {
+                        setAppointmentDate(isoStr);
+                        if (errors.appointmentDate) {
+                          setErrors((prev) => ({ ...prev, appointmentDate: '' }));
+                        }
+                      }
                       setIsCalendarOpen(false);
                     }}
                   />
                 </div>
+                {checkDateClosedStatus(appointmentDate).isClosed && (
+                  <div style={{ marginTop: '6px', fontSize: '11.5px', color: '#dc2626', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span>🚫</span>
+                    <span>{checkDateClosedStatus(appointmentDate).reason}</span>
+                  </div>
+                )}
+                {errors.appointmentDate && !checkDateClosedStatus(appointmentDate).isClosed && (
+                  <span style={{ display: 'block', color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>
+                    {errors.appointmentDate}
+                  </span>
+                )}
               </div>
 
               <div style={{ position: 'relative', zIndex: 10 }}>
