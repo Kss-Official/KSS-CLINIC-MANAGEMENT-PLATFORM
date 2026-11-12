@@ -480,7 +480,7 @@ const AdminLoginPage = () => {
               textTransform: "uppercase",
             }}
           >
-            DR. KUMARI TRIPATHI AMPEH (PAT.)
+            DR. KALPANA TRIPATHI AMPEH (PAT.)
           </h3>
 
           {/* Clinic Subtitle */}
