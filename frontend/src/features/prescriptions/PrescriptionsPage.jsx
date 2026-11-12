@@ -203,7 +203,7 @@ const PrescriptionsPage = () => {
     setCurrentPage(1);
   };
 
-  const matchesDateFilter = (itemDate) => checkDateFilter(itemDate, dateFilter);
+  const matchesDateFilter = (item) => checkDateFilter(item, dateFilter);
 
   const filteredPrescriptions = prescriptionsList.filter((item) => {
     const matchesSearch =
@@ -222,7 +222,7 @@ const PrescriptionsPage = () => {
       return current === target;
     })();
 
-    const matchesDate = matchesDateFilter(item.date);
+    const matchesDate = matchesDateFilter(item);
 
     return matchesSearch && matchesStatus && matchesDate;
   });
@@ -233,21 +233,11 @@ const PrescriptionsPage = () => {
   const validPage = Math.min(Math.max(1, currentPage), totalPages);
   const paginatedPrescriptions = filteredPrescriptions.slice((validPage - 1) * limit, validPage * limit);
 
-  // Dynamic metrics derived directly from Neon database records
-  const issuedTodayCount = prescriptionsList.filter(
-    (p) =>
-      p.date === 'Today' ||
-      p.date === formatDateForDataset(new Date().toISOString().split('T')[0]) ||
-      isCreatedToday(p.created_at) ||
-      checkDateFilter(p.date, 'Today')
-  ).length;
+  // Dynamic metrics derived directly from Neon database records - matching logic is 100% consistent with date filter
+  const isPrescriptionToday = (p) => checkDateFilter(p, 'Today');
+  const issuedTodayCount = prescriptionsList.filter((p) => isPrescriptionToday(p)).length;
   const sentTodayCount = prescriptionsList.filter(
-    (p) =>
-      (p.status === 'Sent' || p.status === 'Delivered') &&
-      (p.date === 'Today' ||
-        p.date === formatDateForDataset(new Date().toISOString().split('T')[0]) ||
-        isCreatedToday(p.created_at) ||
-        checkDateFilter(p.date, 'Today'))
+    (p) => (p.status === 'Sent' || p.status === 'Delivered') && isPrescriptionToday(p)
   ).length;
   const pendingCount = prescriptionsList.filter((p) => p.status === 'Pending').length;
   const totalCount = prescriptionsList.length;
@@ -349,16 +339,26 @@ const PrescriptionsPage = () => {
       >
         {/* Card 1: Prescriptions Issued Today */}
         <div
+          onClick={() => {
+            setDateFilter('Today');
+            setStatusFilter('All');
+            setCurrentPage(1);
+          }}
+          title="Click to view prescriptions issued today"
           style={{
             backgroundColor: '#ffffff',
             borderRadius: '18px',
-            border: '1px solid #e5eaf1',
+            border: dateFilter === 'Today' && statusFilter === 'All' ? '1.5px solid #0f766e' : '1px solid #e5eaf1',
             padding: '18px 20px',
             display: 'flex',
             alignItems: 'center',
             gap: '16px',
             boxSizing: 'border-box',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fdf9')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
         >
           <div
             style={{
@@ -392,16 +392,26 @@ const PrescriptionsPage = () => {
 
         {/* Card 2: Sent via WhatsApp Today */}
         <div
+          onClick={() => {
+            setDateFilter('Today');
+            setStatusFilter('Delivered');
+            setCurrentPage(1);
+          }}
+          title="Click to view prescriptions sent via WhatsApp today"
           style={{
             backgroundColor: '#ffffff',
             borderRadius: '18px',
-            border: '1px solid #e5eaf1',
+            border: dateFilter === 'Today' && statusFilter === 'Delivered' ? '1.5px solid #2563eb' : '1px solid #e5eaf1',
             padding: '18px 20px',
             display: 'flex',
             alignItems: 'center',
             gap: '16px',
             boxSizing: 'border-box',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8faff')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
         >
           <div
             style={{
@@ -433,16 +443,26 @@ const PrescriptionsPage = () => {
 
         {/* Card 3: Pending to Send */}
         <div
+          onClick={() => {
+            setDateFilter('All Dates');
+            setStatusFilter('Pending');
+            setCurrentPage(1);
+          }}
+          title="Click to view pending prescriptions"
           style={{
             backgroundColor: '#ffffff',
             borderRadius: '18px',
-            border: '1px solid #e5eaf1',
+            border: dateFilter === 'All Dates' && statusFilter === 'Pending' ? '1.5px solid #b45309' : '1px solid #e5eaf1',
             padding: '18px 20px',
             display: 'flex',
             alignItems: 'center',
             gap: '16px',
             boxSizing: 'border-box',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fffcf2')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
         >
           <div
             style={{
@@ -474,16 +494,24 @@ const PrescriptionsPage = () => {
 
         {/* Card 4: Total Prescriptions */}
         <div
+          onClick={() => {
+            resetFilters();
+          }}
+          title="Click to reset filters and view all prescriptions"
           style={{
             backgroundColor: '#ffffff',
             borderRadius: '18px',
-            border: '1px solid #e5eaf1',
+            border: dateFilter === 'All Dates' && statusFilter === 'All' ? '1.5px solid #8631d1' : '1px solid #e5eaf1',
             padding: '18px 20px',
             display: 'flex',
             alignItems: 'center',
             gap: '16px',
             boxSizing: 'border-box',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#faf5ff')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
         >
           <div
             style={{

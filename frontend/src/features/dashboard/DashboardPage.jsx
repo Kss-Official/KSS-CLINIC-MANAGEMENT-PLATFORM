@@ -331,7 +331,7 @@ const DashboardPage = () => {
     setCurrentPage(1);
   };
 
-  const matchesDateFilter = (itemDate) => checkDateFilter(itemDate, appointmentDateFilter);
+  const matchesDateFilter = (item) => checkDateFilter(item, appointmentDateFilter);
 
   // Dynamic appointment metric counts from Neon PostgreSQL
   const totalDashboardAppointments = appointmentsData.length;
@@ -339,7 +339,7 @@ const DashboardPage = () => {
   const confirmedDashboardAppointments = appointmentsData.filter(a => ['confirmed', 'confirm', 'pending'].includes((a.status || '').toLowerCase().trim())).length;
 
   const filteredAppointmentsData = appointmentsData.filter((item) => {
-    const matchesDate = matchesDateFilter(item.date);
+    const matchesDate = matchesDateFilter(item);
     const itemStatus = (item.status || '').toLowerCase().trim();
     let matchesStatus = true;
     if (appointmentStatusFilter !== 'All') {
@@ -374,12 +374,12 @@ const DashboardPage = () => {
     setPrescriptionCurrentPage(1);
   };
 
-  const matchesPrescriptionDateFilter = (itemDate) => checkDateFilter(itemDate, prescriptionDateFilter);
+  const matchesPrescriptionDateFilter = (item) => checkDateFilter(item, prescriptionDateFilter);
 
   // Sort most recently created prescriptions first (newest created at the top)
   const allFilteredPrescriptions = prescriptionsData
     .filter((item) => {
-      const matchesDate = matchesPrescriptionDateFilter(item.date);
+      const matchesDate = matchesPrescriptionDateFilter(item);
       const matchesStatus =
         prescriptionStatusFilter === 'All' ||
         item.status.toLowerCase() === prescriptionStatusFilter.toLowerCase();

@@ -370,7 +370,7 @@ const AppointmentsPage = () => {
     setCurrentPage(1);
   };
 
-  const matchesDateFilter = (itemDate) => checkDateFilter(itemDate, dateFilter);
+  const matchesDateFilter = (item) => checkDateFilter(item, dateFilter);
 
   // Filtered rows matching all filter criteria
   const filteredAppointments = appointmentsList.filter((item) => {
@@ -410,7 +410,7 @@ const AppointmentsPage = () => {
       return rxStatus === targetRx;
     })();
 
-    const matchesDate = matchesDateFilter(item.date);
+    const matchesDate = matchesDateFilter(item);
 
     return matchesSearch && matchesStatus && matchesPrescription && matchesDate;
   });

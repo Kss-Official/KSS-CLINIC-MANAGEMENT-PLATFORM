@@ -1402,6 +1402,8 @@ class PrescriptionListView(APIView):
                 'additionalInstructions': rx.additional_instructions,
                 'status': rx.status,
                 'created_at': rx.created_at.isoformat() if rx.created_at else None,
+                'appointment_date': rx.appointment.appointment_date if rx.appointment else None,
+                'appointmentDate': rx.appointment.appointment_date if rx.appointment else None,
             })
         return Response(data)
 

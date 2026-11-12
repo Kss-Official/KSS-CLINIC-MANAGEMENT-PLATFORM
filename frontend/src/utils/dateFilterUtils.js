@@ -81,6 +81,11 @@ export const getTodayInClinicTimezone = () => {
 export const matchesDateFilter = (itemDate, dateFilter) => {
   if (!dateFilter || dateFilter === 'All Dates') return true;
 
+  // If passed an object (e.g. prescription or appointment record), check its date fields
+  if (itemDate && typeof itemDate === 'object') {
+    return matchesRecordDateFilter(itemDate, dateFilter);
+  }
+
   const itemParsed = parseDateString(itemDate);
   if (!itemParsed) return false;
 
@@ -133,6 +138,43 @@ export const matchesDateFilter = (itemDate, dateFilter) => {
   }
 
   return String(itemDate).trim().toLowerCase() === String(dateFilter).trim().toLowerCase();
+};
+
+/**
+ * Checks if a record (prescription, appointment) matches a date filter
+ * across its primary date field, created_at timestamp, or appointment date.
+ */
+export const matchesRecordDateFilter = (item, dateFilter) => {
+  if (!dateFilter || dateFilter === 'All Dates') return true;
+  if (!item) return false;
+
+  if (typeof item === 'string') {
+    return matchesDateFilter(item, dateFilter);
+  }
+
+  // 1. Direct match on item.date
+  if (item.date && matchesDateFilter(item.date, dateFilter)) {
+    return true;
+  }
+
+  // 2. Direct match on created_at / createdAt timestamp (when the record was issued in clinic)
+  const created = item.created_at || item.createdAt;
+  if (created) {
+    if (dateFilter === 'Today' && isCreatedToday(created)) {
+      return true;
+    }
+    if (matchesDateFilter(created, dateFilter)) {
+      return true;
+    }
+  }
+
+  // 3. Match on appointment date if linked
+  const aptDate = item.appointment_date || item.appointmentDate;
+  if (aptDate && matchesDateFilter(aptDate, dateFilter)) {
+    return true;
+  }
+
+  return false;
 };
 
 /**
