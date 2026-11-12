@@ -140,7 +140,7 @@ const AboutSection = () => {
             >
               <img
                 src={aboutImg}
-                alt="Dr. Kumar Tripathi Ampeh Clinic Reception & Pharmacy"
+                alt="Dr. Kumari Tripathi Ampeh Clinic Reception & Pharmacy"
                 style={{
                   width: '100%',
                   height: '100%',
