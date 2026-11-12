@@ -6,8 +6,8 @@ import g4 from '../../assets/gallery-4.jpg';
 
 const ClinicGallerySection = () => {
   const images = [
-    { src: g1, alt: 'Clinic Reception Desk & Staff' },
-    { src: g2, alt: 'Dr. Kumar Tripathi Consultation Chamber' },
+    { src: g1, alt: 'Tripathi Electro Homeo Clinic - Front Entrance & Signboard' },
+    { src: g2, alt: 'Dr. K. Tripathi Consultation Chamber & Clinic Space' },
     { src: g3, alt: 'Comfortable & Calm Waiting Lounge' },
     { src: g4, alt: 'Natural Herbal Medicines & Mortar' },
   ];

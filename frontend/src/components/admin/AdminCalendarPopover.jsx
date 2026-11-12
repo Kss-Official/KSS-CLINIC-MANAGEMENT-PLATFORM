@@ -65,8 +65,92 @@ const AdminCalendarPopover = ({
   position = 'bottom-left', // 'bottom-left' | 'bottom-right'
   disablePastDates = false,
   minDate = null,
+  workingDays: propWorkingDays = null,
+  dateRestrictions: propDateRestrictions = null,
 }) => {
   const popoverRef = useRef(null);
+
+  // Active working days and date restrictions from props or localStorage
+  const activeWorkingDays = Array.isArray(propWorkingDays) && propWorkingDays.length > 0
+    ? propWorkingDays
+    : (() => {
+        try {
+          const cached = localStorage.getItem('clinic_appointment_settings');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            const days = parsed.workingDays || parsed.working_days;
+            if (Array.isArray(days) && days.length > 0) return days;
+          }
+        } catch {}
+        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      })();
+
+  const activeDateRestrictions = Array.isArray(propDateRestrictions)
+    ? propDateRestrictions
+    : (() => {
+        try {
+          const cached = localStorage.getItem('clinic_appointment_settings');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            const restrs = parsed.dateRestrictions || parsed.date_restrictions;
+            if (Array.isArray(restrs)) return restrs;
+          }
+        } catch {}
+        return [];
+      })();
+
+  const DAY_NAMES_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const checkDateRestriction = (dateObj) => {
+    if (!activeDateRestrictions || activeDateRestrictions.length === 0) return { isRestricted: false, reason: '' };
+    const y = dateObj.getFullYear();
+    const mStr = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const dStr = String(dateObj.getDate()).padStart(2, '0');
+    const norm = `${y}-${mStr}-${dStr}`;
+    const normMonth = `${y}-${mStr}`;
+
+    for (const r of activeDateRestrictions) {
+      if (!r || typeof r !== 'object') continue;
+      const start = r.startDate || r.start_date || r.date;
+      const end = r.endDate || r.end_date || start;
+      if (start && end) {
+        if (norm >= start && norm <= end) {
+          return { isRestricted: true, reason: r.reason || 'Clinic closed' };
+        }
+      } else if (r.month && normMonth === r.month) {
+        return { isRestricted: true, reason: r.reason || 'Clinic closed' };
+      }
+    }
+    return { isRestricted: false, reason: '' };
+  };
+
+  const isWorkingDay = (dateObj) => {
+    if (!activeWorkingDays || activeWorkingDays.length === 0) return true;
+    const dayName = DAY_NAMES_SHORT[dateObj.getDay()];
+    return activeWorkingDays.includes(dayName);
+  };
+
+  const shouldEnforceRestrictions = Boolean(disablePastDates || minDate || propWorkingDays || propDateRestrictions);
+
+  const getDateStatus = (cellDateObj) => {
+    if (effectiveMinDate) {
+      const target = new Date(cellDateObj);
+      target.setHours(0, 0, 0, 0);
+      if (target < effectiveMinDate) {
+        return { disabled: true, reason: 'Past date cannot be selected', type: 'past' };
+      }
+    }
+    if (shouldEnforceRestrictions) {
+      const restr = checkDateRestriction(cellDateObj);
+      if (restr.isRestricted) {
+        return { disabled: true, reason: `Clinic closed (${restr.reason})`, type: 'restricted' };
+      }
+      if (!isWorkingDay(cellDateObj)) {
+        return { disabled: true, reason: 'Clinic closed (Non-working day)', type: 'closed_day' };
+      }
+    }
+    return { disabled: false, reason: '', type: 'available' };
+  };
 
   // Parse initial selected date
   const initialDate = parseDateValue(selectedDate);
@@ -108,10 +192,7 @@ const AdminCalendarPopover = ({
   };
 
   const isDateDisabled = (cellDateObj) => {
-    if (!effectiveMinDate) return false;
-    const target = new Date(cellDateObj);
-    target.setHours(0, 0, 0, 0);
-    return target < effectiveMinDate;
+    return getDateStatus(cellDateObj).disabled;
   };
 
   // Handle click outside to close
@@ -413,12 +494,34 @@ const AdminCalendarPopover = ({
       >
         {cells.map((cell, idx) => {
           const isSelected = isSameDay(cell.dateObj, activeDate);
-          const isDisabled = !cell.isCurrentMonth || isDateDisabled(cell.dateObj);
+          const dateStatus = getDateStatus(cell.dateObj);
+          const isDisabled = !cell.isCurrentMonth || dateStatus.disabled;
+
+          let cellBg = isSelected ? '#e2e8f0' : 'transparent';
+          let cellColor = isSelected ? '#0f172a' : (cell.isCurrentMonth ? '#1e293b' : '#94a3b8');
+          let cellTitle = 'Click to select date';
+
+          if (!cell.isCurrentMonth) {
+            cellTitle = '';
+            cellColor = '#cbd5e1';
+          } else if (dateStatus.disabled) {
+            cellTitle = dateStatus.reason;
+            if (dateStatus.type === 'restricted') {
+              cellBg = isSelected ? '#fee2e2' : '#fef2f2';
+              cellColor = '#dc2626';
+            } else if (dateStatus.type === 'closed_day') {
+              cellBg = isSelected ? '#e2e8f0' : '#f8fafc';
+              cellColor = '#94a3b8';
+            } else {
+              cellColor = '#cbd5e1';
+            }
+          }
+
           return (
             <div
               key={idx}
               onClick={() => !isDisabled && handlePickDate(cell.dateObj)}
-              title={isDisabled ? (cell.isCurrentMonth ? 'Past date cannot be selected' : '') : 'Click to select date'}
+              title={cellTitle}
               style={{
                 width: '32px',
                 height: '30px',
@@ -430,20 +533,17 @@ const AdminCalendarPopover = ({
                 fontWeight: isSelected ? '700' : '400',
                 cursor: isDisabled ? 'not-allowed' : 'pointer',
                 borderRadius: '6px',
-                backgroundColor: isSelected
-                  ? '#e2e8f0'
-                  : 'transparent',
-                color: isSelected
-                  ? '#0f172a'
-                  : isDisabled
-                  ? '#cbd5e1'
-                  : cell.isCurrentMonth
-                  ? '#1e293b'
-                  : '#94a3b8',
-                border: isSelected ? '2px solid #0f172a' : '1px solid transparent',
-                opacity: isDisabled && cell.isCurrentMonth ? 0.4 : 1,
+                backgroundColor: cellBg,
+                color: cellColor,
+                border: isSelected
+                  ? '2px solid #0f172a'
+                  : dateStatus.type === 'restricted' && cell.isCurrentMonth
+                  ? '1px dashed #fca5a5'
+                  : '1px solid transparent',
+                opacity: isDisabled && cell.isCurrentMonth && dateStatus.type === 'past' ? 0.4 : 1,
                 transition: 'all 0.12s ease',
                 boxSizing: 'border-box',
+                position: 'relative',
               }}
               onMouseEnter={(e) => {
                 if (!isSelected && !isDisabled) {
@@ -452,7 +552,7 @@ const AdminCalendarPopover = ({
               }}
               onMouseLeave={(e) => {
                 if (!isSelected && !isDisabled) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.backgroundColor = cellBg;
                 }
               }}
             >

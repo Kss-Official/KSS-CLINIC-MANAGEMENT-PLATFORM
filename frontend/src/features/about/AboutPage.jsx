@@ -19,13 +19,7 @@ const AboutPage = () => {
     window.scrollTo(0, 0);
   }, []);
 
-  const { isAuthenticated } = useAuth();
-
   const handleOpenBooking = () => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: '/book-appointment' } });
-      return;
-    }
     navigate('/book-appointment');
   };
 

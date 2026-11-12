@@ -9,14 +9,8 @@ const AppointmentModal = ({ isOpen, onClose }) => {
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isOpen && !isAuthenticated) {
-      if (dialogRef.current?.open) {
-        dialogRef.current.close();
-      }
-      onClose?.();
-      navigate('/login', { state: { from: '/book-appointment' } });
-    }
-  }, [isOpen, isAuthenticated, navigate, onClose]);
+    // Keep modal state intact without forcefully redirecting to /login
+  }, [isOpen]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const dialogRef = useRef(null);
   const [formData, setFormData] = useState({

@@ -19,7 +19,7 @@ class User(AbstractUser):
     gender = models.CharField(max_length=50, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
-    profile_image = models.ImageField(upload_to='profiles/', blank=True, null=True)
+    profile_image = models.TextField(blank=True, null=True)
 
     def is_doctor(self):
         return self.role == self.Role.DOCTOR

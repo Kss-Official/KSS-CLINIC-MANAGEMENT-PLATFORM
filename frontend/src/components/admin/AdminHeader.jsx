@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import brandLogoImg from '../../assets/brand-logo.png';
 import useAuth from '../../hooks/useAuth';
 import appointmentApi from '../../api/appointmentApi';
+import { getEffectiveImageUrl } from '../../utils/imageUrl';
 
 const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) => {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
         }
       }
     } catch {}
-    return true;
+    return false;
   });
   const [prescriptionUpdatesEnabled, setPrescriptionUpdatesEnabled] = useState(() => {
     try {
@@ -60,43 +61,97 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
   const [clinicProfileImage, setClinicProfileImage] = useState(() => {
-    return localStorage.getItem('clinic_profile_image') || user?.profile_image_url || null;
+    const saved = localStorage.getItem('clinic_profile_image') || user?.profile_image_url || null;
+    const effective = saved ? getEffectiveImageUrl(saved) : null;
+    if (saved && !effective) {
+      try { localStorage.removeItem('clinic_profile_image'); } catch {}
+    }
+    return effective;
   });
+  const [headerImgError, setHeaderImgError] = useState(false);
 
   const fetchClinicProfileImage = async () => {
     try {
       const data = await appointmentApi.getClinicSettings();
-      const imgUrl = data?.profile_image_url || data?.profileImageUrl || null;
+      const rawImg = data?.profile_image_url || data?.profileImageUrl || null;
+      const imgUrl = rawImg ? getEffectiveImageUrl(rawImg) : null;
       if (imgUrl) {
         setClinicProfileImage(imgUrl);
+        setHeaderImgError(false);
         localStorage.setItem('clinic_profile_image', imgUrl);
       } else {
-        setClinicProfileImage(null);
-        localStorage.removeItem('clinic_profile_image');
+        const localSaved = localStorage.getItem('clinic_profile_image') || user?.profile_image_url || null;
+        const effectiveLocal = localSaved ? getEffectiveImageUrl(localSaved) : null;
+        if (effectiveLocal) {
+          setClinicProfileImage(effectiveLocal);
+          setHeaderImgError(false);
+        } else {
+          setClinicProfileImage(null);
+          localStorage.removeItem('clinic_profile_image');
+        }
       }
     } catch (err) {
       // Ignore network errors on initial header mount
     }
   };
 
+  useEffect(() => {
+    if (user?.profile_image_url) {
+      const effective = getEffectiveImageUrl(user.profile_image_url);
+      if (effective) {
+        setClinicProfileImage(effective);
+        setHeaderImgError(false);
+      }
+    }
+  }, [user?.profile_image_url]);
+
   const fetchNotifications = async () => {
     try {
-      const data = await appointmentApi.getNotifications();
+      // Prioritize locally saved user settings in localStorage if present
+      let localNotifs = null;
+      try {
+        const saved = localStorage.getItem('clinic_notification_settings');
+        if (saved) localNotifs = JSON.parse(saved);
+      } catch {}
+
+      const hasLocalRem = localNotifs && typeof localNotifs.appointmentReminder === 'boolean';
+      const remActiveParam = hasLocalRem ? localNotifs.appointmentReminder : appointmentReminderEnabled;
+
+      const data = await appointmentApi.getNotifications({
+        appointment_reminder: remActiveParam,
+      });
+
       if (data) {
         setNotifications(data.notifications || []);
         setUnreadCount(data.unread_count || 0);
-        setConfirmedReminders(data.confirmed_reminders || []);
-        setConfirmedPatientsCount(typeof data.confirmed_patients_count === 'number' ? data.confirmed_patients_count : 0);
-        setPendingReminders(data.pending_reminders || []);
-        setPendingPatientsCount(typeof data.pending_patients_count === 'number' ? data.pending_patients_count : 0);
-        if (typeof data.new_appointment_enabled === 'boolean') {
-          setNewAppointmentEnabled(data.new_appointment_enabled);
-        }
-        if (typeof data.appointment_reminder_enabled === 'boolean') {
-          setAppointmentReminderEnabled(data.appointment_reminder_enabled);
-        }
-        if (typeof data.prescription_updates_enabled === 'boolean') {
-          setPrescriptionUpdatesEnabled(data.prescription_updates_enabled);
+
+        const newAptActive = (localNotifs && typeof localNotifs.newAppointment === 'boolean')
+          ? localNotifs.newAppointment
+          : (typeof data.new_appointment_enabled === 'boolean' ? data.new_appointment_enabled : true);
+
+        const remActive = hasLocalRem
+          ? localNotifs.appointmentReminder
+          : (typeof data.appointment_reminder_enabled === 'boolean' ? data.appointment_reminder_enabled : false);
+
+        const rxActive = (localNotifs && typeof localNotifs.prescriptionUpdates === 'boolean')
+          ? localNotifs.prescriptionUpdates
+          : (typeof data.prescription_updates_enabled === 'boolean' ? data.prescription_updates_enabled : true);
+
+        setNewAppointmentEnabled(newAptActive);
+        setAppointmentReminderEnabled(remActive);
+        setPrescriptionUpdatesEnabled(rxActive);
+
+        if (!remActive) {
+          setIsReminderPillVisible(false);
+          setConfirmedReminders([]);
+          setConfirmedPatientsCount(0);
+          setPendingReminders([]);
+          setPendingPatientsCount(0);
+        } else {
+          setConfirmedReminders(data.confirmed_reminders || []);
+          setConfirmedPatientsCount(typeof data.confirmed_patients_count === 'number' ? data.confirmed_patients_count : 0);
+          setPendingReminders(data.pending_reminders || []);
+          setPendingPatientsCount(typeof data.pending_patients_count === 'number' ? data.pending_patients_count : 0);
         }
       }
     } catch (err) {
@@ -189,8 +244,10 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
 
     // Listen to custom event when clinic profile image is updated
     const handleClinicImageUpdated = (e) => {
-      const newImg = e?.detail?.profile_image_url || null;
+      const rawImg = e?.detail?.profile_image_url || null;
+      const newImg = rawImg ? getEffectiveImageUrl(rawImg) : null;
       setClinicProfileImage(newImg);
+      setHeaderImgError(false);
       if (newImg) {
         localStorage.setItem('clinic_profile_image', newImg);
       } else {
@@ -198,6 +255,16 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       }
     };
     window.addEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
+
+    // Cross-tab and localStorage sync
+    const handleStorageChange = (e) => {
+      if (e.key === 'clinic_profile_image') {
+        const newImg = e.newValue ? getEffectiveImageUrl(e.newValue) : null;
+        setClinicProfileImage(newImg);
+        setHeaderImgError(false);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
 
     // Listen to custom event when notification settings are updated
     const handleNotificationSettingsUpdated = (e) => {
@@ -208,6 +275,11 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
         }
         if (typeof updated.appointmentReminder === 'boolean') {
           setAppointmentReminderEnabled(updated.appointmentReminder);
+          if (!updated.appointmentReminder) {
+            setIsReminderPillVisible(false);
+            setConfirmedReminders([]);
+            setPendingReminders([]);
+          }
         }
         if (typeof updated.prescriptionUpdates === 'boolean') {
           setPrescriptionUpdatesEnabled(updated.prescriptionUpdates);
@@ -231,6 +303,16 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     const handlePrescriptionRemainingEvent = (e) => {
       const detail = e?.detail;
       if (!detail) return;
+
+      let rxEnabled = true;
+      try {
+        const saved = localStorage.getItem('clinic_notification_settings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (typeof parsed.prescriptionUpdates === 'boolean') rxEnabled = parsed.prescriptionUpdates;
+        }
+      } catch {}
+      if (!rxEnabled) return;
 
       const aptNum = detail.appointment_id || (detail.id ? `APT-${detail.id}` : 'APT-0000');
       const pName = detail.patient_name || detail.name || 'Patient';
@@ -265,6 +347,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     return () => {
       clearInterval(interval);
       window.removeEventListener('clinic-profile-image-updated', handleClinicImageUpdated);
+      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('notification-settings-updated', handleNotificationSettingsUpdated);
       window.removeEventListener('appointment-booked', handleAppointmentChanged);
       window.removeEventListener('appointment-updated', handleAppointmentChanged);
@@ -373,19 +456,26 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     (n.title && n.title.toLowerCase().includes('prescription')) ||
     (n.message && n.message.toLowerCase().includes('prescription'));
 
-  const newAppointmentsList = notifications.filter(
-    (n) => !n.is_read && isNewAptNotif(n)
-  );
-  const rxRemainingList = notifications.filter(
-    (n) => (n.title && n.title.toLowerCase().includes('prescription remaining')) ||
-           (n.message && n.message.toLowerCase().includes('prescription remaining'))
-  ).sort((a, b) => {
-    if (!a.is_read && b.is_read) return -1;
-    if (a.is_read && !b.is_read) return 1;
-    return 0;
-  });
+  const newAppointmentsList = newAppointmentEnabled
+    ? notifications.filter((n) => !n.is_read && isNewAptNotif(n))
+    : [];
+
+  const rxRemainingList = prescriptionUpdatesEnabled
+    ? notifications.filter(
+        (n) => (n.title && n.title.toLowerCase().includes('prescription remaining')) ||
+               (n.message && n.message.toLowerCase().includes('prescription remaining'))
+      ).sort((a, b) => {
+        if (!a.is_read && b.is_read) return -1;
+        if (a.is_read && !b.is_read) return 1;
+        return 0;
+      })
+    : [];
+
   const otherNotifsList = notifications.filter((n) => {
-    return !!n.is_read;
+    if (!n.is_read) return false;
+    if (isNewAptNotif(n) && !newAppointmentEnabled) return false;
+    if (isRxNotif(n) && !prescriptionUpdatesEnabled) return false;
+    return true;
   });
 
   const handleLogout = async () => {
@@ -682,7 +772,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                     </button>
                   )}
                 </div>
-                {unreadCount > 0 && (
+                {(newAppointmentsList.length > 0 || rxRemainingList.some((n) => !n.is_read)) && (
                   <button
                     type="button"
                     onClick={handleMarkAllRead}
@@ -1490,7 +1580,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
             }}
           >
             {/* Circular Avatar (Clinic Profile Picture or Initials 'DT') */}
-            {clinicProfileImage ? (
+            {clinicProfileImage && !headerImgError ? (
               <img
                 src={clinicProfileImage}
                 alt="Clinic Profile"
@@ -1504,8 +1594,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                   border: '1.5px solid #22c55e',
                 }}
                 onError={() => {
-                  setClinicProfileImage(null);
-                  localStorage.removeItem('clinic_profile_image');
+                  setHeaderImgError(true);
                 }}
               />
             ) : (

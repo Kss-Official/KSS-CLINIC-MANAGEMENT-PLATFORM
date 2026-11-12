@@ -146,9 +146,36 @@ export const appointmentApi = {
     return response.data;
   },
 
+  updatePrescription: async (rxId, data) => {
+    const response = await axiosClient.patch(`/prescriptions/${encodeURIComponent(rxId)}/`, data);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('prescription-updated', { detail: response.data })
+      );
+      window.dispatchEvent(
+        new CustomEvent('prescription-created', { detail: response.data })
+      );
+    }
+    return response.data;
+  },
+
   // Notifications
-  getNotifications: async () => {
-    const response = await axiosClient.get('/notifications/');
+  getNotifications: async (params = {}) => {
+    let localRem = null;
+    try {
+      const saved = localStorage.getItem('clinic_notification_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.appointmentReminder === 'boolean') {
+          localRem = parsed.appointmentReminder;
+        }
+      }
+    } catch {}
+    const queryParams = { ...params };
+    if (localRem !== null && queryParams.appointment_reminder === undefined) {
+      queryParams.appointment_reminder = localRem;
+    }
+    const response = await axiosClient.get('/notifications/', { params: queryParams });
     return response.data;
   },
 
@@ -207,11 +234,10 @@ export const appointmentApi = {
     return response.data;
   },
 
-  uploadClinicProfileImage: async (formData) => {
-    const response = await axiosClient.post('/settings/clinic/profile-image/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+  uploadClinicProfileImage: async (formDataOrData) => {
+    const isFormData = typeof FormData !== 'undefined' && formDataOrData instanceof FormData;
+    const response = await axiosClient.post('/settings/clinic/profile-image/', formDataOrData, {
+      headers: isFormData ? { 'Content-Type': undefined } : { 'Content-Type': 'application/json' },
     });
     return response.data;
   },
