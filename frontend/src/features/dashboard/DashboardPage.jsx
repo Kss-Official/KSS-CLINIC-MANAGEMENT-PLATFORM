@@ -52,7 +52,7 @@ const DashboardPage = () => {
 
   const [appointmentsData, setAppointmentsData] = useState(() => {
     try {
-      const cached = sessionStorage.getItem('kss_cached_admin_appointments');
+      const cached = localStorage.getItem('kss_cached_admin_appointments') || sessionStorage.getItem('kss_cached_admin_appointments');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -62,7 +62,7 @@ const DashboardPage = () => {
   });
   const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(() => {
     try {
-      const cached = sessionStorage.getItem('kss_cached_admin_appointments');
+      const cached = localStorage.getItem('kss_cached_admin_appointments') || sessionStorage.getItem('kss_cached_admin_appointments');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) return false;
@@ -91,13 +91,14 @@ const DashboardPage = () => {
 
   const fetchAppointments = useCallback(async (silent = false) => {
     try {
-      if (!silent) {
+      if (!silent && appointmentsData.length === 0) {
         setIsAppointmentsLoading(true);
       }
       const data = await appointmentApi.getAppointments();
       if (Array.isArray(data)) {
         const mapped = data.map(mapApiAppointment);
         try {
+          localStorage.setItem('kss_cached_admin_appointments', JSON.stringify(mapped));
           sessionStorage.setItem('kss_cached_admin_appointments', JSON.stringify(mapped));
         } catch {}
         setAppointmentsData((prev) => {
@@ -112,11 +113,9 @@ const DashboardPage = () => {
     } catch (err) {
       console.error('Failed to load dashboard appointments:', err);
     } finally {
-      if (!silent) {
-        setIsAppointmentsLoading(false);
-      }
+      setIsAppointmentsLoading(false);
     }
-  }, []);
+  }, [appointmentsData.length]);
 
   useEffect(() => {
     fetchAppointments(false);
@@ -151,7 +150,7 @@ const DashboardPage = () => {
   }, [fetchAppointments]);
   const [prescriptionsData, setPrescriptionsData] = useState(() => {
     try {
-      const cached = sessionStorage.getItem('kss_cached_admin_prescriptions');
+      const cached = localStorage.getItem('kss_cached_admin_prescriptions') || sessionStorage.getItem('kss_cached_admin_prescriptions');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -161,7 +160,7 @@ const DashboardPage = () => {
   });
   const [isPrescriptionsLoading, setIsPrescriptionsLoading] = useState(() => {
     try {
-      const cached = sessionStorage.getItem('kss_cached_admin_prescriptions');
+      const cached = localStorage.getItem('kss_cached_admin_prescriptions') || sessionStorage.getItem('kss_cached_admin_prescriptions');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) return false;
@@ -172,7 +171,7 @@ const DashboardPage = () => {
 
   const fetchPrescriptions = useCallback(async (silent = false) => {
     try {
-      if (!silent) {
+      if (!silent && prescriptionsData.length === 0) {
         setIsPrescriptionsLoading(true);
       }
       const data = await appointmentApi.getPrescriptions();
@@ -205,6 +204,7 @@ const DashboardPage = () => {
           status: item.status || 'Confirmed',
         }));
         try {
+          localStorage.setItem('kss_cached_admin_prescriptions', JSON.stringify(mapped));
           sessionStorage.setItem('kss_cached_admin_prescriptions', JSON.stringify(mapped));
         } catch {}
         setPrescriptionsData((prev) => {
@@ -219,11 +219,9 @@ const DashboardPage = () => {
     } catch (err) {
       console.error('Failed to load dashboard prescriptions from Neon:', err);
     } finally {
-      if (!silent) {
-        setIsPrescriptionsLoading(false);
-      }
+      setIsPrescriptionsLoading(false);
     }
-  }, []);
+  }, [prescriptionsData.length]);
 
   useEffect(() => {
     fetchPrescriptions(false);

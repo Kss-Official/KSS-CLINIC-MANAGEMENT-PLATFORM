@@ -111,7 +111,7 @@ const AppointmentsPage = () => {
 
   const [appointmentsList, setAppointmentsList] = useState(() => {
     try {
-      const cached = sessionStorage.getItem('kss_cached_admin_appointments');
+      const cached = localStorage.getItem('kss_cached_admin_appointments') || sessionStorage.getItem('kss_cached_admin_appointments');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -122,7 +122,7 @@ const AppointmentsPage = () => {
   const [backendStats, setBackendStats] = useState(null);
   const [isLoading, setIsLoading] = useState(() => {
     try {
-      const cached = sessionStorage.getItem('kss_cached_admin_appointments');
+      const cached = localStorage.getItem('kss_cached_admin_appointments') || sessionStorage.getItem('kss_cached_admin_appointments');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) return false;
@@ -180,7 +180,7 @@ const AppointmentsPage = () => {
 
   const fetchAppointments = useCallback(async (silent = false) => {
     try {
-      if (!silent) {
+      if (!silent && appointmentsList.length === 0) {
         setIsLoading(true);
       }
       setError(null);
@@ -194,6 +194,7 @@ const AppointmentsPage = () => {
       if (Array.isArray(data)) {
         const mapped = data.map(mapApiAppointment);
         try {
+          localStorage.setItem('kss_cached_admin_appointments', JSON.stringify(mapped));
           sessionStorage.setItem('kss_cached_admin_appointments', JSON.stringify(mapped));
         } catch {}
         setAppointmentsList((prev) => {
@@ -207,15 +208,13 @@ const AppointmentsPage = () => {
       }
     } catch (err) {
       console.error('Failed to fetch appointments:', err);
-      if (!silent) {
+      if (!silent && appointmentsList.length === 0) {
         setError('Unable to load appointments from Neon cloud database. Please verify backend connection.');
       }
     } finally {
-      if (!silent) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
-  }, []);
+  }, [appointmentsList.length]);
 
   useEffect(() => {
     fetchAppointments();
