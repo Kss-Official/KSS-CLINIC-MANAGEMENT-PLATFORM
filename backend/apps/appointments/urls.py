@@ -21,8 +21,11 @@ from .views import (
     PrescriptionPdfDownloadView,
     AppointmentPdfDownloadView,
 )
+from apps.core.views import ContactFormView
 
 urlpatterns = [
+    path('contact/', ContactFormView.as_view(), name='contact-form-appointments'),
+    path('contact', ContactFormView.as_view()),
     path('appointments/slots/', AppointmentSlotsView.as_view(), name='appointment-slots'),
     path('appointments/stats/', AppointmentStatsView.as_view(), name='appointment-stats'),
     path('appointments/', AppointmentListCreateView.as_view(), name='appointment-list-create'),

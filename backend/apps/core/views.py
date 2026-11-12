@@ -17,17 +17,34 @@ class ContactFormView(APIView):
 
     def post(self, request, *args, **kwargs):
         data = request.data
-        full_name = data.get('fullName', '').strip()
-        phone = data.get('phone', '').strip()
-        email = data.get('email', '').strip()
-        purpose = data.get('purpose', 'General Consultation').strip()
-        message = data.get('message', '').strip()
+        full_name = str(data.get('fullName') or data.get('full_name') or data.get('name') or '').strip()
+        phone = str(data.get('phone') or data.get('phone_number') or data.get('mobile') or '').strip()
+        email = str(data.get('email') or '').strip()
+        purpose = str(data.get('purpose') or data.get('purpose_of_contact') or 'General Consultation').strip()
+        message = str(data.get('message') or data.get('msg') or '').strip()
 
         if not full_name or not phone or not message:
             return Response(
                 {'success': False, 'error': 'Full name, phone, and message are required.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # 1. Always record in Admin Notification so clinic never loses the inquiry
+        try:
+            from apps.appointments.models import Notification
+            from datetime import datetime
+            now_date = datetime.now().strftime('%d %b %Y')
+            now_time = datetime.now().strftime('%I:%M %p')
+            Notification.objects.create(
+                title=f"New Patient Inquiry ({purpose})",
+                message=f"{full_name} ({phone}): {message[:140]}",
+                patient_name=full_name,
+                appointment_date=now_date,
+                booking_time=now_time,
+                is_read=False,
+            )
+        except Exception as notif_err:
+            logger.warning(f"Could not create admin notification for contact inquiry: {notif_err}")
 
         recipient = getattr(settings, 'CLINIC_CONTACT_EMAIL', 'pratikshaharode0@gmail.com')
         sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'pratikshaharode0@gmail.com')

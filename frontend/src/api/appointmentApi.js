@@ -272,6 +272,12 @@ export const appointmentApi = {
     });
     return response.data;
   },
+
+  // Contact Us / Inquiry Form Submission
+  sendContactInquiry: async (contactData) => {
+    const response = await axiosClient.post('/contact/', contactData);
+    return response.data;
+  },
 };
 
 export default appointmentApi;
