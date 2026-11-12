@@ -109,9 +109,27 @@ const AppointmentsPage = () => {
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [appointmentsList, setAppointmentsList] = useState([]);
+  const [appointmentsList, setAppointmentsList] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('kss_cached_admin_appointments');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [backendStats, setBackendStats] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('kss_cached_admin_appointments');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
   const [error, setError] = useState(null);
 
   const mapApiAppointment = (item) => {
@@ -175,6 +193,9 @@ const AppointmentsPage = () => {
       }
       if (Array.isArray(data)) {
         const mapped = data.map(mapApiAppointment);
+        try {
+          sessionStorage.setItem('kss_cached_admin_appointments', JSON.stringify(mapped));
+        } catch {}
         setAppointmentsList((prev) => {
           if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
             return prev;

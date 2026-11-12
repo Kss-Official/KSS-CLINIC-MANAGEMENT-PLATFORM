@@ -50,8 +50,26 @@ const DashboardPage = () => {
 
 
 
-  const [appointmentsData, setAppointmentsData] = useState([]);
-  const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(true);
+  const [appointmentsData, setAppointmentsData] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('kss_cached_admin_appointments');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('kss_cached_admin_appointments');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
 
   const mapApiAppointment = (item) => ({
     id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
@@ -79,6 +97,9 @@ const DashboardPage = () => {
       const data = await appointmentApi.getAppointments();
       if (Array.isArray(data)) {
         const mapped = data.map(mapApiAppointment);
+        try {
+          sessionStorage.setItem('kss_cached_admin_appointments', JSON.stringify(mapped));
+        } catch {}
         setAppointmentsData((prev) => {
           if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
             return prev;
@@ -127,8 +148,26 @@ const DashboardPage = () => {
       clearInterval(interval);
     };
   }, [fetchAppointments]);
-  const [prescriptionsData, setPrescriptionsData] = useState([]);
-  const [isPrescriptionsLoading, setIsPrescriptionsLoading] = useState(true);
+  const [prescriptionsData, setPrescriptionsData] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('kss_cached_admin_prescriptions');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [isPrescriptionsLoading, setIsPrescriptionsLoading] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('kss_cached_admin_prescriptions');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
 
   const fetchPrescriptions = useCallback(async (silent = false) => {
     try {
@@ -164,6 +203,9 @@ const DashboardPage = () => {
           notes: item.notes || item.additionalInstructions || '',
           status: item.status || 'Confirmed',
         }));
+        try {
+          sessionStorage.setItem('kss_cached_admin_prescriptions', JSON.stringify(mapped));
+        } catch {}
         setPrescriptionsData((prev) => {
           if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
             return prev;

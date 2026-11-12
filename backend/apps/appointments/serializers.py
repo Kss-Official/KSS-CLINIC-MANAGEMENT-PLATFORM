@@ -43,7 +43,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         if data.get('prescription_status') != 'Complete':
             has_rx = False
             try:
-                if instance.prescriptions.exists():
+                if hasattr(instance, '_prefetched_objects_cache') and 'prescriptions' in instance._prefetched_objects_cache:
+                    has_rx = bool(len(instance.prescriptions.all()))
+                elif instance.prescriptions.exists():
                     has_rx = True
                 elif Prescription.objects.filter(appointment=instance).exists():
                     has_rx = True
@@ -51,11 +53,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 pass
             if has_rx:
                 data['prescription_status'] = 'Complete'
-                try:
-                    instance.prescription_status = 'Complete'
-                    instance.save(update_fields=['prescription_status'])
-                except Exception:
-                    pass
         return data
 
     def validate_patient_name(self, value):

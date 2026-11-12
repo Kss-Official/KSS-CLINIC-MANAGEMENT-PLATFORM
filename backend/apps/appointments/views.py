@@ -356,14 +356,16 @@ class AppointmentListCreateView(APIView):
         apt_date = request.query_params.get('appointment_date') or request.query_params.get('date')
         wants_stats = (request.query_params.get('stats') or '').lower() in ['true', '1']
 
+        base_appointments = Appointment.objects.select_related('patient_record').prefetch_related('prescriptions')
+
         if request.user.is_authenticated:
             if getattr(request.user, 'role', None) == 'PATIENT':
                 q = models.Q(user=request.user) | models.Q(patient_record__user=request.user)
                 if request.user.email:
                     q |= (models.Q(patient_email__iexact=request.user.email) & (models.Q(user__isnull=True) | models.Q(user=request.user)))
-                appointments = Appointment.objects.filter(q).order_by('-created_at')
+                appointments = base_appointments.filter(q).order_by('-created_at')
             else:
-                appointments = Appointment.objects.all().order_by('-created_at')
+                appointments = base_appointments.all().order_by('-created_at')
                 if phone or email or patient_id:
                     q = models.Q()
                     if phone:
@@ -386,9 +388,9 @@ class AppointmentListCreateView(APIView):
                     q |= models.Q(patient_email__iexact=email)
                 if patient_id:
                     q |= models.Q(patient_record__patient_id__iexact=patient_id)
-                appointments = Appointment.objects.filter(q).order_by('-created_at')
+                appointments = base_appointments.filter(q).order_by('-created_at')
             else:
-                appointments = Appointment.objects.all().order_by('-created_at')
+                appointments = base_appointments.all().order_by('-created_at')
 
         # Date and creation-date filters
         tz = zoneinfo.ZoneInfo('Asia/Kolkata')
@@ -1306,15 +1308,17 @@ class PrescriptionListView(APIView):
         email = request.query_params.get('email')
         patient_id = request.query_params.get('patient_id') or request.query_params.get('patientId')
 
+        base_prescriptions = Prescription.objects.select_related('patient_record', 'appointment')
+
         if request.user.is_authenticated:
             if getattr(request.user, 'role', None) == 'PATIENT':
                 p_ids = list(Patient.objects.filter(user=request.user).values_list('patient_id', flat=True))
                 q = models.Q(patient_record__user=request.user) | models.Q(patient_id_ref__in=p_ids)
                 if request.user.email:
                     q |= (models.Q(patient_record__email__iexact=request.user.email) & (models.Q(patient_record__user=request.user) | models.Q(patient_record__user__isnull=True)))
-                prescriptions = Prescription.objects.filter(q).order_by('-created_at')
+                prescriptions = base_prescriptions.filter(q).order_by('-created_at')
             else:
-                prescriptions = Prescription.objects.all().order_by('-created_at')
+                prescriptions = base_prescriptions.all().order_by('-created_at')
         elif phone or email or patient_id:
             q = models.Q()
             if phone:
@@ -1325,9 +1329,9 @@ class PrescriptionListView(APIView):
                 q |= models.Q(patient_record__email__iexact=email)
             if patient_id:
                 q |= models.Q(patient_id_ref__iexact=patient_id) | models.Q(patient_record__patient_id__iexact=patient_id)
-            prescriptions = Prescription.objects.filter(q).order_by('-created_at')
+            prescriptions = base_prescriptions.filter(q).order_by('-created_at')
         else:
-            prescriptions = Prescription.objects.all().order_by('-created_at')
+            prescriptions = base_prescriptions.all().order_by('-created_at')
 
         data = []
         for rx in prescriptions:
