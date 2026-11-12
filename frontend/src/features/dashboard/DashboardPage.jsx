@@ -136,8 +136,9 @@ const DashboardPage = () => {
     window.addEventListener('focus', handleFocus);
 
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       fetchAppointments(true);
-    }, 5000);
+    }, 20000);
 
     return () => {
       window.removeEventListener('appointment-booked', handleAppointmentBooked);
@@ -263,8 +264,9 @@ const DashboardPage = () => {
     window.addEventListener('focus', handleFocus);
 
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       fetchPrescriptions(true);
-    }, 5000);
+    }, 20000);
 
     return () => {
       window.removeEventListener('prescription-created', handlePrescriptionCreated);

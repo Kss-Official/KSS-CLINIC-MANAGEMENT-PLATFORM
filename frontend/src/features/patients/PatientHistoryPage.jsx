@@ -14,39 +14,65 @@ const PatientHistoryPage = () => {
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [patientsList, setPatientsList] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [patientsList, setPatientsList] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('kss_cached_admin_patients');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('kss_cached_admin_patients');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
   const [error, setError] = useState(null);
 
-  const fetchPatients = useCallback(async () => {
-    setIsLoading(true);
+  const fetchPatients = useCallback(async (silent = false) => {
+    if (!silent && patientsList.length === 0) setIsLoading(true);
     setError(null);
     try {
       const data = await appointmentApi.getPatients();
-      setPatientsList(Array.isArray(data) ? data : []);
+      if (Array.isArray(data)) {
+        try {
+          sessionStorage.setItem('kss_cached_admin_patients', JSON.stringify(data));
+        } catch {}
+        setPatientsList(data);
+      } else {
+        setPatientsList([]);
+      }
     } catch (err) {
       console.error('Failed to load patients from Neon database:', err);
-      setError('Failed to load patient history from database.');
+      if (!silent) setError('Failed to load patient history from database.');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  }, []);
+  }, [patientsList.length]);
 
   useEffect(() => {
-    fetchPatients();
+    fetchPatients(false);
 
     const handleDataChanged = () => {
-      fetchPatients();
+      fetchPatients(true);
     };
 
+    const handleFocus = () => fetchPatients(true);
     window.addEventListener('appointment-booked', handleDataChanged);
     window.addEventListener('prescription-created', handleDataChanged);
-    window.addEventListener('focus', fetchPatients);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       window.removeEventListener('appointment-booked', handleDataChanged);
       window.removeEventListener('prescription-created', handleDataChanged);
-      window.removeEventListener('focus', fetchPatients);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [fetchPatients]);
 

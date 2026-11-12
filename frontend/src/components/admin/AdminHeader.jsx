@@ -329,8 +329,11 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     };
     window.addEventListener('prescription-remaining-notification', handlePrescriptionRemainingEvent);
 
-    // Poll every 5 seconds for real-time automatic notification updates
-    const interval = setInterval(fetchNotifications, 5000);
+    // Poll every 20 seconds for real-time automatic notification updates when tab is active
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchNotifications();
+    }, 20000);
 
     // Outside click to close notification and profile dropdowns
     const handleOutsideClick = (e) => {

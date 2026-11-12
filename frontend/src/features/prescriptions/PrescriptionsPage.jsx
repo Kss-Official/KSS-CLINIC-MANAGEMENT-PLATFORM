@@ -20,23 +20,48 @@ const PrescriptionsPage = () => {
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [prescriptionsList, setPrescriptionsList] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [prescriptionsList, setPrescriptionsList] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('kss_cached_admin_prescriptions');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('kss_cached_admin_prescriptions');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
   const [error, setError] = useState(null);
 
   const fetchPrescriptions = useCallback(async (silent = false) => {
-    if (!silent) setIsLoading(true);
+    if (!silent && prescriptionsList.length === 0) setIsLoading(true);
     setError(null);
     try {
       const data = await appointmentApi.getPrescriptions();
-      setPrescriptionsList(Array.isArray(data) ? data : []);
+      if (Array.isArray(data)) {
+        try {
+          sessionStorage.setItem('kss_cached_admin_prescriptions', JSON.stringify(data));
+        } catch {}
+        setPrescriptionsList(data);
+      } else {
+        setPrescriptionsList([]);
+      }
     } catch (err) {
       console.error('Failed to load prescriptions from Neon database:', err);
       if (!silent) setError('Failed to load prescriptions from database.');
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, []);
+  }, [prescriptionsList.length]);
 
   useEffect(() => {
     fetchPrescriptions();

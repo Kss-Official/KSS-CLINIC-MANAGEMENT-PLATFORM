@@ -207,7 +207,7 @@ class AppointmentSlotsView(APIView):
         date_param = request.query_params.get('date') or request.query_params.get('appointment_date')
         exclude_id = request.query_params.get('exclude_id') or request.query_params.get('exclude_appointment_id')
 
-        active_appointments = Appointment.objects.exclude(status__iexact='Cancelled')
+        active_appointments = Appointment.objects.exclude(status__iexact='Cancelled').only('appointment_date', 'time_slot')
         if exclude_id:
             if str(exclude_id).isdigit():
                 active_appointments = active_appointments.exclude(pk=int(exclude_id))
@@ -314,31 +314,23 @@ class AppointmentStatsView(APIView):
         start_of_today = datetime.combine(today_date, time.min, tzinfo=tz)
         end_of_today = datetime.combine(today_date, time.max, tzinfo=tz)
 
-        total_count = Appointment.objects.count()
-        today_appointments_count = Appointment.objects.filter(
-            created_at__gte=start_of_today,
-            created_at__lte=end_of_today
-        ).count()
+        stats = Appointment.objects.aggregate(
+            total_count=models.Count('id'),
+            today_appointments_count=models.Count('id', filter=models.Q(created_at__gte=start_of_today, created_at__lte=end_of_today)),
+            completed_count=models.Count('id', filter=models.Q(status__in=['Complete', 'Completed', 'complete', 'completed'])),
+            pending_count=models.Count('id', filter=models.Q(status__in=['Pending', 'Confirmed', 'pending', 'confirmed'])),
+            cancelled_count=models.Count('id', filter=models.Q(status__in=['Cancelled', 'cancelled'])),
+        )
 
-        completed_count = Appointment.objects.filter(
-            status__in=['Complete', 'Completed', 'complete', 'completed']
-        ).count()
-
-        pending_count = Appointment.objects.filter(
-            status__in=['Pending', 'Confirmed', 'pending', 'confirmed']
-        ).count()
-
-        cancelled_count = Appointment.objects.filter(
-            status__in=['Cancelled', 'cancelled']
-        ).count()
+        today_count = stats.get('today_appointments_count') or 0
 
         return Response({
-            'today_appointments_count': today_appointments_count,
-            'todayAppointments': today_appointments_count,
-            'total_appointments_count': total_count,
-            'completed_count': completed_count,
-            'pending_count': pending_count,
-            'cancelled_count': cancelled_count,
+            'today_appointments_count': today_count,
+            'todayAppointments': today_count,
+            'total_appointments_count': stats.get('total_count') or 0,
+            'completed_count': stats.get('completed_count') or 0,
+            'pending_count': stats.get('pending_count') or 0,
+            'cancelled_count': stats.get('cancelled_count') or 0,
             'current_date': str(today_date),
         })
 
@@ -928,6 +920,7 @@ class NotificationListView(APIView):
                 n.appointment_id: n for n in Notification.objects.filter(title='Prescription Remaining')
             }
             to_create = []
+            to_update = []
             for c_apt in completed_apts:
                 has_rx = (
                     (c_apt.id in rx_apt_ids) or
@@ -948,9 +941,11 @@ class NotificationListView(APIView):
                     existing = existing_rx_notifs.get(c_apt.id)
                     if existing and not existing.is_read:
                         existing.is_read = True
-                        existing.save(update_fields=['is_read'])
+                        to_update.append(existing)
             if to_create:
                 Notification.objects.bulk_create(to_create)
+            if to_update:
+                Notification.objects.bulk_update(to_update, ['is_read'])
 
         notifications_qs = Notification.objects.exclude(title='__SYSTEM_CLINIC_SETTINGS__')
 
@@ -1099,56 +1094,61 @@ class PatientHistoryListView(APIView):
     permission_classes = [IsAuthenticated, IsStaffOrAdmin]
 
     def get(self, request):
-        # Auto-link any unlinked appointments
-        for unlinked_apt in Appointment.objects.filter(patient_record__isnull=True):
-            p_name = (unlinked_apt.patient_name or '').strip()
-            p_phone = (unlinked_apt.patient_phone or '').strip()
-            clean_digits = ''.join(c for c in p_phone if c.isdigit())
-            patient = None
-            if clean_digits:
-                patient = Patient.objects.filter(phone__endswith=clean_digits[-10:]).first()
-            if not patient and unlinked_apt.patient_email:
-                patient = Patient.objects.filter(email__iexact=unlinked_apt.patient_email.strip()).first()
-            if not patient and p_name:
-                patient = Patient.objects.filter(name__iexact=p_name).first()
-            if not patient and p_name:
-                p_user = unlinked_apt.user if (unlinked_apt.user and getattr(unlinked_apt.user, 'role', '') == User.Role.PATIENT) else None
-                patient = Patient.objects.create(
-                    user=p_user,
-                    name=p_name,
-                    phone=p_phone,
-                    email=unlinked_apt.patient_email or f"{p_name.lower().replace(' ', '.')}@gmail.com",
-                    primary_concern=unlinked_apt.reason_for_visit or 'General Consultation',
-                    status='Active'
-                )
-            if patient:
-                unlinked_apt.patient_record = patient
-                unlinked_apt.save(update_fields=['patient_record'])
+        # Auto-link any unlinked appointments only if any exist
+        if Appointment.objects.filter(patient_record__isnull=True).exists():
+            for unlinked_apt in Appointment.objects.filter(patient_record__isnull=True):
+                p_name = (unlinked_apt.patient_name or '').strip()
+                p_phone = (unlinked_apt.patient_phone or '').strip()
+                clean_digits = ''.join(c for c in p_phone if c.isdigit())
+                patient = None
+                if clean_digits:
+                    patient = Patient.objects.filter(phone__endswith=clean_digits[-10:]).first()
+                if not patient and unlinked_apt.patient_email:
+                    patient = Patient.objects.filter(email__iexact=unlinked_apt.patient_email.strip()).first()
+                if not patient and p_name:
+                    patient = Patient.objects.filter(name__iexact=p_name).first()
+                if not patient and p_name:
+                    p_user = unlinked_apt.user if (unlinked_apt.user and getattr(unlinked_apt.user, 'role', '') == User.Role.PATIENT) else None
+                    patient = Patient.objects.create(
+                        user=p_user,
+                        name=p_name,
+                        phone=p_phone,
+                        email=unlinked_apt.patient_email or f"{p_name.lower().replace(' ', '.')}@gmail.com",
+                        primary_concern=unlinked_apt.reason_for_visit or 'General Consultation',
+                        status='Active'
+                    )
+                if patient:
+                    unlinked_apt.patient_record = patient
+                    unlinked_apt.save(update_fields=['patient_record'])
 
-        # Auto-link any unlinked prescriptions
-        for unlinked_rx in Prescription.objects.filter(patient_record__isnull=True):
-            p_name = (unlinked_rx.patient_name or '').strip()
-            p_phone = (unlinked_rx.patient_phone or '').strip()
-            clean_digits = ''.join(c for c in p_phone if c.isdigit())
-            patient = None
-            if unlinked_rx.patient_id_ref:
-                patient = Patient.objects.filter(patient_id=unlinked_rx.patient_id_ref).first()
-            if not patient and clean_digits:
-                patient = Patient.objects.filter(phone__endswith=clean_digits[-10:]).first()
-            if not patient and p_name:
-                patient = Patient.objects.filter(name__iexact=p_name).first()
-            if patient:
-                unlinked_rx.patient_record = patient
-                unlinked_rx.save(update_fields=['patient_record'])
+        # Auto-link any unlinked prescriptions only if any exist
+        if Prescription.objects.filter(patient_record__isnull=True).exists():
+            for unlinked_rx in Prescription.objects.filter(patient_record__isnull=True):
+                p_name = (unlinked_rx.patient_name or '').strip()
+                p_phone = (unlinked_rx.patient_phone or '').strip()
+                clean_digits = ''.join(c for c in p_phone if c.isdigit())
+                patient = None
+                if unlinked_rx.patient_id_ref:
+                    patient = Patient.objects.filter(patient_id=unlinked_rx.patient_id_ref).first()
+                if not patient and clean_digits:
+                    patient = Patient.objects.filter(phone__endswith=clean_digits[-10:]).first()
+                if not patient and p_name:
+                    patient = Patient.objects.filter(name__iexact=p_name).first()
+                if patient:
+                    unlinked_rx.patient_record = patient
+                    unlinked_rx.save(update_fields=['patient_record'])
 
-        patients = Patient.objects.filter(user__isnull=False, user__role=User.Role.PATIENT).prefetch_related('appointments', 'prescriptions').order_by('-created_at', '-id')
+        patients = Patient.objects.filter(user__isnull=False, user__role=User.Role.PATIENT).prefetch_related(
+            models.Prefetch('appointments', queryset=Appointment.objects.order_by('-created_at')),
+            models.Prefetch('prescriptions', queryset=Prescription.objects.select_related('appointment').order_by('-created_at'))
+        ).order_by('-created_at', '-id')
         data = []
 
         for p in patients:
             parts = p.name.strip().split()
             initials = "".join([part[0].upper() for part in parts[:2]]) if parts else "PT"
 
-            p_apts = p.appointments.all().order_by('-created_at')
+            p_apts = list(p.appointments.all())
             apts_data = [{
                 'id': apt.appointment_id,
                 'appointment_id': apt.appointment_id,
@@ -1160,7 +1160,7 @@ class PatientHistoryListView(APIView):
                 'consultationType': apt.consultation_type,
             } for apt in p_apts]
 
-            p_rxs = p.prescriptions.all().order_by('-created_at')
+            p_rxs = list(p.prescriptions.all())
             rxs_data = [{
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -1185,8 +1185,8 @@ class PatientHistoryListView(APIView):
                 'status': rx.status,
             } for rx in p_rxs]
 
-            last_visit = p_apts[0].appointment_date if p_apts.exists() else (p_rxs[0].date if p_rxs.exists() else 'N/A')
-            total_visits = p_apts.count()
+            last_visit = p_apts[0].appointment_date if p_apts else (p_rxs[0].date if p_rxs else 'N/A')
+            total_visits = len(p_apts)
 
             data.append({
                 'id': p.patient_id,
@@ -1932,13 +1932,13 @@ class PatientMyProfileView(APIView):
 
         # Fetch appointments strictly belonging to this patient
         p_q = models.Q(patient_record=patient) | models.Q(user=request.user)
-        p_apts = Appointment.objects.filter(p_q).order_by('-created_at')
+        p_apts = Appointment.objects.filter(p_q).prefetch_related('prescriptions').order_by('-created_at')
 
         # Fetch prescriptions strictly belonging to this patient
         rx_q = models.Q(patient_record=patient)
         if patient.patient_id:
             rx_q |= models.Q(patient_id_ref=patient.patient_id)
-        p_rxs = Prescription.objects.filter(rx_q).order_by('-created_at')
+        p_rxs = Prescription.objects.filter(rx_q).select_related('patient_record').order_by('-created_at')
 
         parts = patient.name.strip().split()
         initials = "".join([part[0].upper() for part in parts[:2]]) if parts else "PT"
@@ -1980,6 +1980,9 @@ class PatientMyProfileView(APIView):
             except Exception:
                 profile_image_url = None
 
+        apts_list = list(p_apts)
+        rxs_list = list(p_rxs)
+
         return Response({
             'id': patient.patient_id,
             'database_id': patient.id,
@@ -2000,8 +2003,8 @@ class PatientMyProfileView(APIView):
             'primaryConcern': patient.primary_concern or '',
             'notes': patient.notes or '',
             'status': patient.status or 'Active',
-            'totalVisits': p_apts.count(),
-            'lastVisit': p_apts[0].appointment_date if p_apts.exists() else 'N/A',
+            'totalVisits': len(apts_list),
+            'lastVisit': apts_list[0].appointment_date if apts_list else 'N/A',
             'appointments': [{
                 'id': a.appointment_id,
                 'appointmentId': a.appointment_id,
@@ -2010,7 +2013,7 @@ class PatientMyProfileView(APIView):
                 'reason': a.reason_for_visit,
                 'status': a.status,
                 'consultationType': a.consultation_type,
-                'hasPrescription': a.prescriptions.exists(),
+                'hasPrescription': bool(len(a.prescriptions.all())),
                 'patientName': a.patient_name,
                 'patientPhone': a.patient_phone,
                 'patientEmail': a.patient_email or '',
@@ -2018,7 +2021,7 @@ class PatientMyProfileView(APIView):
                 'patientGender': a.patient_gender or (patient.gender if patient else ''),
                 'patientDob': getattr(a, 'patient_dob', '') or (patient.date_of_birth if patient else ''),
                 'city': (patient.address if patient else '') or city_val,
-            } for a in p_apts],
+            } for a in apts_list],
             'prescriptions': [{
                 'id': r.prescription_id,
                 'rxId': r.prescription_id,
@@ -2048,7 +2051,7 @@ class PatientMyProfileView(APIView):
                     'phone': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
                     'contact': r.patient_phone or (r.patient_record.phone if r.patient_record else ''),
                 }
-            } for r in p_rxs],
+            } for r in rxs_list],
         })
 
     def patch(self, request):

@@ -263,8 +263,9 @@ const AppointmentsPage = () => {
     window.addEventListener('focus', handleRefresh);
 
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       fetchAppointments(true);
-    }, 5000);
+    }, 20000);
 
     return () => {
       window.removeEventListener('appointment-booked', handleRefresh);

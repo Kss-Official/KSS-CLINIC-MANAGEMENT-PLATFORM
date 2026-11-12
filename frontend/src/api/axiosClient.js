@@ -66,5 +66,30 @@ axiosClient.interceptors.response.use(
   }
 );
 
+// In-flight GET request deduplication to prevent duplicate parallel API requests
+const originalGet = axiosClient.get.bind(axiosClient);
+const inFlightGetRequests = new Map();
+
+axiosClient.get = function (url, config = {}) {
+  // Only deduplicate simple GET requests without custom signal/cancellation
+  if (config?.cancelToken || config?.signal) {
+    return originalGet(url, config);
+  }
+
+  const paramStr = config?.params ? JSON.stringify(config.params) : '';
+  const key = `${url}?${paramStr}`;
+
+  if (inFlightGetRequests.has(key)) {
+    return inFlightGetRequests.get(key);
+  }
+
+  const requestPromise = originalGet(url, config).finally(() => {
+    inFlightGetRequests.delete(key);
+  });
+
+  inFlightGetRequests.set(key, requestPromise);
+  return requestPromise;
+};
+
 export default axiosClient;
 
