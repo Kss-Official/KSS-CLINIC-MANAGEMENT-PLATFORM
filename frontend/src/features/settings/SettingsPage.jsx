@@ -90,7 +90,7 @@ const SettingsPage = () => {
     } catch {}
     return {
       clinicName: 'HOMEOPATHY CLINIC',
-      doctorName: 'Dr. Kumar Tripathi Ampeh (Pat.)',
+      doctorName: 'Dr. Kalpana Tripathi Ampeh (Pat.)',
       contactNumber: '+91 98765 43210',
       alternateNumber: '+91 99887 66554',
       email: 'clinic.tripathi@gmail.com',

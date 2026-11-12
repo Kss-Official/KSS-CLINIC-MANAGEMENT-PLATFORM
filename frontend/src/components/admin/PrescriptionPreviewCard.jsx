@@ -230,7 +230,7 @@ const PrescriptionPreviewCard = ({
                 letterSpacing: '-0.2px',
               }}
             >
-              Dr. Kumar Tripathi Ampeh (Pat.)
+              Dr. Kalpana Tripathi Ampeh (Pat.)
             </h4>
             <div
               className="prescription-clinic-tag"

@@ -86,7 +86,7 @@ const DashboardPage = () => {
     prescriptionStatus: item.prescription_status || item.prescriptionStatus || 'Pending',
     ageGender: item.age_gender || item.ageGender || 'Adult',
     notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
-    doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+    doctor: item.doctor || 'Dr. Kalpana Tripathi Ampeh (Pat.)',
   });
 
   const fetchAppointments = useCallback(async (silent = false) => {
@@ -458,7 +458,7 @@ const DashboardPage = () => {
               lineHeight: 1.2,
             }}
           >
-            Dr. Kumar Tripathi Ampeh (Pat.)
+            Dr. Kalpana Tripathi Ampeh (Pat.)
           </h1>
           <p
             style={{

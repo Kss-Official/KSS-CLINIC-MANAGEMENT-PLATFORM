@@ -172,7 +172,7 @@ const AppointmentsPage = () => {
       ageGender: item.age_gender || item.ageGender || 'Adult',
       age_gender: item.age_gender || item.ageGender || 'Adult',
       notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
-      doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+      doctor: item.doctor || 'Dr. Kalpana Tripathi Ampeh (Pat.)',
       createdAt: item.created_at || item.createdAt || '',
       created_at: item.created_at || item.createdAt || '',
     };

@@ -1846,7 +1846,7 @@ _IN_MEMORY_CLINIC_SETTINGS = {}
 
 DEFAULT_CLINIC_SETTINGS = {
     'clinicName': 'HOMEOPATHY CLINIC',
-    'doctorName': 'Dr. Kumar Tripathi Ampeh (Pat.)',
+    'doctorName': 'Dr. Kalpana Tripathi Ampeh (Pat.)',
     'contactNumber': '+91 98765 43210',
     'alternateNumber': '+91 99887 66554',
     'email': 'clinic.tripathi@gmail.com',
@@ -2812,7 +2812,7 @@ class AppointmentPdfDownloadView(APIView):
                     'patient_name': apt.patient_name or 'Patient',
                     'patient_phone': apt.patient_phone or '',
                     'patient_email': apt.patient_email or '',
-                    'doctor_name': 'Dr. Kumar Tripathi Ampeh (Pat.)',
+                    'doctor_name': 'Dr. Kalpana Tripathi Ampeh (Pat.)',
                     'service': apt.reason_for_visit or '',
                     'appointment_date': apt.appointment_date,
                     'time_slot': apt.time_slot,

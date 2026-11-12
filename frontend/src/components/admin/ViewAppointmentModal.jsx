@@ -127,7 +127,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
     ageGender: raw.ageGender || raw.age_gender || (raw.patient_gender ? (raw.patient_age ? (raw.patient_age + ' • ' + raw.patient_gender) : raw.patient_gender) : 'Adult'),
     bloodGroup: raw.blood_group || raw.bloodGroup || 'O+',
     email: raw.patient_email || raw.email || '',
-    doctor: raw.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+    doctor: raw.doctor || 'Dr. Kalpana Tripathi Ampeh (Pat.)',
     clinicalNotes: hasDistinctNotes ? rawNotes : '',
     prescriptionStatus: raw.prescription_status || raw.prescriptionStatus || 'Pending',
   };
@@ -447,7 +447,7 @@ const ViewAppointmentModal = ({ isOpen, onClose, appointment }) => {
                 style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginTop: '4px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}
                 title={apt.doctor}
               >
-                👨‍⚕️ {apt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)'}
+                👨‍⚕️ {apt.doctor || 'Dr. Kalpana Tripathi Ampeh (Pat.)'}
               </div>
               <div className="admin-view-apt-card-val-secondary" style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                 Homeopathy Consultant

@@ -110,7 +110,7 @@ const ViewPrescriptionModal = ({
     complaint: '',
     status: 'Pending',
     mobile: '',
-    doctor: 'Dr. Kumar Tripathi Ampeh (Pat.)',
+    doctor: 'Dr. Kalpana Tripathi Ampeh (Pat.)',
     diagnosis: '',
     notes: '',
   };
