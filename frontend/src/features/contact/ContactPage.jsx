@@ -5,6 +5,7 @@ import Navbar from '../../components/layout/Navbar';
 import Footer from '../../components/layout/Footer';
 import AppointmentModal from '../../components/AppointmentModal';
 import CtaBannerSection from '../home/CtaBannerSection';
+import appointmentApi from '../../api/appointmentApi';
 
 // Hero background image for Contact page
 import contactHeroBg from '../../assets/contact-hero-bg.jpg';
@@ -207,23 +208,15 @@ const ContactPage = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/contact/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fullName: nameTrimmed,
-          phone: phoneDigits,
-          email: emailVal,
-          purpose: formData.purpose || 'General Consultation',
-          message: msgTrimmed,
-        }),
+      const resData = await appointmentApi.sendContactInquiry({
+        fullName: nameTrimmed,
+        phone: phoneDigits,
+        email: emailVal,
+        purpose: formData.purpose || 'General Consultation',
+        message: msgTrimmed,
       });
 
-      const resData = await response.json().catch(() => ({}));
-
-      if (response.ok && resData.success !== false) {
+      if (resData && resData.success !== false) {
         setFormSuccess(true);
         setFormData({
           fullName: '',
@@ -235,13 +228,18 @@ const ContactPage = () => {
         setTimeout(() => setFormSuccess(false), 8000);
       } else {
         setFormErrorMsg(
-          resData.error || 'Failed to send your message. Please try again or call our clinic directly.'
+          resData?.error || resData?.message || 'Failed to send your message. Please try again or call our clinic directly.'
         );
       }
     } catch (err) {
       console.error('Contact submission error:', err);
+      const serverMsg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.response?.data?.detail ||
+        (typeof err.response?.data === 'string' && err.response.data.length < 200 ? err.response.data : null);
       setFormErrorMsg(
-        'Network error while sending message. Please check your connection or contact us by phone.'
+        serverMsg || 'Failed to send your message. Please try again or call our clinic directly.'
       );
     } finally {
       setIsSubmitting(false);

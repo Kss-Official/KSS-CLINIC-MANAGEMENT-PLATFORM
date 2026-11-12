@@ -109,9 +109,27 @@ const AppointmentsPage = () => {
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [appointmentsList, setAppointmentsList] = useState([]);
+  const [appointmentsList, setAppointmentsList] = useState(() => {
+    try {
+      const cached = localStorage.getItem('kss_cached_admin_appointments') || sessionStorage.getItem('kss_cached_admin_appointments');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [backendStats, setBackendStats] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem('kss_cached_admin_appointments') || sessionStorage.getItem('kss_cached_admin_appointments');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
   const [error, setError] = useState(null);
 
   const mapApiAppointment = (item) => {
@@ -162,7 +180,7 @@ const AppointmentsPage = () => {
 
   const fetchAppointments = useCallback(async (silent = false) => {
     try {
-      if (!silent) {
+      if (!silent && appointmentsList.length === 0) {
         setIsLoading(true);
       }
       setError(null);
@@ -175,6 +193,10 @@ const AppointmentsPage = () => {
       }
       if (Array.isArray(data)) {
         const mapped = data.map(mapApiAppointment);
+        try {
+          localStorage.setItem('kss_cached_admin_appointments', JSON.stringify(mapped));
+          sessionStorage.setItem('kss_cached_admin_appointments', JSON.stringify(mapped));
+        } catch {}
         setAppointmentsList((prev) => {
           if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
             return prev;
@@ -186,15 +208,13 @@ const AppointmentsPage = () => {
       }
     } catch (err) {
       console.error('Failed to fetch appointments:', err);
-      if (!silent) {
+      if (!silent && appointmentsList.length === 0) {
         setError('Unable to load appointments from Neon cloud database. Please verify backend connection.');
       }
     } finally {
-      if (!silent) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
-  }, []);
+  }, [appointmentsList.length]);
 
   useEffect(() => {
     fetchAppointments();
@@ -242,8 +262,9 @@ const AppointmentsPage = () => {
     window.addEventListener('focus', handleRefresh);
 
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       fetchAppointments(true);
-    }, 5000);
+    }, 20000);
 
     return () => {
       window.removeEventListener('appointment-booked', handleRefresh);
@@ -349,7 +370,7 @@ const AppointmentsPage = () => {
     setCurrentPage(1);
   };
 
-  const matchesDateFilter = (itemDate) => checkDateFilter(itemDate, dateFilter);
+  const matchesDateFilter = (item) => checkDateFilter(item, dateFilter);
 
   // Filtered rows matching all filter criteria
   const filteredAppointments = appointmentsList.filter((item) => {
@@ -389,7 +410,7 @@ const AppointmentsPage = () => {
       return rxStatus === targetRx;
     })();
 
-    const matchesDate = matchesDateFilter(item.date);
+    const matchesDate = matchesDateFilter(item);
 
     return matchesSearch && matchesStatus && matchesPrescription && matchesDate;
   });

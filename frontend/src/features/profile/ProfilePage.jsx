@@ -649,9 +649,11 @@ const ProfilePage = () => {
 
 
 
-    // Reliable 10-second polling for automatic sync across Patient and Admin portals
-
-    const interval = setInterval(() => fetchPatientData(true), 10000);
+    // Reliable 20-second polling for automatic sync across Patient and Admin portals when active
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchPatientData(true);
+    }, 20000);
 
 
 

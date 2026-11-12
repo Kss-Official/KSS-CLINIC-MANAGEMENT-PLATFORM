@@ -11,6 +11,15 @@ const axiosClient = axios.create({
 // Request interceptor to attach JWT auth token
 axiosClient.interceptors.request.use(
   (config) => {
+    // Never attach auth token for public endpoints like contact form
+    if (config.skipAuth || config.url?.includes('/contact')) {
+      if (config.headers) {
+        delete config.headers.Authorization;
+        delete config.headers['Authorization'];
+      }
+      return config;
+    }
+
     const token = sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN) || localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     if (token) {
       const authVal = token.startsWith('Token ') || token.startsWith('Bearer ') ? token : `Token ${token}`;
@@ -65,6 +74,31 @@ axiosClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// In-flight GET request deduplication to prevent duplicate parallel API requests
+const originalGet = axiosClient.get.bind(axiosClient);
+const inFlightGetRequests = new Map();
+
+axiosClient.get = function (url, config = {}) {
+  // Only deduplicate simple GET requests without custom signal/cancellation
+  if (config?.cancelToken || config?.signal) {
+    return originalGet(url, config);
+  }
+
+  const paramStr = config?.params ? JSON.stringify(config.params) : '';
+  const key = `${url}?${paramStr}`;
+
+  if (inFlightGetRequests.has(key)) {
+    return inFlightGetRequests.get(key);
+  }
+
+  const requestPromise = originalGet(url, config).finally(() => {
+    inFlightGetRequests.delete(key);
+  });
+
+  inFlightGetRequests.set(key, requestPromise);
+  return requestPromise;
+};
 
 export default axiosClient;
 

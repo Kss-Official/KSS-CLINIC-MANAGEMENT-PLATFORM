@@ -43,7 +43,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         if data.get('prescription_status') != 'Complete':
             has_rx = False
             try:
-                if instance.prescriptions.exists():
+                if hasattr(instance, '_prefetched_objects_cache') and 'prescriptions' in instance._prefetched_objects_cache:
+                    has_rx = bool(len(instance.prescriptions.all()))
+                elif instance.prescriptions.exists():
                     has_rx = True
                 elif Prescription.objects.filter(appointment=instance).exists():
                     has_rx = True
@@ -51,11 +53,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 pass
             if has_rx:
                 data['prescription_status'] = 'Complete'
-                try:
-                    instance.prescription_status = 'Complete'
-                    instance.save(update_fields=['prescription_status'])
-                except Exception:
-                    pass
         return data
 
     def validate_patient_name(self, value):
@@ -125,7 +122,16 @@ class NotificationSerializer(serializers.ModelSerializer):
         ]
 
     def get_created_at_formatted(self, obj):
-        return obj.created_at.strftime('%d %b %Y, %I:%M %p')
+        if not obj.created_at:
+            return ''
+        from django.utils import timezone
+        import zoneinfo
+        try:
+            tz = zoneinfo.ZoneInfo('Asia/Kolkata')
+            local_dt = timezone.localtime(obj.created_at, tz)
+        except Exception:
+            local_dt = timezone.localtime(obj.created_at)
+        return local_dt.strftime('%d %b %Y, %I:%M %p')
 
 
 

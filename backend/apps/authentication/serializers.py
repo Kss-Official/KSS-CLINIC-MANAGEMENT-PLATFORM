@@ -71,74 +71,8 @@ class LoginSerializer(serializers.Serializer):
             else:
                 effective_username = raw_input
 
-            # Authenticate using effective username
+            # Authenticate strictly using effective username and provided password
             user = authenticate(username=effective_username, password=password)
-
-            # Admin fallback check (preserved)
-            if not user and effective_username.lower() == 'admin':
-                admin_user = User.objects.filter(username__iexact='admin').first()
-                if admin_user and password in ['Admin@123', 'admin123', 'Admin123', 'admin@123']:
-                    admin_user.set_password(password)
-                    admin_user.save()
-                    user = authenticate(username=admin_user.username, password=password)
-                if not user:
-                    for alt_pass in ['Admin@123', 'admin123']:
-                        if alt_pass != password:
-                            user = authenticate(username=effective_username, password=alt_pass)
-                            if user:
-                                break
-
-            # Patient fallback check: case-insensitivity, common variants, and auto-sync
-            if not user and user_obj and (portal == 'patient' or user_obj.role == User.Role.PATIENT):
-                first_n = (user_obj.first_name or '').strip()
-                pat_rec = Patient.objects.filter(user=user_obj).first()
-                pat_n = (pat_rec.name if pat_rec else '').strip()
-
-                candidate_passwords = [
-                    password,
-                    password.strip(),
-                    password.lower(),
-                    password.capitalize(),
-                    password.upper(),
-                    '123456',
-                    '1234567',
-                    '12345678',
-                    'Password@123',
-                    'password123',
-                ]
-                for name_root in [first_n, pat_n]:
-                    if name_root:
-                        root = name_root.split()[0]
-                        candidate_passwords.extend([
-                            f"{root}@123",
-                            f"{root.capitalize()}@123",
-                            f"{root.lower()}@123",
-                            f"{root}123",
-                            f"{root.capitalize()}123",
-                            f"{root.lower()}123",
-                            f"{root}@2026",
-                            f"{root}2026",
-                            root,
-                            root.lower(),
-                            root.capitalize(),
-                        ])
-
-                matched = False
-                for alt_pass in candidate_passwords:
-                    if alt_pass and user_obj.check_password(alt_pass):
-                        user_obj.set_password(password)
-                        user_obj.save()
-                        user = authenticate(username=user_obj.username, password=password)
-                        matched = True
-                        break
-
-                # Specifically for Poobi & Rohit accounts:
-                # If they enter any valid password (length >= 6), authenticate and sync password
-                if not matched and user_obj.email in ['harodepratiksha65@gmail.com', 'pratikshaharode2005@gmail.com']:
-                    if len(password) >= 6:
-                        user_obj.set_password(password)
-                        user_obj.save()
-                        user = authenticate(username=user_obj.username, password=password)
 
             if not user:
                 raise serializers.ValidationError('Invalid username or password.')

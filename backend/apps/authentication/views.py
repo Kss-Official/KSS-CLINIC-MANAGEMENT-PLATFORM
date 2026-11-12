@@ -388,6 +388,9 @@ class ResetPasswordView(views.APIView):
         user.set_password(new_password)
         user.save()
 
+        # Delete previous auth tokens to prevent old session reuse
+        Token.objects.filter(user=user).delete()
+
         # Invalidate code
         reset_code.is_used = True
         reset_code.save()

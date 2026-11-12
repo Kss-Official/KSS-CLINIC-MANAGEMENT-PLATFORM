@@ -23,8 +23,10 @@ class UserSerializer(serializers.ModelSerializer):
         name = f"{obj.first_name or ''} {obj.last_name or ''}".strip()
         if not name:
             patient = getattr(obj, 'patient_records', None)
-            if patient and patient.exists():
-                return patient.first().name
+            if patient:
+                p = patient.first()
+                if p and p.name:
+                    return p.name
         return name or obj.username or 'Patient'
 
     def get_initials(self, obj):
@@ -38,8 +40,10 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_patient_id(self, obj):
         patient = getattr(obj, 'patient_records', None)
-        if patient and patient.exists():
-            return patient.first().patient_id
+        if patient:
+            p = patient.first()
+            if p and p.patient_id:
+                return p.patient_id
         return None
 
     def get_profile_image_url(self, obj):

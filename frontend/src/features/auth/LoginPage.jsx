@@ -364,6 +364,21 @@ const LoginPage = ({ initialMode = "login" }) => {
           "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
     >
+      <style>{`
+        input::-ms-reveal,
+        input::-ms-clear {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+          pointer-events: none !important;
+        }
+        input::-webkit-contacts-auto-fill-button,
+        input::-webkit-credentials-auto-fill-button {
+          visibility: hidden !important;
+          display: none !important;
+          pointer-events: none !important;
+        }
+      `}</style>
       {/* Pinned Fixed Background layer - Matches Reference Design (1280x720) */}
       <div
         className="patient-auth-fixed-bg"

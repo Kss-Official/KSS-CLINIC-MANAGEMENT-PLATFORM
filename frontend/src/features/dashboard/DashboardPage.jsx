@@ -50,8 +50,26 @@ const DashboardPage = () => {
 
 
 
-  const [appointmentsData, setAppointmentsData] = useState([]);
-  const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(true);
+  const [appointmentsData, setAppointmentsData] = useState(() => {
+    try {
+      const cached = localStorage.getItem('kss_cached_admin_appointments') || sessionStorage.getItem('kss_cached_admin_appointments');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem('kss_cached_admin_appointments') || sessionStorage.getItem('kss_cached_admin_appointments');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
 
   const mapApiAppointment = (item) => ({
     id: item.appointment_id || (item.id ? `APT-${item.id}` : 'APT-0000'),
@@ -73,12 +91,16 @@ const DashboardPage = () => {
 
   const fetchAppointments = useCallback(async (silent = false) => {
     try {
-      if (!silent) {
+      if (!silent && appointmentsData.length === 0) {
         setIsAppointmentsLoading(true);
       }
       const data = await appointmentApi.getAppointments();
       if (Array.isArray(data)) {
         const mapped = data.map(mapApiAppointment);
+        try {
+          localStorage.setItem('kss_cached_admin_appointments', JSON.stringify(mapped));
+          sessionStorage.setItem('kss_cached_admin_appointments', JSON.stringify(mapped));
+        } catch {}
         setAppointmentsData((prev) => {
           if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
             return prev;
@@ -91,11 +113,9 @@ const DashboardPage = () => {
     } catch (err) {
       console.error('Failed to load dashboard appointments:', err);
     } finally {
-      if (!silent) {
-        setIsAppointmentsLoading(false);
-      }
+      setIsAppointmentsLoading(false);
     }
-  }, []);
+  }, [appointmentsData.length]);
 
   useEffect(() => {
     fetchAppointments(false);
@@ -115,8 +135,9 @@ const DashboardPage = () => {
     window.addEventListener('focus', handleFocus);
 
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       fetchAppointments(true);
-    }, 5000);
+    }, 20000);
 
     return () => {
       window.removeEventListener('appointment-booked', handleAppointmentBooked);
@@ -127,12 +148,30 @@ const DashboardPage = () => {
       clearInterval(interval);
     };
   }, [fetchAppointments]);
-  const [prescriptionsData, setPrescriptionsData] = useState([]);
-  const [isPrescriptionsLoading, setIsPrescriptionsLoading] = useState(true);
+  const [prescriptionsData, setPrescriptionsData] = useState(() => {
+    try {
+      const cached = localStorage.getItem('kss_cached_admin_prescriptions') || sessionStorage.getItem('kss_cached_admin_prescriptions');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [isPrescriptionsLoading, setIsPrescriptionsLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem('kss_cached_admin_prescriptions') || sessionStorage.getItem('kss_cached_admin_prescriptions');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
 
   const fetchPrescriptions = useCallback(async (silent = false) => {
     try {
-      if (!silent) {
+      if (!silent && prescriptionsData.length === 0) {
         setIsPrescriptionsLoading(true);
       }
       const data = await appointmentApi.getPrescriptions();
@@ -164,6 +203,10 @@ const DashboardPage = () => {
           notes: item.notes || item.additionalInstructions || '',
           status: item.status || 'Confirmed',
         }));
+        try {
+          localStorage.setItem('kss_cached_admin_prescriptions', JSON.stringify(mapped));
+          sessionStorage.setItem('kss_cached_admin_prescriptions', JSON.stringify(mapped));
+        } catch {}
         setPrescriptionsData((prev) => {
           if (prev.length === mapped.length && JSON.stringify(prev) === JSON.stringify(mapped)) {
             return prev;
@@ -176,11 +219,9 @@ const DashboardPage = () => {
     } catch (err) {
       console.error('Failed to load dashboard prescriptions from Neon:', err);
     } finally {
-      if (!silent) {
-        setIsPrescriptionsLoading(false);
-      }
+      setIsPrescriptionsLoading(false);
     }
-  }, []);
+  }, [prescriptionsData.length]);
 
   useEffect(() => {
     fetchPrescriptions(false);
@@ -221,8 +262,9 @@ const DashboardPage = () => {
     window.addEventListener('focus', handleFocus);
 
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       fetchPrescriptions(true);
-    }, 5000);
+    }, 20000);
 
     return () => {
       window.removeEventListener('prescription-created', handlePrescriptionCreated);
@@ -289,7 +331,7 @@ const DashboardPage = () => {
     setCurrentPage(1);
   };
 
-  const matchesDateFilter = (itemDate) => checkDateFilter(itemDate, appointmentDateFilter);
+  const matchesDateFilter = (item) => checkDateFilter(item, appointmentDateFilter);
 
   // Dynamic appointment metric counts from Neon PostgreSQL
   const totalDashboardAppointments = appointmentsData.length;
@@ -297,7 +339,7 @@ const DashboardPage = () => {
   const confirmedDashboardAppointments = appointmentsData.filter(a => ['confirmed', 'confirm', 'pending'].includes((a.status || '').toLowerCase().trim())).length;
 
   const filteredAppointmentsData = appointmentsData.filter((item) => {
-    const matchesDate = matchesDateFilter(item.date);
+    const matchesDate = matchesDateFilter(item);
     const itemStatus = (item.status || '').toLowerCase().trim();
     let matchesStatus = true;
     if (appointmentStatusFilter !== 'All') {
@@ -332,12 +374,12 @@ const DashboardPage = () => {
     setPrescriptionCurrentPage(1);
   };
 
-  const matchesPrescriptionDateFilter = (itemDate) => checkDateFilter(itemDate, prescriptionDateFilter);
+  const matchesPrescriptionDateFilter = (item) => checkDateFilter(item, prescriptionDateFilter);
 
   // Sort most recently created prescriptions first (newest created at the top)
   const allFilteredPrescriptions = prescriptionsData
     .filter((item) => {
-      const matchesDate = matchesPrescriptionDateFilter(item.date);
+      const matchesDate = matchesPrescriptionDateFilter(item);
       const matchesStatus =
         prescriptionStatusFilter === 'All' ||
         item.status.toLowerCase() === prescriptionStatusFilter.toLowerCase();

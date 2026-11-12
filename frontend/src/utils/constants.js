@@ -1,4 +1,18 @@
-export const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000/api';
+const getApiBaseUrl = () => {
+  const envUrl = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_API_URL : null;
+  const isBrowser = typeof window !== 'undefined';
+  const isRemote = isBrowser && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+  if (envUrl && (!isRemote || !/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(envUrl))) {
+    return envUrl;
+  }
+  if (isRemote) {
+    return 'https://clinic-ms-kss-backend.vercel.app/api';
+  }
+  return envUrl || 'http://localhost:8000/api';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export const USER_ROLES = {
   ADMIN: 'ADMIN',

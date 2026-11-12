@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/users/', include('apps.users.urls')),
     path('api/', include('apps.appointments.urls')),
     path('api/contact/', ContactFormView.as_view(), name='contact-form'),
+    path('api/contact', ContactFormView.as_view()),
 ]
 
 if settings.DEBUG:
