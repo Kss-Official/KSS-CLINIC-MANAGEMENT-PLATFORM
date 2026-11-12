@@ -525,7 +525,17 @@ class AppointmentListCreateView(APIView):
             if user:
                 patient = Patient.objects.filter(user=user).first()
             if not patient and p_email:
-                patient = Patient.objects.filter(email__iexact=p_email, user__isnull=True).first()
+                patient = Patient.objects.filter(email__iexact=p_email).first()
+                if not user and patient and patient.user:
+                    user = patient.user
+                    appointment.user = user
+                    appointment.save(update_fields=['user'])
+                elif not user and p_email:
+                    matched_user = User.objects.filter(email__iexact=p_email, role=User.Role.PATIENT).first()
+                    if matched_user:
+                        user = matched_user
+                        appointment.user = user
+                        appointment.save(update_fields=['user'])
             if not patient and not user and p_phone_digits:
                 patient = Patient.objects.filter(phone__endswith=p_phone_digits[-10:], user__isnull=True).first()
             if not patient and not user and p_name:
@@ -1930,14 +1940,36 @@ class PatientMyProfileView(APIView):
             patient.name = user_full_name
             patient.save(update_fields=['name'])
 
+        # Synchronize any guest appointments booked with this patient's registered email
+        if request.user.email:
+            Appointment.objects.filter(
+                patient_email__iexact=request.user.email
+            ).filter(
+                models.Q(user__isnull=True) | models.Q(patient_record__isnull=True) | ~models.Q(patient_record=patient)
+            ).update(
+                user=request.user,
+                patient_record=patient
+            )
+
+            # Re-link duplicate unlinked patient records for this email
+            dup_patients = Patient.objects.filter(email__iexact=request.user.email, user__isnull=True).exclude(pk=patient.pk)
+            for dp in dup_patients:
+                Appointment.objects.filter(patient_record=dp).update(patient_record=patient, user=request.user)
+                Prescription.objects.filter(patient_record=dp).update(patient_record=patient)
+                dp.delete()
+
         # Fetch appointments strictly belonging to this patient
         p_q = models.Q(patient_record=patient) | models.Q(user=request.user)
+        if request.user.email:
+            p_q |= models.Q(patient_email__iexact=request.user.email)
         p_apts = Appointment.objects.filter(p_q).prefetch_related('prescriptions').order_by('-created_at')
 
         # Fetch prescriptions strictly belonging to this patient
         rx_q = models.Q(patient_record=patient)
         if patient.patient_id:
             rx_q |= models.Q(patient_id_ref=patient.patient_id)
+        if request.user.email:
+            rx_q |= models.Q(patient_record__email__iexact=request.user.email)
         p_rxs = Prescription.objects.filter(rx_q).select_related('patient_record').order_by('-created_at')
 
         parts = patient.name.strip().split()
