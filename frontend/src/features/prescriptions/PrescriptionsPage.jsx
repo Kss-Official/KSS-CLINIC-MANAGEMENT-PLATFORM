@@ -20,6 +20,23 @@ const PrescriptionsPage = () => {
   const [pageSize, setPageSize] = useState('10 page');
   const [currentPage, setCurrentPage] = useState(1);
 
+  const formatRxTime = (row) => {
+    if (row?.created_at) {
+      try {
+        const d = new Date(row.created_at);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'Asia/Kolkata',
+          });
+        }
+      } catch (e) {}
+    }
+    return row?.time || '';
+  };
+
   const [prescriptionsList, setPrescriptionsList] = useState(() => {
     try {
       const cached = sessionStorage.getItem('kss_cached_admin_prescriptions');
@@ -846,7 +863,7 @@ const PrescriptionsPage = () => {
                     </td>
                     <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155', lineHeight: 1.35, whiteSpace: 'nowrap' }}>
                       <div style={{ fontWeight: '600' }}>{row.date}</div>
-                      <div style={{ fontSize: '12px', color: '#64748b' }}>{row.time}</div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>{formatRxTime(row)}</div>
                     </td>
                     <td style={{ padding: '14px 16px', fontSize: '13.5px', color: '#334155', maxWidth: '240px' }} title={row.complaint || row.reason_for_visit || row.reason || ''}>
                       <div

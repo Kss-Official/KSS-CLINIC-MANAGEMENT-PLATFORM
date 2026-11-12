@@ -621,6 +621,14 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         (initialPatient?.id && String(initialPatient.id).startsWith('APT-') ? initialPatient.id : null) ||
         null;
 
+      const now = new Date();
+      const currentTime = now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Kolkata',
+      });
+
       const payload = {
         patient: selectedPatient,
         patient_name: selectedPatient.name,
@@ -634,6 +642,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
+        time: currentTime,
         consultationType,
         mainComplaint,
         complaint: mainComplaint,
@@ -741,6 +750,14 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         (initialPatient?.id && String(initialPatient.id).startsWith('APT-') ? initialPatient.id : null) ||
         null;
 
+      const now = new Date();
+      const currentTime = now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Kolkata',
+      });
+
       const payload = {
         patient: selectedPatient,
         patient_name: selectedPatient.name,
@@ -754,6 +771,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
+        time: currentTime,
         consultationType,
         mainComplaint,
         complaint: mainComplaint,
@@ -837,6 +855,14 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         (initialPatient?.id && String(initialPatient.id).startsWith('APT-') ? initialPatient.id : null) ||
         null;
 
+      const now = new Date();
+      const currentTime = now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Kolkata',
+      });
+
       const payload = {
         patient: selectedPatient,
         patient_name: selectedPatient.name,
@@ -850,6 +876,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         age_gender: selectedPatient.ageGender || `${selectedPatient.age} / ${selectedPatient.gender}`,
         date: formatDateForDisplay(appointmentDate),
         appointmentDate,
+        time: currentTime,
         consultationType,
         mainComplaint,
         complaint: mainComplaint,

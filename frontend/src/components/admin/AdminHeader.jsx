@@ -9,6 +9,29 @@ import { getEffectiveImageUrl } from '../../utils/imageUrl';
 const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  const formatNotificationTimestamp = (notif) => {
+    if (notif?.created_at) {
+      try {
+        const d = new Date(notif.created_at);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            timeZone: 'Asia/Kolkata',
+          }) + ', ' + d.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'Asia/Kolkata',
+          });
+        }
+      } catch (e) {}
+    }
+    return notif?.created_at_formatted || '';
+  };
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState(() => {
@@ -982,9 +1005,9 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                                     {notif.patient_name || 'Patient'}
                                   </span>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    {notif.created_at_formatted && (
+                                    {(notif.created_at_formatted || notif.created_at) && (
                                       <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                                        {notif.created_at_formatted}
+                                        {formatNotificationTimestamp(notif)}
                                       </span>
                                     )}
                                     <span
@@ -1485,7 +1508,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                               {notif.patient_name}
                             </span>
                             <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                              {notif.created_at_formatted || 'Just now'}
+                              {formatNotificationTimestamp(notif) || notif.created_at_formatted || 'Just now'}
                             </span>
                           </div>
 

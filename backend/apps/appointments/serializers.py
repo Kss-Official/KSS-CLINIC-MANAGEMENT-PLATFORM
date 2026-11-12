@@ -122,7 +122,16 @@ class NotificationSerializer(serializers.ModelSerializer):
         ]
 
     def get_created_at_formatted(self, obj):
-        return obj.created_at.strftime('%d %b %Y, %I:%M %p')
+        if not obj.created_at:
+            return ''
+        from django.utils import timezone
+        import zoneinfo
+        try:
+            tz = zoneinfo.ZoneInfo('Asia/Kolkata')
+            local_dt = timezone.localtime(obj.created_at, tz)
+        except Exception:
+            local_dt = timezone.localtime(obj.created_at)
+        return local_dt.strftime('%d %b %Y, %I:%M %p')
 
 
 

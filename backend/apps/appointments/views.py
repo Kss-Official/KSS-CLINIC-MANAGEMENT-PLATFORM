@@ -1374,6 +1374,17 @@ class PrescriptionListView(APIView):
                     apt_num = linked_apt.appointment_id
 
             rx_reason = (rx.appointment.reason_for_visit if rx.appointment else '') or complaint_val or rx.complaint
+
+            from django.utils import timezone
+            import zoneinfo
+            try:
+                tz = zoneinfo.ZoneInfo('Asia/Kolkata')
+                local_created = timezone.localtime(rx.created_at, tz) if rx.created_at else None
+            except Exception:
+                local_created = timezone.localtime(rx.created_at) if rx.created_at else None
+
+            creation_time_str = local_created.strftime('%I:%M %p') if local_created else (rx.time or '10:00 AM')
+
             data.append({
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -1391,7 +1402,8 @@ class PrescriptionListView(APIView):
                 'contact': rx.patient_phone,
                 'ageGender': rx.age_gender,
                 'date': rx.date,
-                'time': rx.time,
+                'time': creation_time_str,
+                'created_time': creation_time_str,
                 'complaint': complaint_val or rx.complaint,
                 'reason': rx_reason,
                 'reason_for_visit': rx_reason,
@@ -1482,7 +1494,15 @@ class PrescriptionListView(APIView):
         else:
             formatted_date = str(raw_date)
 
-        time_str = payload.get('time') or datetime.now().strftime('%I:%M %p')
+        from django.utils import timezone
+        import zoneinfo
+        try:
+            tz = zoneinfo.ZoneInfo('Asia/Kolkata')
+            now_ist = timezone.localtime(timezone.now(), tz)
+        except Exception:
+            now_ist = timezone.localtime(timezone.now())
+
+        time_str = payload.get('time') or now_ist.strftime('%I:%M %p')
 
         # Helper to generate date string variations for precise matching
         def _get_date_variations(d_str):
@@ -1738,6 +1758,17 @@ class PrescriptionDetailView(APIView):
                     apt_num = linked_apt.appointment_id
 
             rx_reason = (rx.appointment.reason_for_visit if rx.appointment else '') or complaint_val or rx.complaint
+
+            from django.utils import timezone
+            import zoneinfo
+            try:
+                tz = zoneinfo.ZoneInfo('Asia/Kolkata')
+                local_created = timezone.localtime(rx.created_at, tz) if rx.created_at else None
+            except Exception:
+                local_created = timezone.localtime(rx.created_at) if rx.created_at else None
+
+            creation_time_str = local_created.strftime('%I:%M %p') if local_created else (rx.time or '10:00 AM')
+
             return Response({
                 'id': rx.prescription_id,
                 'rxId': rx.prescription_id,
@@ -1752,7 +1783,7 @@ class PrescriptionDetailView(APIView):
                 'appointment_number': apt_num,
                 'status': rx.status,
                 'date': rx.date,
-                'time': rx.time,
+                'time': creation_time_str,
                 'complaint': complaint_val or rx.complaint,
                 'reason': rx_reason,
                 'reason_for_visit': rx_reason,
