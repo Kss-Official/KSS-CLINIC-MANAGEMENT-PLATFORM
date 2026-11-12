@@ -924,10 +924,10 @@ class NotificationListView(APIView):
 
         if prescription_updates_enabled:
             # Ensure completed appointments without prescriptions have Prescription Remaining notification
-            completed_apts = Appointment.objects.filter(models.Q(status__iexact='Complete') | models.Q(status__iexact='Completed'))
+            completed_apts = Appointment.objects.filter(models.Q(status__iexact='Complete') | models.Q(status__iexact='Completed')).only('id', 'appointment_id', 'patient_name', 'appointment_date', 'time_slot', 'prescription_status')
             rx_apt_ids = set(Prescription.objects.filter(appointment__isnull=False).values_list('appointment_id', flat=True))
             existing_rx_notifs = {
-                n.appointment_id: n for n in Notification.objects.filter(title='Prescription Remaining')
+                n.appointment_id: n for n in Notification.objects.filter(title='Prescription Remaining').only('id', 'appointment_id', 'is_read')
             }
             to_create = []
             to_update = []
@@ -957,7 +957,7 @@ class NotificationListView(APIView):
             if to_update:
                 Notification.objects.bulk_update(to_update, ['is_read'])
 
-        notifications_qs = Notification.objects.exclude(title='__SYSTEM_CLINIC_SETTINGS__')
+        notifications_qs = Notification.objects.select_related('appointment__patient_record').prefetch_related('appointment__prescriptions').exclude(title='__SYSTEM_CLINIC_SETTINGS__')
 
         # Filter notifications based on active notification settings
         if not reminder_enabled:
@@ -987,7 +987,7 @@ class NotificationListView(APIView):
         confirmed_appointments_count = 0
 
         if reminder_enabled:
-            confirmed_apts = Appointment.objects.filter(status__iexact='Confirmed').order_by('appointment_date', 'time_slot', '-created_at')
+            confirmed_apts = Appointment.objects.select_related('patient_record').prefetch_related('prescriptions').filter(status__iexact='Confirmed').order_by('appointment_date', 'time_slot', '-created_at')
 
             # Count total distinct patients with confirmed appointments
             confirmed_patient_keys = set()
@@ -1027,7 +1027,7 @@ class NotificationListView(APIView):
         pending_appointments_count = 0
 
         if reminder_enabled:
-            pending_apts = Appointment.objects.filter(status__iexact='Pending').order_by('created_at')
+            pending_apts = Appointment.objects.select_related('patient_record').prefetch_related('prescriptions').filter(status__iexact='Pending').order_by('created_at')
             upcoming_pending = [apt for apt in pending_apts if is_upcoming_or_today(apt.appointment_date)]
 
             # Count total distinct patients with pending appointments

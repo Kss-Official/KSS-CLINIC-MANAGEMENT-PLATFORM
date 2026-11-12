@@ -11,16 +11,66 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
   const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [confirmedReminders, setConfirmedReminders] = useState([]);
-  const [confirmedPatientsCount, setConfirmedPatientsCount] = useState(0);
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kss_cached_admin_notifications');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [confirmedReminders, setConfirmedReminders] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kss_cached_admin_confirmed_reminders');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [confirmedPatientsCount, setConfirmedPatientsCount] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kss_cached_admin_confirmed_count');
+      return saved ? Number(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
   const [isRemindersExpanded, setIsRemindersExpanded] = useState(true);
   const [dropdownFilter, setDropdownFilter] = useState('all'); // 'all' | 'new' | 'confirmed'
   const [isReminderPillVisible, setIsReminderPillVisible] = useState(true);
   const [isPillHovered, setIsPillHovered] = useState(false);
-  const [pendingReminders, setPendingReminders] = useState([]);
-  const [pendingPatientsCount, setPendingPatientsCount] = useState(0);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingReminders, setPendingReminders] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kss_cached_admin_pending_reminders');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [pendingPatientsCount, setPendingPatientsCount] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kss_cached_admin_pending_count');
+      return saved ? Number(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [unreadCount, setUnreadCount] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kss_cached_admin_unread_count');
+      return saved ? Number(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [isLoadingNotifs, setIsLoadingNotifs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kss_cached_admin_notifications');
+      return !saved;
+    } catch {
+      return true;
+    }
+  });
   const [newAppointmentEnabled, setNewAppointmentEnabled] = useState(() => {
     try {
       const saved = localStorage.getItem('clinic_notification_settings');
@@ -122,8 +172,14 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       });
 
       if (data) {
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unread_count || 0);
+        const notifsList = data.notifications || [];
+        const unreadVal = data.unread_count || 0;
+        setNotifications(notifsList);
+        setUnreadCount(unreadVal);
+        try {
+          localStorage.setItem('kss_cached_admin_notifications', JSON.stringify(notifsList));
+          localStorage.setItem('kss_cached_admin_unread_count', String(unreadVal));
+        } catch {}
 
         const newAptActive = (localNotifs && typeof localNotifs.newAppointment === 'boolean')
           ? localNotifs.newAppointment
@@ -147,15 +203,33 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
           setConfirmedPatientsCount(0);
           setPendingReminders([]);
           setPendingPatientsCount(0);
+          try {
+            localStorage.removeItem('kss_cached_admin_confirmed_reminders');
+            localStorage.removeItem('kss_cached_admin_confirmed_count');
+            localStorage.removeItem('kss_cached_admin_pending_reminders');
+            localStorage.removeItem('kss_cached_admin_pending_count');
+          } catch {}
         } else {
-          setConfirmedReminders(data.confirmed_reminders || []);
-          setConfirmedPatientsCount(typeof data.confirmed_patients_count === 'number' ? data.confirmed_patients_count : 0);
-          setPendingReminders(data.pending_reminders || []);
-          setPendingPatientsCount(typeof data.pending_patients_count === 'number' ? data.pending_patients_count : 0);
+          const confRem = data.confirmed_reminders || [];
+          const confCount = typeof data.confirmed_patients_count === 'number' ? data.confirmed_patients_count : 0;
+          const pendRem = data.pending_reminders || [];
+          const pendCount = typeof data.pending_patients_count === 'number' ? data.pending_patients_count : 0;
+          setConfirmedReminders(confRem);
+          setConfirmedPatientsCount(confCount);
+          setPendingReminders(pendRem);
+          setPendingPatientsCount(pendCount);
+          try {
+            localStorage.setItem('kss_cached_admin_confirmed_reminders', JSON.stringify(confRem));
+            localStorage.setItem('kss_cached_admin_confirmed_count', String(confCount));
+            localStorage.setItem('kss_cached_admin_pending_reminders', JSON.stringify(pendRem));
+            localStorage.setItem('kss_cached_admin_pending_count', String(pendCount));
+          } catch {}
         }
       }
     } catch (err) {
       console.error('Error fetching notifications:', err);
+    } finally {
+      setIsLoadingNotifs(false);
     }
   };
 
@@ -366,8 +440,13 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
   const handleMarkAllRead = async () => {
     try {
       await appointmentApi.markAllNotificationsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setNotifications((prev) => {
+        const updated = prev.map((n) => ({ ...n, is_read: true }));
+        try { localStorage.setItem('kss_cached_admin_notifications', JSON.stringify(updated)); } catch {}
+        return updated;
+      });
       setUnreadCount(0);
+      try { localStorage.setItem('kss_cached_admin_unread_count', '0'); } catch {}
     } catch (err) {
       console.error('Error marking all as read:', err);
     }
@@ -377,10 +456,16 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
     if (e) e.stopPropagation();
     try {
       await appointmentApi.markNotificationRead(id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+      setNotifications((prev) => {
+        const updated = prev.map((n) => (n.id === id ? { ...n, is_read: true } : n));
+        try { localStorage.setItem('kss_cached_admin_notifications', JSON.stringify(updated)); } catch {}
+        return updated;
+      });
+      setUnreadCount((prev) => {
+        const newCount = Math.max(0, prev - 1);
+        try { localStorage.setItem('kss_cached_admin_unread_count', String(newCount)); } catch {}
+        return newCount;
+      });
     } catch (err) {
       console.error('Error marking notification as read:', err);
     }
@@ -1488,32 +1573,51 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
                      rxRemainingList.length === 0 &&
                      (!appointmentReminderEnabled || confirmedReminders.length === 0) &&
                      otherNotifsList.length === 0 && (
-                      <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
-                        <div
-                          style={{
-                            width: '44px',
-                            height: '44px',
-                            borderRadius: '50%',
-                            backgroundColor: '#f1f5f9',
-                            color: '#94a3b8',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 10px',
-                          }}
-                        >
-                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                          </svg>
+                      isLoadingNotifs ? (
+                        <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
+                          <div
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              border: '3px solid #e2e8f0',
+                              borderTopColor: '#16a34a',
+                              borderRadius: '50%',
+                              margin: '0 auto 12px',
+                              animation: 'adminDropdownSpin 0.8s linear infinite',
+                            }}
+                          />
+                          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
+                            Loading notifications...
+                          </div>
                         </div>
-                        <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#334155' }}>
-                          No notifications yet
+                      ) : (
+                        <div style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
+                          <div
+                            style={{
+                              width: '44px',
+                              height: '44px',
+                              borderRadius: '50%',
+                              backgroundColor: '#f1f5f9',
+                              color: '#94a3b8',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              margin: '0 auto 10px',
+                            }}
+                          >
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                            </svg>
+                          </div>
+                          <div style={{ fontSize: '13.5px', fontWeight: '600', color: '#334155' }}>
+                            No notifications yet
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>
+                            New appointment bookings will appear here automatically.
+                          </div>
                         </div>
-                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '3px' }}>
-                          New appointment bookings will appear here automatically.
-                        </div>
-                      </div>
+                      )
                     )}
                   </div>
 
@@ -1973,6 +2077,14 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
           to {
             opacity: 1;
             transform: translateX(0) scale(1);
+          }
+        }
+        @keyframes adminDropdownSpin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
           }
         }
       `}</style>
