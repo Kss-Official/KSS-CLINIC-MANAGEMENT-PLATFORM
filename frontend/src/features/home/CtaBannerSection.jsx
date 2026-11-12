@@ -105,7 +105,7 @@ const CtaBannerSection = ({ onOpenBooking }) => {
               maxWidth: '640px',
             }}
           >
-            Take the first step towards better health with personalized homeopathic care from Dr. Kumar Tripathi Ampeh (Pat.).
+            Take the first step towards better health with personalized homeopathic care from Dr. Kumari Tripathi Ampeh (Pat.).
           </p>
 
           {/* Book Appointment Button on LHS directly after paragraph */}
