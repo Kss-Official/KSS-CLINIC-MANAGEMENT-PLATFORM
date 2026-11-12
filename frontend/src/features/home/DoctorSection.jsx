@@ -55,7 +55,7 @@ const DoctorSection = ({ onOpenBooking }) => {
             >
               <img
                 src={doctorPhotoImg}
-                alt="Dr. Kumar Tripathi Ampeh (Pat.)"
+                alt="Dr. Kumari Tripathi Ampeh (Pat.)"
                 style={{
                   width: '100%',
                   height: '100%',
@@ -99,7 +99,7 @@ const DoctorSection = ({ onOpenBooking }) => {
                 fontFamily: "'Manrope', sans-serif",
               }}
             >
-              Dr. Kumar Tripathi Ampeh (Pat.)
+              Dr. Kumari Tripathi Ampeh (Pat.)
             </h2>
 
             <p
