@@ -1657,6 +1657,8 @@ class PrescriptionListView(APIView):
             'additionalInstructions': rx.additional_instructions,
             'status': rx.status,
             'created_at': rx.created_at.isoformat() if rx.created_at else None,
+            'appointment_date': matched_apt.appointment_date if matched_apt else None,
+            'appointmentDate': matched_apt.appointment_date if matched_apt else None,
             'message': f"Prescription {rx.prescription_id} saved successfully for {rx.patient_name}!"
         }, status=status.HTTP_201_CREATED)
 
@@ -1759,6 +1761,9 @@ class PrescriptionDetailView(APIView):
                 'symptoms': rx.symptoms,
                 'medicines': rx.medicines or [],
                 'additionalInstructions': rx.additional_instructions,
+                'created_at': rx.created_at.isoformat() if rx.created_at else None,
+                'appointment_date': (rx.appointment.appointment_date if rx.appointment else None) or (linked_apt.appointment_date if linked_apt else None),
+                'appointmentDate': (rx.appointment.appointment_date if rx.appointment else None) or (linked_apt.appointment_date if linked_apt else None),
             })
         except Prescription.DoesNotExist:
             return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)

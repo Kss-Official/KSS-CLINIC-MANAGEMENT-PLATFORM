@@ -1182,7 +1182,16 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                     });
                     await appointmentApi.updatePrescriptionStatus(rxIdToSend, 'Delivered');
                     if (onSave) {
-                      onSave({ id: rxIdToSend, rxId: rxIdToSend, status: 'Delivered', ...payload });
+                      onSave({
+                        ...(savedRx || {}),
+                        id: rxIdToSend,
+                        rxId: rxIdToSend,
+                        status: 'Delivered',
+                        created_at: (savedRx && savedRx.created_at) || new Date().toISOString(),
+                        appointment_date: (savedRx && savedRx.appointment_date) || payload.date,
+                        appointmentDate: (savedRx && savedRx.appointmentDate) || payload.date,
+                        ...payload,
+                      });
                     }
                     window.dispatchEvent(new CustomEvent('prescription-whatsapp-sent', {
                       detail: { rxId: rxIdToSend, status: 'Delivered' }
@@ -1190,7 +1199,16 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                     return res;
                   } catch (sendErr) {
                     if (onSave) {
-                      onSave({ id: rxIdToSend, rxId: rxIdToSend, status: 'Pending', ...payload });
+                      onSave({
+                        ...(savedRx || {}),
+                        id: rxIdToSend,
+                        rxId: rxIdToSend,
+                        status: 'Pending',
+                        created_at: (savedRx && savedRx.created_at) || new Date().toISOString(),
+                        appointment_date: (savedRx && savedRx.appointment_date) || payload.date,
+                        appointmentDate: (savedRx && savedRx.appointmentDate) || payload.date,
+                        ...payload,
+                      });
                     }
                     throw sendErr;
                   }

@@ -21,8 +21,27 @@ export const parseDateString = (str) => {
     return new Date(t.getFullYear(), t.getMonth(), t.getDate());
   }
 
-  // Check ISO format YYYY-MM-DD
-  const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  // ISO string with timestamp (e.g. 2026-11-12T07:27:52.741763+00:00) -> parse in Asia/Kolkata timezone
+  if (s.includes('T')) {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      try {
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Kolkata',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+        const [year, month, day] = formatter.format(d).split('-').map((n) => parseInt(n, 10));
+        return new Date(year, month - 1, day);
+      } catch (e) {
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      }
+    }
+  }
+
+  // Check pure ISO format YYYY-MM-DD
+  const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (isoMatch) {
     const year = parseInt(isoMatch[1], 10);
     const month = parseInt(isoMatch[2], 10) - 1;
