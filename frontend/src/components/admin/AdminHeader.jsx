@@ -324,7 +324,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       age: item.patient_age || item.age || (item.age_gender ? item.age_gender.split('/')[0].trim() : '30'),
       gender: item.patient_gender || item.gender || (item.age_gender ? item.age_gender.split('/')[1]?.trim() : 'Adult'),
       notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
-      doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+      doctor: item.doctor || 'Dr. Kalpana Tripathi Ampeh (Pat.)',
     };
 
     sessionStorage.setItem('pending_prescription_patient', JSON.stringify(aptToOpen));
@@ -540,7 +540,7 @@ const AdminHeader = ({ onToggleSidebar, onViewAppointment, onNewPrescription }) 
       age: item.patient_age || (item.age_gender ? item.age_gender.split('/')[0].trim() : '30'),
       gender: item.patient_gender || (item.age_gender ? item.age_gender.split('/')[1]?.trim() : 'Adult'),
       notes: (item.clinical_remarks || item.notes || '') !== (item.reason_for_visit || '') ? (item.clinical_remarks || item.notes || '') : '',
-      doctor: item.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+      doctor: item.doctor || 'Dr. Kalpana Tripathi Ampeh (Pat.)',
     };
 
     if (isPrescriptionRemaining) {
