@@ -45,7 +45,7 @@ class NumberedCanvas(canvas.Canvas):
         
         # Running Bottom Footer
         self.line(45, 46, 550, 46)
-        self.drawString(45, 34, 'Dr. Kumar Tripathi Ampeh Homeopathy Clinic | Release v1.0')
+        self.drawString(45, 34, 'Dr. Kalpana Tripathi Ampeh Homeopathy Clinic | Release v1.0')
         page_str = f'Page {self._pageNumber} of {page_count}'
         self.drawRightString(550, 34, page_str)
         self.restoreState()
@@ -230,7 +230,7 @@ def build_pdf(output_path):
 
     # Metadata Card Table
     meta_data = [
-        [Paragraph("<b>Target Clinic:</b>", table_cell_bold), Paragraph("Dr. Kumar Tripathi Ampeh Homeopathy Clinic", table_cell_style)],
+        [Paragraph("<b>Target Clinic:</b>", table_cell_bold), Paragraph("Dr. Kalpana Tripathi Ampeh Homeopathy Clinic", table_cell_style)],
         [Paragraph("<b>System Type:</b>", table_cell_bold), Paragraph("Decoupled Full-Stack Web Application (SPA + REST API)", table_cell_style)],
         [Paragraph("<b>Frontend Framework:</b>", table_cell_bold), Paragraph("React 18.3, Vite Bundler, React Router v6, Axios, Modern Tailwind / CSS", table_cell_style)],
         [Paragraph("<b>Backend & API:</b>", table_cell_bold), Paragraph("Python 3.13, Django 5.1.x, Django REST Framework (DRF), Asynchronous Workers", table_cell_style)],
@@ -254,7 +254,7 @@ def build_pdf(output_path):
     story.append(Spacer(1, 30))
     story.append(Paragraph("<b>Executive Summary:</b>", h3_style))
     story.append(Paragraph(
-        "This project report details the engineering, architecture, workflows, and deployment of a clinical management platform developed for <b>Dr. Kumar Tripathi Ampeh Homeopathy Clinic</b>. The system replaces fragmented paper-based clinic procedures with a centralized, cloud-hosted architecture. It delivers dynamic 3-step self-service appointment scheduling with real-time slot conflict resolution, an integrated rescheduling engine, patient electronic medical records, an administrative queue ledger, a Digital Prescription Studio, and automated WhatsApp delivery of appointment slips and authorized prescriptions as high-resolution PDFs.",
+        "This project report details the engineering, architecture, workflows, and deployment of a clinical management platform developed for <b>Dr. Kalpana Tripathi Ampeh Homeopathy Clinic</b>. The system replaces fragmented paper-based clinic procedures with a centralized, cloud-hosted architecture. It delivers dynamic 3-step self-service appointment scheduling with real-time slot conflict resolution, an integrated rescheduling engine, patient electronic medical records, an administrative queue ledger, a Digital Prescription Studio, and automated WhatsApp delivery of appointment slips and authorized prescriptions as high-resolution PDFs.",
         body_style
     ))
     story.append(Spacer(1, 10))
@@ -489,7 +489,7 @@ def build_pdf(output_path):
 
     story.append(Paragraph("4.1 Public Patient Portal & Clinical Discovery", h2_style))
     story.append(Paragraph(
-        "The public web application provides an inviting, accessible clinical presence. It includes a dedicated clinic overview, comprehensive directory of treated ailments (respiratory allergies, skin conditions, arthritis, lifestyle health), doctor credentials for Dr. Kumar Tripathi Ampeh, and direct entry points to online booking.",
+        "The public web application provides an inviting, accessible clinical presence. It includes a dedicated clinic overview, comprehensive directory of treated ailments (respiratory allergies, skin conditions, arthritis, lifestyle health), doctor credentials for Dr. Kalpana Tripathi Ampeh, and direct entry points to online booking.",
         body_style
     ))
 
@@ -717,7 +717,7 @@ def build_pdf(output_path):
     story.append(HRFlowable(width="100%", thickness=1, color=PRIMARY, spaceBefore=2, spaceAfter=10))
 
     story.append(Paragraph(
-        "The <b>Clinic Management & Automated Healthcare Communication System</b> successfully modernizes clinical operations for <b>Dr. Kumar Tripathi Ampeh Homeopathy Clinic</b>. By seamlessly integrating self-service booking, dynamic conflict-free slot scheduling, resilient appointment rescheduling, electronic medical records, digital prescription authoring, and automated Meta WhatsApp document delivery, the platform sets a benchmark for modern outpatient healthcare delivery.",
+        "The <b>Clinic Management & Automated Healthcare Communication System</b> successfully modernizes clinical operations for <b>Dr. Kalpana Tripathi Ampeh Homeopathy Clinic</b>. By seamlessly integrating self-service booking, dynamic conflict-free slot scheduling, resilient appointment rescheduling, electronic medical records, digital prescription authoring, and automated Meta WhatsApp document delivery, the platform sets a benchmark for modern outpatient healthcare delivery.",
         body_style
     ))
     story.append(Spacer(1, 6))
@@ -732,7 +732,7 @@ def build_pdf(output_path):
     sign_data = [
         [
             Paragraph("<b>Report Prepared By:</b><br/>Lead Software Engineering & Architecture Team", table_cell_style),
-            Paragraph("<b>Target Clinic:</b><br/>Dr. Kumar Tripathi Ampeh Homeopathy Clinic", table_cell_style),
+            Paragraph("<b>Target Clinic:</b><br/>Dr. Kalpana Tripathi Ampeh Homeopathy Clinic", table_cell_style),
             Paragraph("<b>Certification Status:</b><br/><font color='#0d5c3a'><b>APPROVED & RELEASED (v1.0)</b></font>", table_cell_style)
         ]
     ]

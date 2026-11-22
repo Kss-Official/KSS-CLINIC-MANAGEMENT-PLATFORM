@@ -173,7 +173,7 @@ def generate_prescription_pdf_bytes(prescription_data):
         header_cells.append(Paragraph("", styles['Normal']))
 
     clinic_info_p = [
-        Paragraph("Dr. Kumar Tripathi Ampeh (Pat.)", doctor_name_style),
+        Paragraph("Dr. Kalpana Tripathi Ampeh (Pat.)", doctor_name_style),
         Spacer(1, 1 * mm),
         Paragraph("HOMEOPATHY CLINIC", clinic_tag_style),
         Spacer(1, 1 * mm),

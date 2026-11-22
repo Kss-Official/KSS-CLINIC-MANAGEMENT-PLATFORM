@@ -244,7 +244,7 @@ class ForgotPasswordView(views.APIView):
 
         sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'pratikshaharode0@gmail.com')
         recipient = user.email
-        subject = f"Password Reset Code: {reset_record.code} - Dr. Kumar Tripathi Clinic"
+        subject = f"Password Reset Code: {reset_record.code} - Dr. Kalpana Tripathi Clinic"
 
         full_name = f"{user.first_name} {user.last_name}".strip() or user.username
 
@@ -262,7 +262,7 @@ class ForgotPasswordView(views.APIView):
             <div style="background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%); padding: 24px 28px; color: #ffffff;">
               <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 999px; display: inline-block; margin-bottom: 8px;">SECURITY VERIFICATION</span>
               <h2 style="margin: 0; font-size: 22px; font-weight: 700;">Password Reset Request</h2>
-              <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9;">Dr. Kumar Tripathi Ampeh (Pat.) &bull; Homeopathy Clinic</p>
+              <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9;">Dr. Kalpana Tripathi Ampeh (Pat.) &bull; Homeopathy Clinic</p>
             </div>
             
             <div style="padding: 28px;">

@@ -1816,7 +1816,7 @@ const SettingsPage = () => {
                           doctorName: validateDoctorName(draftClinicInfo.doctorName),
                         }))
                       }
-                      placeholder="e.g. Dr Kumar Tripathi"
+                      placeholder="e.g. Dr Kalpana Tripathi"
                       style={{
                         width: '100%',
                         padding: '10px 14px',

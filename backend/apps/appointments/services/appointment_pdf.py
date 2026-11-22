@@ -77,7 +77,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
     p_name = appointment_data.get('patient_name') or appointment_data.get('patientName') or 'Patient'
     p_phone = appointment_data.get('patient_phone') or appointment_data.get('mobileNumber') or appointment_data.get('mobile') or '—'
     p_email = appointment_data.get('patient_email') or appointment_data.get('email') or '—'
-    doctor_name = appointment_data.get('doctor_name') or 'Dr. Kumar Tripathi Ampeh (Pat.)'
+    doctor_name = appointment_data.get('doctor_name') or 'Dr. Kalpana Tripathi Ampeh (Pat.)'
     service_name = appointment_data.get('reason_for_visit') or appointment_data.get('service') or ''
     apt_date = appointment_data.get('appointment_date') or appointment_data.get('date') or '—'
     apt_time = appointment_data.get('time_slot') or appointment_data.get('time') or '—'
@@ -88,7 +88,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
     header_logo = Image(logo_path, width=20 * mm, height=18.6 * mm) if os.path.exists(logo_path) else Paragraph('', styles['Normal'])
 
     clinic_info = [
-        Paragraph("Dr. Kumar Tripathi Ampeh (Pat.)", doc_name_style),
+        Paragraph("Dr. Kalpana Tripathi Ampeh (Pat.)", doc_name_style),
         Spacer(1, 0.8 * mm),
         Paragraph("HOMEOPATHY CLINIC & WELLNESS CENTER", clinic_tag_style),
         Spacer(1, 0.8 * mm),
@@ -229,9 +229,9 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
     # 4. Clinic Venue Card (Full Width 178mm, 2 columns: 35mm, 143mm)
     venue_rows = [
         [Paragraph("CLINIC LOCATION & CONSULTATION VENUE", card_header_style), ""],
-        [Paragraph("Clinic Name", label_style), Paragraph(": &nbsp; <b>Dr. Kumar Tripathi Ampeh Homeopathy Clinic & Wellness Center</b>", val_bold_style)],
+        [Paragraph("Clinic Name", label_style), Paragraph(": &nbsp; <b>Dr. Kalpana Tripathi Ampeh Homeopathy Clinic & Wellness Center</b>", val_bold_style)],
         [Paragraph("Full Address", label_style), Paragraph(f": &nbsp; {clinic_address}", val_style)],
-        [Paragraph("Landmark", label_style), Paragraph(": &nbsp; Opp. 1 MG-Lido Mall, near Trinity Circle (Central Bengaluru)", val_style)],
+        [Paragraph("Landmark", label_style), Paragraph(": &nbsp; Balram DRESS, NH-19 (Ghazipur - Hajipur Rd)", val_style)],
         [Paragraph("Desk Contact", label_style), Paragraph(": &nbsp; Ph: +91 98765 43210 &nbsp;|&nbsp; clinic.tripathi@gmail.com &nbsp;|&nbsp; Mon–Sat: 9:00 AM – 6:00 PM", val_style)],
     ]
     venue_table = Table(venue_rows, colWidths=[35 * mm, 143 * mm])
@@ -286,7 +286,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
     sig_right = [
         Paragraph("KTripathi", sig_cursive_style),
         HRFlowable(width='60%', thickness=1.2, color=clinic_green, spaceBefore=2, spaceAfter=2, hAlign='RIGHT'),
-        Paragraph("Dr. Kumar Tripathi Ampeh (Pat.)", sig_name_style),
+        Paragraph("Dr. Kalpana Tripathi Ampeh (Pat.)", sig_name_style),
         Paragraph("Chief Medical Officer & Consultant Homeopath", sig_sub_style),
         Paragraph("Reg. No: HOM-KA-48921 • Central Council of Homeopathy", sig_sub_style),
     ]
@@ -304,7 +304,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
     # 7. Footer
     elements.append(HRFlowable(width='100%', thickness=0.8, color=divider_color, spaceBefore=2, spaceAfter=3))
     footer_row = [
-        Paragraph("Dr. Kumar Tripathi Ampeh Homeopathy Clinic &bull; Dedicated to Gentle & Permanent Healing", footer_text_style),
+        Paragraph("Dr. Kalpana Tripathi Ampeh Homeopathy Clinic &bull; Dedicated to Gentle & Permanent Healing", footer_text_style),
         Paragraph("Official Slip &bull; Page 1 of 1", footer_bold_style)
     ]
     footer_table = Table([footer_row], colWidths=[130 * mm, 48 * mm])

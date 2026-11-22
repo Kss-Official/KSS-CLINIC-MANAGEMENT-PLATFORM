@@ -319,7 +319,7 @@ class WhatsAppService:
                 'patient_name': p_name,
                 'patient_phone': phone,
                 'patient_email': getattr(appointment_obj, 'patient_email', '') or '',
-                'doctor_name': 'Dr. Kumar Tripathi Ampeh (Pat.)',
+                'doctor_name': 'Dr. Kalpana Tripathi Ampeh (Pat.)',
                 'service': service,
                 'appointment_date': apt_date,
                 'time_slot': apt_time,
@@ -397,14 +397,14 @@ class WhatsAppService:
             # and send the official appointment confirmation slip (PDF) with dedicated appointment caption.
             caption = (
                 f"Dear {p_name},\n"
-                f"Your appointment ({apt_id}) with Dr. Kumar Tripathi Ampeh (Pat.) Homeopathy Clinic is confirmed!\n\n"
+                f"Your appointment ({apt_id}) with Dr. Kalpana Tripathi Ampeh (Pat.) Homeopathy Clinic is confirmed!\n\n"
                 f"📅 Date: {apt_date}\n"
                 f"⏰ Time: {apt_time}\n"
-                f"👨‍⚕️ Doctor: Dr. Kumar Tripathi Ampeh (Pat.)\n"
+                f"👨‍⚕️ Doctor: Dr. Kalpana Tripathi Ampeh (Pat.)\n"
                 f"📍 Address: 05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221\n\n"
                 f"Your official appointment confirmation slip is attached.\n"
                 f"Wishing you vibrant health!\n"
-                f"Dr. Kumar Tripathi Homeopathy Clinic"
+                f"Dr. Kalpana Tripathi Homeopathy Clinic"
             )
 
             # Proactively ensure active messaging session with approved hello_world opener
