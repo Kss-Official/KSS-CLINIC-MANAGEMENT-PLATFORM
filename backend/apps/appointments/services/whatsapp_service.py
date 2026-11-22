@@ -96,32 +96,6 @@ class WhatsAppService:
         except Exception:
             return False
 
-    def open_template_session(self, clean_phone):
-        """
-        Sends a standard Meta-approved template (e.g. 'hello_world') to initiate
-        the active messaging window when required by WhatsApp Cloud API.
-        """
-        messages_url = f"{self.base_url}/{self.phone_number_id}/messages"
-        headers = {
-            'Authorization': f'Bearer {self.access_token}',
-            'Content-Type': 'application/json',
-        }
-        template_payload = {
-            "messaging_product": "whatsapp",
-            "to": clean_phone,
-            "type": "template",
-            "template": {
-                "name": "hello_world",
-                "language": {"code": "en_US"}
-            }
-        }
-        try:
-            r = requests.post(messages_url, headers=headers, json=template_payload, timeout=20)
-            return r.status_code == 200
-        except Exception as e:
-            logger.warning(f"Failed to send template session opener: {e}")
-            return False
-
     def send_document(self, recipient_phone, media_id, filename='Prescription.pdf', caption=''):
         """
         Sends an uploaded media document to the recipient's WhatsApp number.
@@ -152,13 +126,14 @@ class WhatsAppService:
         }
 
         try:
-            response = requests.post(messages_url, headers=headers, json=payload, timeout=30)
+            response = requests.post(messages_url, headers=headers, json=payload, timeout=25)
             res_data = response.json()
 
             if response.status_code == 200 and 'messages' in res_data and len(res_data['messages']) > 0:
                 msg_id = res_data['messages'][0].get('id')
                 return True, {
                     "success": True,
+                    "status": "Sent",
                     "message_id": msg_id,
                     "recipient": clean_phone,
                     "details": "Document successfully sent via Meta WhatsApp Cloud API!"
@@ -166,23 +141,6 @@ class WhatsAppService:
 
             error_obj = res_data.get('error', {})
             error_code = error_obj.get('code')
-
-            # Auto-retry with session opener if access is denied due to 24-hour window / template requirement
-            if error_code in (131005, 131047):
-                logger.info(f"Received error {error_code}, opening conversation window with template and retrying document send...")
-                if self.open_template_session(clean_phone):
-                    retry_resp = requests.post(messages_url, headers=headers, json=payload, timeout=30)
-                    retry_data = retry_resp.json()
-                    if retry_resp.status_code == 200 and 'messages' in retry_data and len(retry_data['messages']) > 0:
-                        return True, {
-                            "success": True,
-                            "message_id": retry_data['messages'][0].get('id'),
-                            "recipient": clean_phone,
-                            "details": "Document successfully sent via Meta WhatsApp Cloud API!"
-                        }
-                    res_data = retry_data
-                    error_obj = res_data.get('error', {})
-                    error_code = error_obj.get('code')
             error_msg = error_obj.get('message', 'Failed to deliver message via WhatsApp.')
             error_subcode = error_obj.get('error_subcode')
 
@@ -194,6 +152,11 @@ class WhatsAppService:
                 )
             elif error_code == 190 or 'access token' in error_msg.lower():
                 user_friendly = "Meta Access Token has expired or is invalid. Please generate a fresh token in Meta Developer Portal."
+            elif error_code in (131005, 131047):
+                user_friendly = (
+                    f"WhatsApp 24-hour customer window is closed for (+{clean_phone}). "
+                    "Delivery requires patient to have sent a message in the last 24 hours, or use an approved template."
+                )
             else:
                 user_friendly = f"Meta WhatsApp API Error ({error_code}): {error_msg}"
 
@@ -411,9 +374,6 @@ class WhatsAppService:
                 f"Wishing you vibrant health!\n"
                 f"Dr. Kalpana Tripathi Homeopathy Clinic"
             )
-
-            # Proactively ensure active messaging session with approved hello_world opener
-            self.open_template_session(clean_phone)
 
             res, resp_data = self.send_document(
                 recipient_phone=clean_phone,

@@ -2607,18 +2607,31 @@ class SendPrescriptionWhatsAppView(APIView):
                 'error': 'Patient mobile number is required to send prescription via WhatsApp.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 3. Obtain PDF bytes: either from client base64 or generated via ReportLab
+        # 3. Obtain PDF bytes: Always ensure full-size genuine vector PDF bytes via ReportLab
+        pdf_bytes = None
         pdf_base64 = payload.get('pdf_base64')
         if pdf_base64:
             try:
                 if ',' in str(pdf_base64):
                     pdf_base64 = str(pdf_base64).split(',', 1)[1]
-                pdf_bytes = base64.b64decode(pdf_base64)
+                decoded = base64.b64decode(pdf_base64)
+                # Ensure it is a valid non-empty PDF file (starts with %PDF and at least 3KB)
+                if len(decoded) > 3000 and decoded.startswith(b'%PDF'):
+                    pdf_bytes = decoded
+                else:
+                    logger.info(f"Client pdf_base64 was invalid or too small ({len(decoded)} bytes). Using ReportLab.")
             except Exception as e:
-                logger.warning(f"Could not decode client base64 PDF, falling back to ReportLab: {e}")
-                pdf_bytes = generate_prescription_pdf_bytes(rx_data)
-        else:
+                logger.warning(f"Could not decode client base64 PDF: {e}")
+
+        if not pdf_bytes:
             pdf_bytes = generate_prescription_pdf_bytes(rx_data)
+
+        if not pdf_bytes or len(pdf_bytes) < 3000:
+            logger.error("Failed to generate valid PDF bytes for prescription.")
+            return Response({
+                'success': False,
+                'error': 'Failed to generate a valid prescription PDF document.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # 4. Dispatch via Meta WhatsApp Cloud API
         success, result = whatsapp_service.send_prescription_pdf(
