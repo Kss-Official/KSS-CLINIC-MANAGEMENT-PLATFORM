@@ -94,7 +94,7 @@ const SettingsPage = () => {
       contactNumber: '+91 98765 43210',
       alternateNumber: '+91 99887 66554',
       email: 'clinic.tripathi@gmail.com',
-      address: '12, Green Park, Bangalore',
+      address: '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221',
     };
   });
 

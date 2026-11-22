@@ -252,7 +252,7 @@ const PrescriptionPreviewCard = ({
                 lineHeight: 1.35,
               }}
             >
-              12, Green Park, MG Road, Bangalore, Karnataka - 560001
+              05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221
             </div>
             <div
               className="prescription-clinic-contact"

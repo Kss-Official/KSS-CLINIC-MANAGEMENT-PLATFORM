@@ -81,7 +81,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
     service_name = appointment_data.get('reason_for_visit') or appointment_data.get('service') or ''
     apt_date = appointment_data.get('appointment_date') or appointment_data.get('date') or '—'
     apt_time = appointment_data.get('time_slot') or appointment_data.get('time') or '—'
-    clinic_address = appointment_data.get('clinic_address') or '12, Green Park, MG Road, Bangalore, Karnataka - 560001'
+    clinic_address = appointment_data.get('clinic_address') or '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221'
 
     # 1. Header with Logo & Verification Badge
     logo_path = os.path.join(os.path.dirname(__file__), 'doctor-portal-logo.png')
@@ -93,7 +93,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
         Paragraph("HOMEOPATHY CLINIC & WELLNESS CENTER", clinic_tag_style),
         Spacer(1, 0.8 * mm),
         Paragraph("Specialized Classical Homeopathy & Advanced Natural Healing", clinic_addr_style),
-        Paragraph("12, Green Park, MG Road, Bangalore, Karnataka - 560001", clinic_addr_style),
+        Paragraph("05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221", clinic_addr_style),
         Paragraph("Ph: +91 98765 43210 &nbsp;|&nbsp; clinic.tripathi@gmail.com", clinic_addr_style),
     ]
 
