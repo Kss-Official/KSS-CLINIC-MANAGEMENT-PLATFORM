@@ -161,15 +161,11 @@ const PrescriptionPreviewCard = ({
           aptNumber,
           pdf_base64: clientPdfBase64,
         });
-        try {
-          await appointmentApi.updatePrescriptionStatus(rxIdentifier, 'Delivered');
-        } catch (e) {
-          console.warn('Status update fallback error:', e);
-        }
+        const newStatus = res?.status || 'Sent';
         window.dispatchEvent(new CustomEvent('prescription-whatsapp-sent', {
-          detail: { rxId: rxIdentifier, status: 'Delivered' }
+          detail: { rxId: rxIdentifier, status: newStatus }
         }));
-        setWhatsAppSuccess(res?.message || `Prescription PDF successfully delivered to ${patientName}'s WhatsApp!`);
+        setWhatsAppSuccess(res?.message || `Prescription PDF successfully dispatched to ${patientName}'s WhatsApp! Status: ${newStatus}`);
       }
     } catch (err) {
       console.error('WhatsApp send error:', err);

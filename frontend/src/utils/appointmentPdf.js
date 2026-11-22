@@ -38,7 +38,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14.5);
   doc.setTextColor(27, 67, 50);
-  doc.text('DR. KUMAR TRIPATHI AMPEH (PAT.)', marginX, y);
+  doc.text('DR. KALPANA TRIPATHI AMPEH (PAT.)', marginX, y);
 
   y += 5.5;
   doc.setFont('helvetica', 'bold');

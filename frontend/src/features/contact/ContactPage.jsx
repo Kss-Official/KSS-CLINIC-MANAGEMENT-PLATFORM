@@ -1259,7 +1259,7 @@ const ContactPage = () => {
                       fontFamily: "'Manrope', sans-serif",
                     }}
                   >
-                    Central Bengaluru
+                    Sitalpur, Bihar
                   </div>
                 </div>
 
@@ -1328,7 +1328,7 @@ const ContactPage = () => {
                   <span>Cubbon Park (1.2 km)</span>
                 </div>
 
-                {/* 4. Landmark Label: Ulsoor Lake */}
+                {/* 4. Landmark Label: Ghazipur Rd */}
                 <div
                   style={{
                     position: 'absolute',
@@ -1346,10 +1346,10 @@ const ContactPage = () => {
                     zIndex: 5,
                   }}
                 >
-                  Ulsoor Lake
+                  Ghazipur Rd
                 </div>
 
-                {/* 5. Metro Label: Trinity Metro (250m) */}
+                {/* 5. Landmark Label: Balram DRESS */}
                 <div
                   style={{
                     position: 'absolute',
@@ -1371,10 +1371,10 @@ const ContactPage = () => {
                   }}
                 >
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#059669' }} />
-                  <span>Trinity Metro (250m)</span>
+                  <span>Balram DRESS</span>
                 </div>
 
-                {/* 6. Road Name: M.G. ROAD */}
+                {/* 6. Road Name: NH-19 */}
                 <div
                   style={{
                     position: 'absolute',
@@ -1393,10 +1393,10 @@ const ContactPage = () => {
                     zIndex: 5,
                   }}
                 >
-                  M.G. ROAD
+                  NH-19 HIGHWAY
                 </div>
 
-                {/* 7. Diagonal Road Name: Brigade Road */}
+                {/* 7. Diagonal Road Name: Hajipur Rd */}
                 <div
                   style={{
                     position: 'absolute',
@@ -1415,7 +1415,7 @@ const ContactPage = () => {
                     zIndex: 5,
                   }}
                 >
-                  Brigade Road
+                  Hajipur Rd
                 </div>
 
                 {/* 8. CENTER CLINIC PIN & POPUP CARD */}

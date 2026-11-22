@@ -254,6 +254,11 @@ export const appointmentApi = {
     return response.data;
   },
 
+  getPrescriptionWhatsAppStatus: async (rxId) => {
+    const response = await axiosClient.get(`/prescriptions/${encodeURIComponent(rxId)}/whatsapp-status/`);
+    return response.data;
+  },
+
   // WhatsApp Cloud API Appointment Confirmation Sender
   sendAppointmentWhatsApp: async (appointmentId, data = {}) => {
     const target = appointmentId ? `/appointments/${encodeURIComponent(appointmentId)}/send-whatsapp/` : '/appointments/send-whatsapp/';

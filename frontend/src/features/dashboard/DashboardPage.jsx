@@ -276,6 +276,12 @@ const DashboardPage = () => {
 
   const getStatusBadge = (status) => {
     switch (status) {
+      case 'Read':
+        return {
+          bg: '#ede9fe',
+          color: '#6d28d9',
+          border: '#ddd6fe',
+        };
       case 'Confirmed':
       case 'Delivered':
         return {

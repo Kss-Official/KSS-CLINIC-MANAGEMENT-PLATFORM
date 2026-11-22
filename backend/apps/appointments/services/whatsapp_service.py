@@ -59,14 +59,12 @@ class WhatsAppService:
         }
         files = {
             'file': (filename, file_bytes, mime_type),
-        }
-        data = {
-            'type': mime_type,
-            'messaging_product': 'whatsapp',
+            'messaging_product': (None, 'whatsapp'),
+            'type': (None, mime_type),
         }
 
         try:
-            response = requests.post(upload_url, headers=headers, files=files, data=data, timeout=30)
+            response = requests.post(upload_url, headers=headers, files=files, timeout=30)
             res_data = response.json()
 
             if response.status_code == 200 and 'id' in res_data:
@@ -96,32 +94,6 @@ class WhatsAppService:
                     return True
             return False
         except Exception:
-            return False
-
-    def open_template_session(self, clean_phone):
-        """
-        Sends a standard Meta-approved template (e.g. 'hello_world') to initiate
-        the active messaging window when required by WhatsApp Cloud API.
-        """
-        messages_url = f"{self.base_url}/{self.phone_number_id}/messages"
-        headers = {
-            'Authorization': f'Bearer {self.access_token}',
-            'Content-Type': 'application/json',
-        }
-        template_payload = {
-            "messaging_product": "whatsapp",
-            "to": clean_phone,
-            "type": "template",
-            "template": {
-                "name": "hello_world",
-                "language": {"code": "en_US"}
-            }
-        }
-        try:
-            r = requests.post(messages_url, headers=headers, json=template_payload, timeout=20)
-            return r.status_code == 200
-        except Exception as e:
-            logger.warning(f"Failed to send template session opener: {e}")
             return False
 
     def send_document(self, recipient_phone, media_id, filename='Prescription.pdf', caption=''):
@@ -154,13 +126,14 @@ class WhatsAppService:
         }
 
         try:
-            response = requests.post(messages_url, headers=headers, json=payload, timeout=30)
+            response = requests.post(messages_url, headers=headers, json=payload, timeout=25)
             res_data = response.json()
 
             if response.status_code == 200 and 'messages' in res_data and len(res_data['messages']) > 0:
                 msg_id = res_data['messages'][0].get('id')
                 return True, {
                     "success": True,
+                    "status": "Sent",
                     "message_id": msg_id,
                     "recipient": clean_phone,
                     "details": "Document successfully sent via Meta WhatsApp Cloud API!"
@@ -168,23 +141,6 @@ class WhatsAppService:
 
             error_obj = res_data.get('error', {})
             error_code = error_obj.get('code')
-
-            # Auto-retry with session opener if access is denied due to 24-hour window / template requirement
-            if error_code in (131005, 131047):
-                logger.info(f"Received error {error_code}, opening conversation window with template and retrying document send...")
-                if self.open_template_session(clean_phone):
-                    retry_resp = requests.post(messages_url, headers=headers, json=payload, timeout=30)
-                    retry_data = retry_resp.json()
-                    if retry_resp.status_code == 200 and 'messages' in retry_data and len(retry_data['messages']) > 0:
-                        return True, {
-                            "success": True,
-                            "message_id": retry_data['messages'][0].get('id'),
-                            "recipient": clean_phone,
-                            "details": "Document successfully sent via Meta WhatsApp Cloud API!"
-                        }
-                    res_data = retry_data
-                    error_obj = res_data.get('error', {})
-                    error_code = error_obj.get('code')
             error_msg = error_obj.get('message', 'Failed to deliver message via WhatsApp.')
             error_subcode = error_obj.get('error_subcode')
 
@@ -196,6 +152,11 @@ class WhatsAppService:
                 )
             elif error_code == 190 or 'access token' in error_msg.lower():
                 user_friendly = "Meta Access Token has expired or is invalid. Please generate a fresh token in Meta Developer Portal."
+            elif error_code in (131005, 131047):
+                user_friendly = (
+                    f"WhatsApp 24-hour customer window is closed for (+{clean_phone}). "
+                    "Delivery requires patient to have sent a message in the last 24 hours, or use an approved template."
+                )
             else:
                 user_friendly = f"Meta WhatsApp API Error ({error_code}): {error_msg}"
 
@@ -221,6 +182,11 @@ class WhatsAppService:
         clean_phone = self.normalize_phone_number(recipient_phone)
         if not clean_phone or len(clean_phone) < 10:
             return False, {"error": f"Invalid recipient phone number: '{recipient_phone}'."}
+
+        safe_patient_name = str(patient_name or 'Patient').strip().split('\n')[0][:50]
+        safe_rx_id = str(rx_id or 'RX-2026').strip().split('\n')[0][:30]
+
+        logger.info(f"Dispatching prescription {safe_rx_id} to {safe_patient_name} (+{clean_phone}) via WhatsApp Cloud API")
 
         # 1. Upload Media
         media_id, upload_err = self.upload_media(pdf_bytes, filename=filename)
@@ -258,8 +224,8 @@ class WhatsAppService:
                     {
                         "type": "body",
                         "parameters": [
-                            {"type": "text", "text": patient_name},
-                            {"type": "text", "text": rx_id}
+                            {"type": "text", "text": safe_patient_name},
+                            {"type": "text", "text": safe_rx_id}
                         ]
                     }
                 ]
@@ -267,15 +233,17 @@ class WhatsAppService:
         }
 
         try:
-            resp = requests.post(messages_url, headers=headers, json=template_payload, timeout=30)
+            resp = requests.post(messages_url, headers=headers, json=template_payload, timeout=25)
             res_data = resp.json()
             if resp.status_code == 200 and 'messages' in res_data and len(res_data['messages']) > 0:
-                logger.info(f"Prescription template sent successfully: {res_data}")
+                msg_id = res_data['messages'][0].get('id')
+                logger.info(f"Prescription template sent successfully: msg_id={msg_id}, to={clean_phone}")
                 return True, {
                     "success": True,
-                    "message_id": res_data['messages'][0].get('id'),
+                    "status": "Sent",
+                    "message_id": msg_id,
                     "recipient": clean_phone,
-                    "details": "Prescription PDF successfully delivered via official WhatsApp Document Template!"
+                    "details": "Prescription PDF successfully dispatched via official WhatsApp Document Template!"
                 }
             logger.info(f"Template send response: {res_data}. Falling back to standard document dispatch...")
         except Exception as e:
@@ -283,8 +251,8 @@ class WhatsAppService:
 
         # 3. Fallback: Standard document message (with auto session opener if needed)
         caption = (
-            f"Dear {patient_name},\n"
-            f"Your prescription ({rx_id}) from Dr. Kalpana Tripathi Ampeh Homeopathy Clinic is attached.\n"
+            f"Dear {safe_patient_name},\n"
+            f"Your prescription ({safe_rx_id}) from Dr. Kalpana Tripathi Ampeh Homeopathy Clinic is attached.\n"
             f"Wishing you vibrant health and speedy recovery!"
         )
         return self.send_document(
@@ -319,7 +287,7 @@ class WhatsAppService:
                 'patient_name': p_name,
                 'patient_phone': phone,
                 'patient_email': getattr(appointment_obj, 'patient_email', '') or '',
-                'doctor_name': 'Dr. Kumar Tripathi Ampeh (Pat.)',
+                'doctor_name': 'Dr. Kalpana Tripathi Ampeh (Pat.)',
                 'service': service,
                 'appointment_date': apt_date,
                 'time_slot': apt_time,
@@ -397,18 +365,15 @@ class WhatsAppService:
             # and send the official appointment confirmation slip (PDF) with dedicated appointment caption.
             caption = (
                 f"Dear {p_name},\n"
-                f"Your appointment ({apt_id}) with Dr. Kumar Tripathi Ampeh (Pat.) Homeopathy Clinic is confirmed!\n\n"
+                f"Your appointment ({apt_id}) with Dr. Kalpana Tripathi Ampeh (Pat.) Homeopathy Clinic is confirmed!\n\n"
                 f"📅 Date: {apt_date}\n"
                 f"⏰ Time: {apt_time}\n"
-                f"👨‍⚕️ Doctor: Dr. Kumar Tripathi Ampeh (Pat.)\n"
+                f"👨‍⚕️ Doctor: Dr. Kalpana Tripathi Ampeh (Pat.)\n"
                 f"📍 Address: 05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221\n\n"
                 f"Your official appointment confirmation slip is attached.\n"
                 f"Wishing you vibrant health!\n"
-                f"Dr. Kumar Tripathi Homeopathy Clinic"
+                f"Dr. Kalpana Tripathi Homeopathy Clinic"
             )
-
-            # Proactively ensure active messaging session with approved hello_world opener
-            self.open_template_session(clean_phone)
 
             res, resp_data = self.send_document(
                 recipient_phone=clean_phone,
