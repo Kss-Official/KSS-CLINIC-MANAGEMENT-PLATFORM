@@ -1188,9 +1188,16 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                   };
 
                   let rxIdToSend = existingRxId;
+                  let savedRx = null;
                   if (!rxIdToSend) {
-                    const savedRx = await appointmentApi.createPrescription(payload);
-                    rxIdToSend = savedRx.id || savedRx.rxId;
+                    savedRx = await appointmentApi.createPrescription(payload);
+                    rxIdToSend = savedRx.id || savedRx.rxId || savedRx.prescription_id;
+                  } else {
+                    try {
+                      savedRx = await appointmentApi.updatePrescription(existingRxId, payload);
+                    } catch (updateErr) {
+                      savedRx = { id: existingRxId, rxId: existingRxId, ...payload };
+                    }
                   }
 
                   try {
