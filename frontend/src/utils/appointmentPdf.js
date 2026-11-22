@@ -116,7 +116,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(22, 101, 52);
-  doc.text('Thank you for choosing Dr. Kumar Tripathi Ampeh (Pat.). We look forward to seeing you at the clinic.', marginX + 16, y + 12);
+  doc.text('Thank you for choosing Dr. Kalpana Tripathi Ampeh (Pat.). We look forward to seeing you at the clinic.', marginX + 16, y + 12);
 
   // 4. Appointment Details Card
   y = 56;
@@ -357,7 +357,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(20, 83, 45);
-  doc.text('Dr. Kumar Tripathi Ampeh Homeopathy Clinic', marginX + 6, y + 7);
+  doc.text('Dr. Kalpana Tripathi Ampeh Homeopathy Clinic', marginX + 6, y + 7);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
@@ -387,7 +387,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFontSize(7);
   doc.setTextColor(148, 163, 184);
   doc.text(
-    '© 2026 Dr. Kumar Tripathi Ampeh (Pat.) Homeopathy Clinic. All rights reserved. Generated automatically via KSS Patient Portal.',
+    '© 2026 Dr. Kalpana Tripathi Ampeh (Pat.) Homeopathy Clinic. All rights reserved. Generated automatically via KSS Patient Portal.',
     pageWidth / 2,
     266,
     { align: 'center' }
