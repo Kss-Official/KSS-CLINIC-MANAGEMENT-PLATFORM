@@ -284,7 +284,7 @@ class WhatsAppService:
         # 3. Fallback: Standard document message (with auto session opener if needed)
         caption = (
             f"Dear {patient_name},\n"
-            f"Your prescription ({rx_id}) from Dr. Kumar Tripathi Ampeh Homeopathy Clinic is attached.\n"
+            f"Your prescription ({rx_id}) from Dr. Kalpana Tripathi Ampeh Homeopathy Clinic is attached.\n"
             f"Wishing you vibrant health and speedy recovery!"
         )
         return self.send_document(
