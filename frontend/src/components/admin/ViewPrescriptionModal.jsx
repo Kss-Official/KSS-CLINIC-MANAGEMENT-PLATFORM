@@ -298,19 +298,15 @@ const ViewPrescriptionModal = ({
                 additionalInstructions: rx.notes || rx.additionalInstructions,
                 pdf_base64: extraData.pdf_base64,
               });
-              try {
-                await appointmentApi.updatePrescriptionStatus(rxIdentifier, 'Delivered');
-              } catch (e) {
-                console.warn('Status update fallback error:', e);
-              }
-              setActiveRx((prev) => (prev ? { ...prev, status: 'Delivered' } : prev));
+              const newStatus = res?.status || 'Sent';
+              setActiveRx((prev) => (prev ? { ...prev, status: newStatus } : prev));
               // Notify parent page to update the list row status instantly
               if (onWhatsAppSent) {
-                onWhatsAppSent(rxIdentifier, 'Delivered');
+                onWhatsAppSent(rxIdentifier, newStatus);
               }
               // Also broadcast so PrescriptionsPage listener can catch it
               window.dispatchEvent(new CustomEvent('prescription-whatsapp-sent', {
-                detail: { rxId: rxIdentifier, status: 'Delivered' }
+                detail: { rxId: rxIdentifier, status: newStatus }
               }));
               return res;
             }}

@@ -116,11 +116,21 @@ const PrescriptionsPage = () => {
     window.addEventListener('prescription-updated', handleRxCreated);
     window.addEventListener('focus', () => fetchPrescriptions(true));
     window.addEventListener('prescription-whatsapp-sent', handleWhatsAppSent);
+    // Auto-sync delivery confirmation from WhatsApp webhook when any prescription is in 'Sent' state
+    const hasSent = prescriptionsList.some((p) => p.status === 'Sent');
+    let pollTimer = null;
+    if (hasSent) {
+      pollTimer = setInterval(() => {
+        fetchPrescriptions(true);
+      }, 7000);
+    }
+
     return () => {
       window.removeEventListener('prescription-created', handleRxCreated);
       window.removeEventListener('prescription-updated', handleRxCreated);
       window.removeEventListener('focus', () => fetchPrescriptions(true));
       window.removeEventListener('prescription-whatsapp-sent', handleWhatsAppSent);
+      if (pollTimer) clearInterval(pollTimer);
     };
   }, [fetchPrescriptions]);
 
@@ -179,6 +189,8 @@ const PrescriptionsPage = () => {
 
   const getStatusBadge = (status) => {
     switch (status) {
+      case 'Read':
+        return { bg: '#ede9fe', color: '#6d28d9', border: '#ddd6fe' };
       case 'Delivered':
         return { bg: '#e8f7ee', color: '#1e7e34', border: '#c7e6c9' };
       case 'Sent':
@@ -713,7 +725,10 @@ const PrescriptionsPage = () => {
             >
               <option value="All">All WhatsApp Status</option>
               <option value="Pending">Pending</option>
+              <option value="Sent">Sent</option>
               <option value="Delivered">Delivered</option>
+              <option value="Read">Read</option>
+              <option value="Failed">Failed</option>
             </select>
 
             {/* Search Input */}
@@ -939,7 +954,7 @@ const PrescriptionsPage = () => {
                             {
                               label: 'Send via WhatsApp',
                               icon: '📲',
-                              onClick: () => openNewPrescription(row, 2),
+                              onClick: () => openViewPrescription(row),
                             },
                             {
                               label: 'View Patient History',

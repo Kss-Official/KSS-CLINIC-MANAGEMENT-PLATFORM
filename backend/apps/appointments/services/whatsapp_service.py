@@ -59,14 +59,12 @@ class WhatsAppService:
         }
         files = {
             'file': (filename, file_bytes, mime_type),
-        }
-        data = {
-            'type': mime_type,
-            'messaging_product': 'whatsapp',
+            'messaging_product': (None, 'whatsapp'),
+            'type': (None, mime_type),
         }
 
         try:
-            response = requests.post(upload_url, headers=headers, files=files, data=data, timeout=30)
+            response = requests.post(upload_url, headers=headers, files=files, timeout=30)
             res_data = response.json()
 
             if response.status_code == 200 and 'id' in res_data:
@@ -222,6 +220,11 @@ class WhatsAppService:
         if not clean_phone or len(clean_phone) < 10:
             return False, {"error": f"Invalid recipient phone number: '{recipient_phone}'."}
 
+        safe_patient_name = str(patient_name or 'Patient').strip().split('\n')[0][:50]
+        safe_rx_id = str(rx_id or 'RX-2026').strip().split('\n')[0][:30]
+
+        logger.info(f"Dispatching prescription {safe_rx_id} to {safe_patient_name} (+{clean_phone}) via WhatsApp Cloud API")
+
         # 1. Upload Media
         media_id, upload_err = self.upload_media(pdf_bytes, filename=filename)
         if not media_id:
@@ -258,8 +261,8 @@ class WhatsAppService:
                     {
                         "type": "body",
                         "parameters": [
-                            {"type": "text", "text": patient_name},
-                            {"type": "text", "text": rx_id}
+                            {"type": "text", "text": safe_patient_name},
+                            {"type": "text", "text": safe_rx_id}
                         ]
                     }
                 ]
@@ -267,15 +270,17 @@ class WhatsAppService:
         }
 
         try:
-            resp = requests.post(messages_url, headers=headers, json=template_payload, timeout=30)
+            resp = requests.post(messages_url, headers=headers, json=template_payload, timeout=25)
             res_data = resp.json()
             if resp.status_code == 200 and 'messages' in res_data and len(res_data['messages']) > 0:
-                logger.info(f"Prescription template sent successfully: {res_data}")
+                msg_id = res_data['messages'][0].get('id')
+                logger.info(f"Prescription template sent successfully: msg_id={msg_id}, to={clean_phone}")
                 return True, {
                     "success": True,
-                    "message_id": res_data['messages'][0].get('id'),
+                    "status": "Sent",
+                    "message_id": msg_id,
                     "recipient": clean_phone,
-                    "details": "Prescription PDF successfully delivered via official WhatsApp Document Template!"
+                    "details": "Prescription PDF successfully dispatched via official WhatsApp Document Template!"
                 }
             logger.info(f"Template send response: {res_data}. Falling back to standard document dispatch...")
         except Exception as e:
@@ -283,8 +288,8 @@ class WhatsAppService:
 
         # 3. Fallback: Standard document message (with auto session opener if needed)
         caption = (
-            f"Dear {patient_name},\n"
-            f"Your prescription ({rx_id}) from Dr. Kalpana Tripathi Ampeh Homeopathy Clinic is attached.\n"
+            f"Dear {safe_patient_name},\n"
+            f"Your prescription ({safe_rx_id}) from Dr. Kalpana Tripathi Ampeh Homeopathy Clinic is attached.\n"
             f"Wishing you vibrant health and speedy recovery!"
         )
         return self.send_document(

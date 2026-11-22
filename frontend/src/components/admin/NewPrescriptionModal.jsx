@@ -1201,8 +1201,9 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                   }
 
                   try {
+                    const recipientPhone = selectedPatient?.phone || selectedPatient?.contact || selectedPatient?.mobile || selectedPatient?.patient_phone || '';
                     const res = await appointmentApi.sendPrescriptionWhatsApp(rxIdToSend, {
-                      phone: selectedPatient?.phone,
+                      phone: recipientPhone,
                       patientName: selectedPatient?.name,
                       patientId: selectedPatient?.id,
                       ageGender: selectedPatient?.ageGender,
@@ -1214,13 +1215,13 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                       aptNumber: effectiveAptNum,
                       pdf_base64: extraData.pdf_base64,
                     });
-                    await appointmentApi.updatePrescriptionStatus(rxIdToSend, 'Delivered');
+                    const newStatus = res?.status || 'Sent';
                     if (onSave) {
                       onSave({
                         ...(savedRx || {}),
                         id: rxIdToSend,
                         rxId: rxIdToSend,
-                        status: 'Delivered',
+                        status: newStatus,
                         created_at: (savedRx && savedRx.created_at) || new Date().toISOString(),
                         appointment_date: (savedRx && savedRx.appointment_date) || payload.date,
                         appointmentDate: (savedRx && savedRx.appointmentDate) || payload.date,
@@ -1228,7 +1229,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                       });
                     }
                     window.dispatchEvent(new CustomEvent('prescription-whatsapp-sent', {
-                      detail: { rxId: rxIdToSend, status: 'Delivered' }
+                      detail: { rxId: rxIdToSend, status: newStatus }
                     }));
                     return res;
                   } catch (sendErr) {

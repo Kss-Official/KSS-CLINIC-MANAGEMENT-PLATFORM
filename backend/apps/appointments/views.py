@@ -7,6 +7,7 @@ import logging
 import tempfile
 from PIL import Image
 from django.conf import settings
+from django.http import HttpResponse
 from django.db import models
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -1193,6 +1194,8 @@ class PatientHistoryListView(APIView):
                 'medicines': rx.medicines or [],
                 'additionalInstructions': rx.additional_instructions,
                 'status': rx.status,
+                'whatsapp_status': rx.status,
+                'whatsapp_message_id': rx.whatsapp_message_id,
             } for rx in p_rxs]
 
             last_visit = p_apts[0].appointment_date if p_apts else (p_rxs[0].date if p_rxs else 'N/A')
@@ -1413,6 +1416,8 @@ class PrescriptionListView(APIView):
                 'medicines': rx.medicines or [],
                 'additionalInstructions': rx.additional_instructions,
                 'status': rx.status,
+                'whatsapp_status': rx.status,
+                'whatsapp_message_id': rx.whatsapp_message_id,
                 'created_at': rx.created_at.isoformat() if rx.created_at else None,
                 'appointment_date': rx.appointment.appointment_date if rx.appointment else None,
                 'appointmentDate': rx.appointment.appointment_date if rx.appointment else None,
@@ -1782,6 +1787,8 @@ class PrescriptionDetailView(APIView):
                 'aptNumber': apt_num,
                 'appointment_number': apt_num,
                 'status': rx.status,
+                'whatsapp_status': rx.status,
+                'whatsapp_message_id': rx.whatsapp_message_id,
                 'date': rx.date,
                 'time': creation_time_str,
                 'complaint': complaint_val or rx.complaint,
@@ -2622,29 +2629,123 @@ class SendPrescriptionWhatsAppView(APIView):
         )
 
         if success:
+            msg_id = result.get('message_id')
             if not rx and rx_data.get('patientName'):
                 rx = Prescription.objects.filter(
                     patient_name__iexact=rx_data.get('patientName')
                 ).order_by('-created_at').first()
 
             if rx:
-                rx.status = 'Delivered'
-                rx.save(update_fields=['status'])
+                # Accurately reflect status: 'Sent' when accepted by Meta WhatsApp Cloud API.
+                # 'Delivered' is confirmed once device receipt webhook arrives.
+                rx.status = 'Sent'
+                if msg_id:
+                    rx.whatsapp_message_id = msg_id
+                rx.save(update_fields=['status', 'whatsapp_message_id'])
 
             return Response({
                 'success': True,
-                'status': 'Delivered',
+                'status': 'Sent',
                 'rxId': rx.prescription_id if rx else rx_data.get('rxId'),
-                'message': f"Prescription PDF successfully sent via WhatsApp to {rx_data.get('patientName')} (+{result.get('recipient')})!",
-                'whatsapp_message_id': result.get('message_id'),
+                'message': f"Prescription PDF successfully sent via WhatsApp to {rx_data.get('patientName')} (+{result.get('recipient')})! Delivery status: Sent.",
+                'whatsapp_message_id': msg_id,
                 'recipient': result.get('recipient'),
             }, status=status.HTTP_200_OK)
         else:
+            if rx:
+                rx.status = 'Failed'
+                rx.save(update_fields=['status'])
             return Response({
                 'success': False,
+                'status': 'Failed',
                 'error': result.get('error', 'Failed to send WhatsApp message.'),
                 'meta_details': result
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class WhatsAppWebhookView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """
+        Meta Webhook Verification Handshake.
+        Responds to hub.mode, hub.verify_token, hub.challenge.
+        """
+        verify_token = getattr(settings, 'WHATSAPP_WEBHOOK_VERIFY_TOKEN', '') or os.getenv('WHATSAPP_WEBHOOK_VERIFY_TOKEN', 'kss_clinic_whatsapp_token_2026')
+        mode = request.GET.get('hub.mode')
+        token = request.GET.get('hub.verify_token')
+        challenge = request.GET.get('hub.challenge')
+
+        if mode == 'subscribe' and token == verify_token:
+            logger.info("Meta WhatsApp Webhook subscription verified successfully.")
+            return HttpResponse(challenge, content_type='text/plain')
+
+        logger.warning(f"Meta WhatsApp Webhook verification mismatch. Mode={mode}")
+        return HttpResponse('Verification token mismatch', status=403)
+
+    def post(self, request):
+        """
+        Processes real-time WhatsApp delivery receipts from Meta:
+        - sent: Message accepted and routed
+        - delivered: Patient device acknowledged receipt
+        - read: Patient opened/read the message
+        - failed: Delivery failed
+        """
+        payload = request.data or {}
+        logger.info(f"WhatsApp Webhook Event Received: {json.dumps(payload)[:300]}")
+
+        try:
+            for entry in payload.get('entry', []):
+                for change in entry.get('changes', []):
+                    value = change.get('value', {})
+                    for s in value.get('statuses', []):
+                        msg_id = s.get('id')
+                        raw_status = str(s.get('status') or '').lower()
+                        status_map = {
+                            'sent': 'Sent',
+                            'delivered': 'Delivered',
+                            'read': 'Read',
+                            'failed': 'Failed',
+                        }
+                        mapped_status = status_map.get(raw_status)
+                        if not mapped_status or not msg_id:
+                            continue
+
+                        # Update matching Prescription
+                        matched_rx = Prescription.objects.filter(whatsapp_message_id=msg_id).first()
+                        if matched_rx:
+                            priority = {'Pending': 0, 'Sent': 1, 'Delivered': 2, 'Read': 3, 'Failed': 4}
+                            if mapped_status == 'Failed' or priority.get(mapped_status, 0) >= priority.get(matched_rx.status, 0):
+                                matched_rx.status = mapped_status
+                                matched_rx.save(update_fields=['status'])
+                                logger.info(f"Updated Prescription {matched_rx.prescription_id} WhatsApp status to {mapped_status}")
+        except Exception as e:
+            logger.error(f"Error handling WhatsApp webhook: {e}")
+
+        return HttpResponse('EVENT_RECEIVED', status=200)
+
+
+class PrescriptionWhatsAppStatusView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, rx_id):
+        cleaned_id = str(rx_id).strip()
+        lookup = models.Q(prescription_id__iexact=cleaned_id)
+        if cleaned_id.isdigit():
+            lookup |= models.Q(pk=int(cleaned_id))
+        rx = Prescription.objects.filter(lookup).first()
+        if not rx:
+            return Response({'error': 'Prescription not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'prescription_id': rx.prescription_id,
+            'status': rx.status,
+            'whatsapp_status': rx.status,
+            'whatsapp_message_id': rx.whatsapp_message_id,
+            'patient_name': rx.patient_name,
+            'patient_phone': rx.patient_phone,
+            'date': rx.date,
+        })
 
 
 class SendAppointmentWhatsAppView(APIView):
