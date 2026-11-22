@@ -1174,7 +1174,7 @@ const ProfilePage = () => {
       reason: apt.reason || apt.title || '',
       date: apt.fullDate || apt.date || '',
       time: apt.time || '',
-      clinicAddress: '12, Green Park, MG Road, Bangalore, Karnataka - 560001',
+      clinicAddress: '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221',
       clinicPhone: '+91 98765 43210',
       filename: apt.pdfName || `Appointment_${aptId}.pdf`,
     });

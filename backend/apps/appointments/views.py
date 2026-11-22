@@ -1850,7 +1850,7 @@ DEFAULT_CLINIC_SETTINGS = {
     'contactNumber': '+91 98765 43210',
     'alternateNumber': '+91 99887 66554',
     'email': 'clinic.tripathi@gmail.com',
-    'address': '12, Green Park, Bangalore',
+    'address': '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221',
     'profile_image_url': None,
     'working_days': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     'workingDays': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -2816,7 +2816,7 @@ class AppointmentPdfDownloadView(APIView):
                     'service': apt.reason_for_visit or '',
                     'appointment_date': apt.appointment_date,
                     'time_slot': apt.time_slot,
-                    'clinic_address': getattr(apt, 'clinic_address', '') or '12, Green Park, MG Road, Bangalore, Karnataka - 560001'
+                    'clinic_address': getattr(apt, 'clinic_address', '') or '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221'
                 }
                 pdf_bytes = generate_appointment_confirmation_pdf_bytes(apt_data)
 

@@ -177,7 +177,7 @@ def generate_prescription_pdf_bytes(prescription_data):
         Spacer(1, 1 * mm),
         Paragraph("HOMEOPATHY CLINIC", clinic_tag_style),
         Spacer(1, 1 * mm),
-        Paragraph("12, Green Park, MG Road, Bangalore, Karnataka - 560001", clinic_addr_style),
+        Paragraph("05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221", clinic_addr_style),
         Paragraph("Ph: +91 98765 43210 &nbsp;|&nbsp; clinic.tripathi@gmail.com", clinic_addr_style),
     ]
     header_cells.append(clinic_info_p)

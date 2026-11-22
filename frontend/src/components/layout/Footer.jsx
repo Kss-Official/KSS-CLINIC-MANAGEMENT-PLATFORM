@@ -168,7 +168,16 @@ const Footer = () => {
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                   <circle cx="12" cy="10" r="3" />
                 </svg>
-                <span>123 Clinic Street, Your City, Your State - 123456</span>
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=05%2C+Balram+DRESS+NH-19%2C+Ghazipur+-+Hajipur+Rd%2C+Sitalpur%2C+Bihar+841221"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#8b978f', textDecoration: 'none', transition: 'color 0.2s ease', lineHeight: '1.5' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#8b978f')}
+                >
+                  05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221
+                </a>
               </div>
 
               {/* Phone */}

@@ -258,7 +258,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
 
-  const rawAddr = String(data.clinicAddress || '123 Clinic Street, Your City,\nYour State - 123456').trim();
+  const rawAddr = String(data.clinicAddress || '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,\nSitalpur, Bihar 841221').trim();
   let addrLines = [];
   if (rawAddr.includes('\n')) {
     rawAddr.split('\n').forEach((part) => {
@@ -362,7 +362,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
-  doc.text('12, Green Park, MG Road, Bangalore, Karnataka - 560001', marginX + 6, y + 12.5);
+  doc.text('05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221', marginX + 6, y + 12.5);
   doc.text('Phone: +91 98765 43210  |  Email: clinic.tripathi@gmail.com', marginX + 6, y + 17.5);
   doc.text('Website: https://drtripathihomeopathy.com  |  Hours: Mon - Sat (09:00 AM - 06:00 PM)', marginX + 6, y + 22.5);
 

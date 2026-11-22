@@ -323,7 +323,7 @@ class WhatsAppService:
                 'service': service,
                 'appointment_date': apt_date,
                 'time_slot': apt_time,
-                'clinic_address': getattr(appointment_obj, 'clinic_address', '') or '12, Green Park, MG Road, Bangalore, Karnataka - 560001'
+                'clinic_address': getattr(appointment_obj, 'clinic_address', '') or '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221'
             }
 
             pdf_bytes = generate_appointment_confirmation_pdf_bytes(apt_data)
@@ -401,7 +401,7 @@ class WhatsAppService:
                 f"📅 Date: {apt_date}\n"
                 f"⏰ Time: {apt_time}\n"
                 f"👨‍⚕️ Doctor: Dr. Kumar Tripathi Ampeh (Pat.)\n"
-                f"📍 Address: 123 Clinic Street, Your City\n\n"
+                f"📍 Address: 05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221\n\n"
                 f"Your official appointment confirmation slip is attached.\n"
                 f"Wishing you vibrant health!\n"
                 f"Dr. Kumar Tripathi Homeopathy Clinic"
