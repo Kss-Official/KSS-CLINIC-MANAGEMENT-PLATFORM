@@ -252,7 +252,7 @@ const ContactPage = () => {
 
   const handleOpenGoogleMaps = () => {
     window.open(
-      'https://maps.google.com/?q=12+Green+Park+MG+Road+Bangalore+560001',
+      'https://www.google.com/maps/search/?api=1&query=05%2C+Balram+DRESS+NH-19%2C+Ghazipur+-+Hajipur+Rd%2C+Sitalpur%2C+Bihar+841221',
       '_blank',
       'noopener,noreferrer'
     );
@@ -521,7 +521,7 @@ const ContactPage = () => {
                           </span>
                         </div>
                         <p style={{ fontSize: '13.5px', color: '#4b5563', lineHeight: '1.5', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
-                          12, Green Park, MG Road,<br />Bangalore - 560001
+                          05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,<br />Sitalpur, Bihar 841221
                         </p>
                       </div>
                     </div>
@@ -1489,7 +1489,7 @@ const ContactPage = () => {
                     </span>
                   </div>
                   <p style={{ fontSize: '10.5px', color: '#6b7280', margin: '0 0 5px 0', fontFamily: "'Manrope', sans-serif" }}>
-                    Suite 102, 12 Green Park, MG Road
+                    05, Balram DRESS NH-19, Sitalpur, Bihar 841221
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f2', paddingTop: '4px' }}>
                     <span style={{ fontSize: '10px', fontWeight: '700', color: '#166534', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Manrope', sans-serif" }}>
@@ -1723,10 +1723,10 @@ const ContactPage = () => {
                         Clinic Address & Landmark
                       </h4>
                       <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.5', margin: '0 0 6px 0', fontFamily: "'Manrope', sans-serif" }}>
-                        12, Green Park, MG Road, Bangalore – 560001
+                        05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221
                       </p>
                       <p style={{ fontSize: '13px', color: '#6b7280', margin: 0, display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Manrope', sans-serif" }}>
-                        <span style={{ color: '#dc2626' }}>📍</span> Landmark: Opp. 1 MG-Lido Mall, near Trinity Circle
+                        <span style={{ color: '#dc2626' }}>📍</span> Landmark: Balram DRESS, NH-19 (Ghazipur - Hajipur Rd)
                       </p>
                     </div>
                   </div>
