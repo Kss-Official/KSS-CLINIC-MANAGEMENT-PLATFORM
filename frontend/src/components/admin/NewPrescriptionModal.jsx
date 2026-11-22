@@ -686,6 +686,10 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
       console.error('Failed to save prescription on Next:', err);
       const errDetail =
         err?.response?.data?.error ||
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        (typeof err?.response?.data === 'string' && !err.response.data.includes('<html') ? err.response.data : null) ||
+        err?.message ||
         'Failed to save prescription to database. Please check your connection and try again.';
       setErrorMessage(errDetail);
       alert(errDetail);
@@ -823,7 +827,13 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
       }, 1000);
     } catch (err) {
       console.error('Failed to save prescription to database:', err);
-      const errDetail = err?.response?.data?.error || 'Failed to save prescription to database. Please check your connection and try again.';
+      const errDetail =
+        err?.response?.data?.error ||
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        (typeof err?.response?.data === 'string' && !err.response.data.includes('<html') ? err.response.data : null) ||
+        err?.message ||
+        'Failed to save prescription to database. Please check your connection and try again.';
       setErrorMessage(errDetail);
       alert(errDetail);
       setIsSaving(false);

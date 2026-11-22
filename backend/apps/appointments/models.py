@@ -166,7 +166,7 @@ class Prescription(TimeStampedModel):
     medicines = models.JSONField(default=list, blank=True)
     additional_instructions = models.TextField(blank=True, default='')
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending')
-    whatsapp_message_id = models.CharField(max_length=150, blank=True, default='', db_index=True)
+    whatsapp_message_id = models.CharField(max_length=150, blank=True, null=True, default='', db_index=True)
 
     class Meta:
         ordering = ['-created_at']

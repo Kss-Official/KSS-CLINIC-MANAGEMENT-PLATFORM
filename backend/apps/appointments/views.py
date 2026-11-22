@@ -1425,6 +1425,17 @@ class PrescriptionListView(APIView):
         return Response(data)
 
     def post(self, request):
+        try:
+            return self._handle_post(request)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Failed to save prescription: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def _handle_post(self, request):
         payload = request.data
         patient_info = payload.get('patient') or {}
         patient_name = (payload.get('patient_name') or patient_info.get('name') or payload.get('name') or 'Patient').strip()
