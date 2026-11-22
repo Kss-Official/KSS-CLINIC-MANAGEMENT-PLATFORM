@@ -1468,9 +1468,9 @@ const ContactPage = () => {
                 <div
                   style={{
                     position: 'absolute',
-                    top: '202px',
-                    left: '198px',
-                    width: '176px',
+                    top: '198px',
+                    left: '194px',
+                    width: '216px',
                     backgroundColor: '#ffffff',
                     border: '1px solid #dce8e0',
                     borderRadius: '14px',
@@ -1480,23 +1480,23 @@ const ContactPage = () => {
                     boxSizing: 'border-box',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     </svg>
                     <span style={{ fontSize: '12px', fontWeight: '800', color: '#111827', fontFamily: "'Manrope', sans-serif", whiteSpace: 'nowrap' }}>
                       Dr. K. Tripathi Homeopathy
                     </span>
                   </div>
-                  <p style={{ fontSize: '10.5px', color: '#6b7280', margin: '0 0 5px 0', fontFamily: "'Manrope', sans-serif" }}>
+                  <p style={{ fontSize: '10.5px', color: '#6b7280', margin: '0 0 6px 0', lineHeight: '1.4', fontFamily: "'Manrope', sans-serif" }}>
                     05, Balram DRESS NH-19, Sitalpur, Bihar 841221
                   </p>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f2', paddingTop: '4px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: '700', color: '#166534', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Manrope', sans-serif" }}>
-                      <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f2', paddingTop: '5px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: '700', color: '#166534', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Manrope', sans-serif", whiteSpace: 'nowrap' }}>
+                      <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
                       Open Today: 9 AM–6 PM
                     </span>
-                    <span style={{ fontSize: '9.5px', color: '#9ca3af', fontFamily: "'Manrope', sans-serif" }}>
+                    <span style={{ fontSize: '9.5px', color: '#9ca3af', fontFamily: "'Manrope', sans-serif", whiteSpace: 'nowrap' }}>
                       Floor 1
                     </span>
                   </div>
@@ -1505,7 +1505,7 @@ const ContactPage = () => {
                     style={{
                       position: 'absolute',
                       bottom: '-6px',
-                      left: '82px',
+                      left: 'calc(50% - 5px)',
                       width: '10px',
                       height: '10px',
                       backgroundColor: '#ffffff',
