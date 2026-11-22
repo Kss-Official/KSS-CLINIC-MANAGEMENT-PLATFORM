@@ -1,13 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import doctorPhotoImg from '../../assets/doctor-photo.jpg';
 
 const DoctorSection = ({ onOpenBooking }) => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const handleBookClick = () => {
     if (onOpenBooking && typeof onOpenBooking === 'function') {
       onOpenBooking();
+    } else if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/book-appointment' } });
     } else {
       navigate('/book-appointment');
     }

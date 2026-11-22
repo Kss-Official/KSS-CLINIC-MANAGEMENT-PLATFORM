@@ -13,6 +13,7 @@ import womanImg from '../../assets/services-woman.jpg';
 
 const ServicesPage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   useEffect(() => {
@@ -20,6 +21,10 @@ const ServicesPage = () => {
   }, []);
 
   const handleOpenBooking = () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/book-appointment' } });
+      return;
+    }
     navigate('/book-appointment');
   };
 

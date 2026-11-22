@@ -51,7 +51,6 @@ axiosClient.interceptors.response.use(
       const isLogoutRequest = error.config?.url?.includes('/auth/logout');
       const publicPaths = [
         '/',
-        '/book-appointment',
         '/about',
         '/services',
         '/stories',

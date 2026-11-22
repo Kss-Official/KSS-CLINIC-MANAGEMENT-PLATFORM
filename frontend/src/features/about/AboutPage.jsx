@@ -13,6 +13,7 @@ import doctorDropperImg from '../../assets/about-doctor-dropper.jpg';
 
 const AboutPage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   useEffect(() => {
@@ -20,6 +21,10 @@ const AboutPage = () => {
   }, []);
 
   const handleOpenBooking = () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/book-appointment' } });
+      return;
+    }
     navigate('/book-appointment');
   };
 

@@ -11,7 +11,8 @@ const ProtectedRoute = ({ redirectPath, allowedRoles, children }) => {
   const effectiveRedirect = redirectPath || fallbackRedirect;
 
   if (!isAuthenticated) {
-    return <Navigate to={effectiveRedirect} state={{ from: location.pathname }} replace />;
+    const fullPath = location.pathname + (location.search || '');
+    return <Navigate to={effectiveRedirect} state={{ from: fullPath }} replace />;
   }
 
   if (allowedRoles && user?.role && !allowedRoles.includes(user.role)) {

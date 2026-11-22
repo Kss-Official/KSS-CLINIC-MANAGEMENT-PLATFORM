@@ -1,13 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import ctaBg from '../../assets/cta-bg.jpg';
 
 const CtaBannerSection = ({ onOpenBooking }) => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const handleBooking = () => {
     if (onOpenBooking) {
       onOpenBooking();
+    } else if (!isAuthenticated) {
+      navigate('/login', { state: { from: '/book-appointment' } });
     } else {
       navigate('/book-appointment');
     }
