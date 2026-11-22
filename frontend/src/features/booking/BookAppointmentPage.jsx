@@ -1509,7 +1509,7 @@ const BookAppointmentPage = () => {
         reason: reasonVal,
         date: dateVal,
         time: timeVal,
-        clinicAddress: '123 Clinic Street, Your City,\nYour State - 123456',
+        clinicAddress: '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,\nSitalpur, Bihar 841221',
         clinicPhone: '+91 98765 43210',
       });
     } catch (err) {
@@ -4192,8 +4192,8 @@ const BookAppointmentPage = () => {
                           <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', marginTop: '2px', flexShrink: 0 }}>📍</span>
                           <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, marginTop: '2px', fontWeight: '500' }}>Clinic Address</span>
                           <strong style={{ color: '#0f172a', fontWeight: '700', lineHeight: '1.5' }}>
-                            123 Clinic Street, Your City,<br />
-                            Your State - 123456
+                            05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,<br />
+                            Sitalpur, Bihar 841221
                           </strong>
                         </div>
                       </div>
@@ -4719,7 +4719,7 @@ const BookAppointmentPage = () => {
 
                 <a
 
-                  href="https://maps.google.com"
+                  href="https://www.google.com/maps/search/?api=1&query=05%2C+Balram+DRESS+NH-19%2C+Ghazipur+-+Hajipur+Rd%2C+Sitalpur%2C+Bihar+841221"
 
                   target="_blank"
 
@@ -4763,9 +4763,9 @@ const BookAppointmentPage = () => {
 
               <p style={{ fontSize: '14px', color: '#4b5563', margin: 0, lineHeight: '1.6' }}>
 
-                123 Clinic Street, Your City,<br />
+                05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,<br />
 
-                Your State – 123456
+                Sitalpur, Bihar 841221
 
               </p>
 
