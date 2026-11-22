@@ -252,7 +252,7 @@ const ContactPage = () => {
 
   const handleOpenGoogleMaps = () => {
     window.open(
-      'https://www.google.com/maps/search/?api=1&query=05%2C+Balram+DRESS+NH-19%2C+Ghazipur+-+Hajipur+Rd%2C+Sitalpur%2C+Bihar+841221',
+      'https://maps.google.com/?q=05,+Balram+DRESS+NH-19,+Ghazipur+-+Hajipur+Rd,+Sitalpur,+Bihar+841221',
       '_blank',
       'noopener,noreferrer'
     );

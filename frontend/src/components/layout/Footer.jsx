@@ -169,7 +169,7 @@ const Footer = () => {
                   <circle cx="12" cy="10" r="3" />
                 </svg>
                 <a
-                  href="https://www.google.com/maps/search/?api=1&query=05%2C+Balram+DRESS+NH-19%2C+Ghazipur+-+Hajipur+Rd%2C+Sitalpur%2C+Bihar+841221"
+                  href="https://maps.google.com/?q=05,+Balram+DRESS+NH-19,+Ghazipur+-+Hajipur+Rd,+Sitalpur,+Bihar+841221"
                   target="_blank"
                   rel="noreferrer"
                   style={{ color: '#8b978f', textDecoration: 'none', transition: 'color 0.2s ease', lineHeight: '1.5' }}

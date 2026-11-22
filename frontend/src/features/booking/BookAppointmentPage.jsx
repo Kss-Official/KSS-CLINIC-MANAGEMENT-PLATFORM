@@ -4719,11 +4719,11 @@ const BookAppointmentPage = () => {
 
                 <a
 
-                  href="https://www.google.com/maps/search/?api=1&query=05%2C+Balram+DRESS+NH-19%2C+Ghazipur+-+Hajipur+Rd%2C+Sitalpur%2C+Bihar+841221"
+                  href="https://maps.google.com/?q=05,+Balram+DRESS+NH-19,+Ghazipur+-+Hajipur+Rd,+Sitalpur,+Bihar+841221"
 
                   target="_blank"
 
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
 
                   style={{
 
@@ -4761,13 +4761,37 @@ const BookAppointmentPage = () => {
 
 
 
-              <p style={{ fontSize: '14px', color: '#4b5563', margin: 0, lineHeight: '1.6' }}>
+              <a
+
+                href="https://maps.google.com/?q=05,+Balram+DRESS+NH-19,+Ghazipur+-+Hajipur+Rd,+Sitalpur,+Bihar+841221"
+
+                target="_blank"
+
+                rel="noopener noreferrer"
+
+                style={{
+
+                  fontSize: '14px',
+
+                  color: '#4b5563',
+
+                  margin: 0,
+
+                  lineHeight: '1.6',
+
+                  textDecoration: 'none',
+
+                  display: 'block',
+
+                }}
+
+              >
 
                 05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,<br />
 
                 Sitalpur, Bihar 841221
 
-              </p>
+              </a>
 
             </div>
 
