@@ -475,7 +475,7 @@ const AppointmentModal = ({ isOpen, onClose }) => {
                   letterSpacing: '1px',
                 }}
               >
-                Dr. Kumar Tripathi Ampeh (Pat.) Clinic
+                Dr. Kalpana Tripathi Ampeh (Pat.) Clinic
               </span>
               <h2
                 id="modal-title"

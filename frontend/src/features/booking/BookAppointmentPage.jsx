@@ -1524,7 +1524,7 @@ const BookAppointmentPage = () => {
     const dateVal = confirmedData?.date || formatSelectedFullDate();
     const idVal = confirmedData?.appointmentId || formData.appointmentId;
     const text = encodeURIComponent(
-      `Hello Dr. Kumar Tripathi Ampeh Clinic, my appointment is confirmed with ID: ${idVal} for ${dateVal}${timeVal ? ` at ${timeVal}` : ''}.`
+      `Hello Dr. Kalpana Tripathi Ampeh Clinic, my appointment is confirmed with ID: ${idVal} for ${dateVal}${timeVal ? ` at ${timeVal}` : ''}.`
     );
     window.open(`https://wa.me/919876543210?text=${text}`, '_blank');
   };
@@ -4033,7 +4033,7 @@ const BookAppointmentPage = () => {
                       </>
                     ) : (
                       <>
-                        Thank you for choosing Dr. Kumar Tripathi Ampeh (Pat.).<br />
+                        Thank you for choosing Dr. Kalpana Tripathi Ampeh (Pat.).<br />
                         We look forward to seeing you at the clinic.
                       </>
                     )}
@@ -4447,7 +4447,7 @@ const BookAppointmentPage = () => {
 
                   <p style={{ fontSize: '11px', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.6px', margin: '3px 0 0' }}>
 
-                    DR. KUMAR TRIPATHI AMPEH (PAT.)
+                    DR. KALPANA TRIPATHI AMPEH (PAT.)
 
                   </p>
 
@@ -4963,7 +4963,7 @@ const BookAppointmentPage = () => {
 
           >
 
-            © 2026 Dr. Kumar Tripathi Ampeh (Pat.) Homeopathy Clinic. All rights reserved.
+            © 2026 Dr. Kalpana Tripathi Ampeh (Pat.) Homeopathy Clinic. All rights reserved.
 
           </p>
 

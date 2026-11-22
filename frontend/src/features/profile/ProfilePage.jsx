@@ -451,7 +451,7 @@ const ProfilePage = () => {
 
               type: a.consultationType || 'In clinic Visit',
 
-              doctor: 'Dr. Kumar Tripathi Ampeh (Pat.)',
+              doctor: 'Dr. Kalpana Tripathi Ampeh (Pat.)',
 
               time: a.time || '10:00 AM',
 
@@ -1169,7 +1169,7 @@ const ProfilePage = () => {
       fullName: apt.patientName || profile.fullName || user?.name || 'Patient',
       mobileNumber: apt.patientPhone || profile.mobileNumber || user?.phone || '',
       email: apt.patientEmail || profile.email || user?.email || '',
-      doctorName: apt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+      doctorName: apt.doctor || 'Dr. Kalpana Tripathi Ampeh (Pat.)',
       service: apt.reason || apt.title || apt.service || '',
       reason: apt.reason || apt.title || '',
       date: apt.fullDate || apt.date || '',
@@ -1206,7 +1206,7 @@ const ProfilePage = () => {
         title: targetApt.title || targetApt.service || targetApt.reason || '',
         fullDate: targetApt.fullDate || targetApt.date || '',
         time: targetApt.time || '',
-        doctor: targetApt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+        doctor: targetApt.doctor || 'Dr. Kalpana Tripathi Ampeh (Pat.)',
       }));
     } catch (e) {
       console.warn('Failed to cache reschedule appointment', e);
@@ -1230,7 +1230,7 @@ const ProfilePage = () => {
           title: targetApt.title || targetApt.service || targetApt.reason || '',
           fullDate: targetApt.fullDate || targetApt.date || '',
           time: targetApt.time || '',
-          doctor: targetApt.doctor || 'Dr. Kumar Tripathi Ampeh (Pat.)',
+          doctor: targetApt.doctor || 'Dr. Kalpana Tripathi Ampeh (Pat.)',
         },
       },
     });
@@ -4914,7 +4914,7 @@ const ProfilePage = () => {
 
           <p className="profile-footer-copyright" style={{ margin: 0 }}>
 
-            © 2026 Dr. Kumar Tripathi Ampeh (Pat.) Homeopathy Clinic. All rights reserved.
+            © 2026 Dr. Kalpana Tripathi Ampeh (Pat.) Homeopathy Clinic. All rights reserved.
 
           </p>
 
