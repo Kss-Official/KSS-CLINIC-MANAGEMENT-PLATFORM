@@ -36,6 +36,29 @@ function ScrollManager() {
       }
     }
 
+    // Set consistent document title across all pages
+    const routeTitles = {
+      '/': 'Dr. Kalpana Tripathi Ampeh (Pat.) | Homeopathy Clinic',
+      '/about': 'About Us | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/services': 'Services | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/stories': 'Patient Stories | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/contact': 'Contact Us | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/book-appointment': 'Book Appointment | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/profile': 'Patient Profile | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/login': 'Patient Login | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/register': 'Register | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/admin-login': 'Doctor Login | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/dashboard': 'Dashboard | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/appointments': 'Appointments | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/prescriptions': 'Prescriptions | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/patient-history': 'Patient History | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/settings': 'Settings | Dr. Kalpana Tripathi Ampeh (Pat.)',
+    };
+    const title = routeTitles[location.pathname] || 'Dr. Kalpana Tripathi Ampeh (Pat.) | Homeopathy Clinic';
+    if (document.title !== title) {
+      document.title = title;
+    }
+
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [location.pathname, location.hash]);
 

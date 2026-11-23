@@ -69,9 +69,22 @@ class WhatsAppService:
 
             if response.status_code == 200 and 'id' in res_data:
                 return res_data['id'], None
-            
+
             error_obj = res_data.get('error', {})
-            error_msg = error_obj.get('message') or f"Meta media upload failed with status {response.status_code}"
+            error_code = error_obj.get('code')
+            error_subcode = error_obj.get('error_subcode')
+            raw_msg = error_obj.get('message', '')
+
+            if error_code == 190 or 'access token' in raw_msg.lower() or 'authentication' in raw_msg.lower():
+                error_msg = (
+                    f"Meta WhatsApp Access Token has expired or is invalid (Code 190, Subcode {error_subcode}). "
+                    "Please generate a fresh token in Meta Developer Portal and update WHATSAPP_ACCESS_TOKEN in the Vercel backend project."
+                )
+            elif error_code == 100 or 'phone number' in raw_msg.lower():
+                error_msg = f"Meta WhatsApp Phone Number ID is invalid (Code 100). Please check WHATSAPP_PHONE_NUMBER_ID in Vercel backend."
+            else:
+                error_msg = error_obj.get('message') or f"Meta media upload failed with status {response.status_code}"
+
             logger.error(f"WhatsApp media upload error: {res_data}")
             return None, error_msg
         except requests.exceptions.RequestException as e:
