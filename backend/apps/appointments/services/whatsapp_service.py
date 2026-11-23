@@ -13,10 +13,33 @@ class WhatsAppService:
 
     @property
     def phone_number_id(self):
+        try:
+            settings_path = os.path.join(settings.BASE_DIR, 'clinic_settings.json')
+            if os.path.exists(settings_path):
+                with open(settings_path, 'r', encoding='utf-8') as f:
+                    cdata = json.load(f)
+                    override = cdata.get('whatsapp_phone_number_id')
+                    if override and str(override).strip():
+                        return str(override).strip()
+        except Exception:
+            pass
         return getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', '') or os.getenv('WHATSAPP_PHONE_NUMBER_ID', '')
 
     @property
     def access_token(self):
+        # 1. Check clinic_settings.json for direct token override (allows seamless updates via git)
+        try:
+            settings_path = os.path.join(settings.BASE_DIR, 'clinic_settings.json')
+            if os.path.exists(settings_path):
+                with open(settings_path, 'r', encoding='utf-8') as f:
+                    cdata = json.load(f)
+                    override = cdata.get('whatsapp_access_token')
+                    if override and str(override).strip():
+                        return str(override).strip()
+        except Exception as e:
+            logger.warning(f"Could not read clinic_settings.json for whatsapp token: {e}")
+
+        # 2. Check environment variables
         return getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '') or os.getenv('WHATSAPP_ACCESS_TOKEN', '')
 
     @property
