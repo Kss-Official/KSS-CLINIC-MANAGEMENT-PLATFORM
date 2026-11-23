@@ -174,9 +174,9 @@ class WhatsAppService:
     def send_prescription_pdf(self, recipient_phone, pdf_bytes, patient_name, rx_id='RX-2026'):
         """
         High-level wrapper: uploads PDF buffer and dispatches document message.
-        First attempts to send via the official Document Template 'prescription_delivery'
-        (which delivers directly without requiring prior session messages),
-        falling back to standard document dispatch.
+        First attempts standard document dispatch with the exact personalized caption
+        (including Dr. Kalpana Tripathi Ampeh (Pat.)), and falls back to an approved
+        official Document Template if the recipient's 24-hour customer window is closed.
         """
         filename = f"Prescription_{rx_id}.pdf".replace(' ', '_')
         clean_phone = self.normalize_phone_number(recipient_phone)
@@ -193,8 +193,40 @@ class WhatsAppService:
         if not media_id:
             return False, {"error": f"Failed to upload prescription PDF to WhatsApp: {upload_err}"}
 
-        # 2. Primary attempt: Send via the official Document Template 'prescription_delivery'
-        # Delivers directly as a single message with PDF attached in the header to ANY patient!
+        # 2. Clean formatted caption with exact doctor name
+        caption = (
+            f"Dear {safe_patient_name},\n\n"
+            f"Your prescription ({safe_rx_id}) from Dr. Kalpana Tripathi Ampeh (Pat.) Homeopathy Clinic is attached. "
+            f"Wishing you vibrant health and speedy recovery!\n\n"
+            f"Dr. Kalpana Tripathi Ampeh (Pat.)\n"
+            f"Homeopathy Clinic"
+        )
+
+        # 3. Attempt direct document dispatch with exact caption first (for active sessions / sandbox)
+        doc_ok, doc_res = self.send_document(
+            recipient_phone=clean_phone,
+            media_id=media_id,
+            filename=filename,
+            caption=caption
+        )
+        if doc_ok:
+            logger.info(f"Prescription direct document sent successfully to {clean_phone} with Dr. Kalpana Tripathi caption.")
+            return True, doc_res
+
+        # If direct send failed due to anything other than closed window (e.g. auth error, invalid phone), return the error
+        meta_code = doc_res.get('meta_code')
+        if meta_code not in (131005, 131047) and 'window is closed' not in str(doc_res.get('error', '')).lower():
+            logger.warning(f"Direct document dispatch failed with non-window error: {doc_res}")
+            return False, doc_res
+
+        logger.info(f"Customer window closed (code {meta_code}). Falling back to approved Meta Document Template...")
+
+        # 4. Fallback attempt: Send via the official Document Template
+        # Checks for 'prescription_delivery_kalpana' or configured template name, defaulting to 'prescription_delivery'
+        template_name = getattr(settings, 'WHATSAPP_PRESCRIPTION_TEMPLATE', None) or os.getenv('WHATSAPP_PRESCRIPTION_TEMPLATE') or 'prescription_delivery'
+        if not getattr(settings, 'WHATSAPP_PRESCRIPTION_TEMPLATE', None) and self.is_template_approved('prescription_delivery_kalpana'):
+            template_name = 'prescription_delivery_kalpana'
+
         messages_url = f"{self.base_url}/{self.phone_number_id}/messages"
         headers = {
             'Authorization': f'Bearer {self.access_token}',
@@ -206,7 +238,7 @@ class WhatsAppService:
             "to": clean_phone,
             "type": "template",
             "template": {
-                "name": "prescription_delivery",
+                "name": template_name,
                 "language": {"code": "en"},
                 "components": [
                     {
@@ -237,30 +269,19 @@ class WhatsAppService:
             res_data = resp.json()
             if resp.status_code == 200 and 'messages' in res_data and len(res_data['messages']) > 0:
                 msg_id = res_data['messages'][0].get('id')
-                logger.info(f"Prescription template sent successfully: msg_id={msg_id}, to={clean_phone}")
+                logger.info(f"Prescription template '{template_name}' sent successfully: msg_id={msg_id}, to={clean_phone}")
                 return True, {
                     "success": True,
                     "status": "Sent",
                     "message_id": msg_id,
                     "recipient": clean_phone,
-                    "details": "Prescription PDF successfully dispatched via official WhatsApp Document Template!"
+                    "details": f"Prescription PDF successfully dispatched via official WhatsApp Document Template ({template_name})!"
                 }
-            logger.info(f"Template send response: {res_data}. Falling back to standard document dispatch...")
+            logger.error(f"Template '{template_name}' send error: {res_data}")
+            return False, {"error": res_data.get('error', {}).get('message', 'Failed to dispatch WhatsApp template.')}
         except Exception as e:
-            logger.warning(f"Template dispatch exception: {e}")
-
-        # 3. Fallback: Standard document message (with auto session opener if needed)
-        caption = (
-            f"Dear {safe_patient_name},\n"
-            f"Your prescription ({safe_rx_id}) from Dr. Kalpana Tripathi Ampeh Homeopathy Clinic is attached.\n"
-            f"Wishing you vibrant health and speedy recovery!"
-        )
-        return self.send_document(
-            recipient_phone=clean_phone,
-            media_id=media_id,
-            filename=filename,
-            caption=caption
-        )
+            logger.error(f"Template dispatch exception: {e}")
+            return False, {"error": f"Network error during template dispatch: {str(e)}"}
 
     def send_appointment_confirmation(self, appointment_obj):
         """
