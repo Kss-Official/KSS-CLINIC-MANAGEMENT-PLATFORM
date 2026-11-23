@@ -20,6 +20,7 @@ from .views import (
     SendAppointmentWhatsAppView,
     WhatsAppWebhookView,
     PrescriptionWhatsAppStatusView,
+    WhatsAppDiagnosticsView,
     PrescriptionPdfDownloadView,
     AppointmentPdfDownloadView,
 )
@@ -43,6 +44,8 @@ urlpatterns = [
     path('patients/<str:patient_id>/', PatientDetailUpdateView.as_view(), name='patient-detail-update'),
     path('whatsapp/webhook/', WhatsAppWebhookView.as_view(), name='whatsapp-webhook'),
     path('whatsapp/webhook', WhatsAppWebhookView.as_view()),
+    path('whatsapp/diagnostics/', WhatsAppDiagnosticsView.as_view(), name='whatsapp-diagnostics'),
+    path('whatsapp/diagnostics', WhatsAppDiagnosticsView.as_view()),
     path('prescriptions/<str:rx_id>/whatsapp-status/', PrescriptionWhatsAppStatusView.as_view(), name='prescription-whatsapp-status'),
     path('prescriptions/<str:rx_id>/pdf/', PrescriptionPdfDownloadView.as_view(), name='prescription-pdf-download'),
     path('prescriptions/send-whatsapp/', SendPrescriptionWhatsAppView.as_view(), name='prescription-send-whatsapp-direct'),

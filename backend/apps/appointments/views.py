@@ -5,6 +5,7 @@ import json
 import base64
 import logging
 import tempfile
+import requests
 from PIL import Image
 from django.conf import settings
 from django.http import HttpResponse
@@ -2769,6 +2770,54 @@ class PrescriptionWhatsAppStatusView(APIView):
             'patient_name': rx.patient_name,
             'patient_phone': rx.patient_phone,
             'date': rx.date,
+        })
+
+
+class WhatsAppDiagnosticsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        phone_id = getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', '') or os.getenv('WHATSAPP_PHONE_NUMBER_ID', '')
+        token = getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '') or os.getenv('WHATSAPP_ACCESS_TOKEN', '')
+        waba_id = getattr(settings, 'WHATSAPP_WABA_ID', '') or os.getenv('WHATSAPP_WABA_ID', '2357762654985667')
+
+        masked_phone = f"{phone_id[:4]}...{phone_id[-4:]}" if len(phone_id) >= 8 else (phone_id or 'NOT_SET')
+        masked_token = f"{token[:8]}...{token[-6:]} (len: {len(token)})" if len(token) >= 14 else (token or 'NOT_SET')
+
+        token_status = "NOT_CONFIGURED"
+        token_debug = {}
+        if token:
+            try:
+                me_res = requests.get(f"https://graph.facebook.com/v21.0/me?access_token={token}", timeout=8)
+                me_json = me_res.json()
+                if me_res.status_code == 200:
+                    token_status = "VALID"
+                    token_debug = me_json
+                else:
+                    token_status = "INVALID_OR_EXPIRED"
+                    token_debug = me_json.get('error', {})
+            except Exception as e:
+                token_status = "NETWORK_ERROR"
+                token_debug = {"error": str(e)}
+
+        phone_status = "UNKNOWN"
+        if token and phone_id and token_status == "VALID":
+            try:
+                p_res = requests.get(f"https://graph.facebook.com/v21.0/{phone_id}?access_token={token}", timeout=8)
+                if p_res.status_code == 200:
+                    phone_status = "VALID"
+                else:
+                    phone_status = p_res.json().get('error', {})
+            except Exception as e:
+                phone_status = {"error": str(e)}
+
+        return Response({
+            'whatsapp_phone_number_id': masked_phone,
+            'whatsapp_access_token': masked_token,
+            'whatsapp_waba_id': waba_id,
+            'token_health': token_status,
+            'token_details': token_debug,
+            'phone_health': phone_status,
         })
 
 
