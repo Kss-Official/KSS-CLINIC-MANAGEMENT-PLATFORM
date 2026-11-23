@@ -2777,8 +2777,8 @@ class WhatsAppDiagnosticsView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        phone_id = getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', '') or os.getenv('WHATSAPP_PHONE_NUMBER_ID', '')
-        token = getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '') or os.getenv('WHATSAPP_ACCESS_TOKEN', '')
+        phone_id = whatsapp_service.phone_number_id
+        token = whatsapp_service.access_token
         waba_id = getattr(settings, 'WHATSAPP_WABA_ID', '') or os.getenv('WHATSAPP_WABA_ID', '2357762654985667')
 
         masked_phone = f"{phone_id[:4]}...{phone_id[-4:]}" if len(phone_id) >= 8 else (phone_id or 'NOT_SET')
