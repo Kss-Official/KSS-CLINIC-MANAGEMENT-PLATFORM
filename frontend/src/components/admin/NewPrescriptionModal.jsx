@@ -951,6 +951,12 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
         .new-rx-mobile-select {
           display: none;
         }
+        .new-rx-medicines-desktop-table {
+          display: block;
+        }
+        .new-rx-medicines-mobile-cards {
+          display: none;
+        }
         .new-rx-visit-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
@@ -977,15 +983,23 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
           .new-rx-mobile-select {
             display: block !important;
           }
+          .new-rx-medicines-desktop-table {
+            display: none !important;
+          }
+          .new-rx-medicines-mobile-cards {
+            display: flex !important;
+            flex-direction: column;
+            gap: 12px;
+          }
           .new-rx-modal-overlay {
-            padding: 10px 8px !important;
+            padding: 8px 6px !important;
           }
           .new-rx-modal-card {
-            max-height: 94vh !important;
+            max-height: 96vh !important;
             border-radius: 16px !important;
           }
           .new-rx-modal-scroll {
-            padding: 16px 14px 20px !important;
+            padding: 16px 12px 20px !important;
           }
           .new-rx-visit-grid {
             grid-template-columns: 1fr !important;
@@ -995,12 +1009,11 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
             grid-template-columns: 1fr !important;
             gap: 12px !important;
           }
-          .new-rx-medicines-table-wrapper {
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch;
-          }
-          .new-rx-medicines-table-wrapper table {
-            min-width: 580px;
+          .new-rx-add-med-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            min-height: 42px !important;
+            font-size: 13.5px !important;
           }
           .new-rx-footer-buttons {
             flex-wrap: wrap !important;
@@ -1416,13 +1429,14 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                       backgroundColor: '#edf7ed',
                       border: '1px solid #c7e6c9',
                       borderRadius: '12px',
-                      padding: '12px 16px',
+                      padding: '12px 14px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
+                      gap: '10px',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                       <div
                         style={{
                           width: '36px',
@@ -1440,11 +1454,11 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                       >
                         {selectedPatient.initials}
                       </div>
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', wordBreak: 'break-word' }}>
                           {selectedPatient.name}
                         </div>
-                        <div style={{ fontSize: '12px', color: '#52606d', marginTop: '2px' }}>
+                        <div style={{ fontSize: '12px', color: '#52606d', marginTop: '2px', wordBreak: 'break-word' }}>
                           {selectedPatient.id} &nbsp;|&nbsp; {selectedPatient.phone} &nbsp;|&nbsp; {selectedPatient.age} &nbsp;|&nbsp; {selectedPatient.gender}
                         </div>
                       </div>
@@ -1963,18 +1977,18 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                   </div>
                 )}
 
-                {/* Medicines Table */}
-                <div className="new-rx-medicines-table-wrapper" style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden', marginBottom: '12px' }}>
-                  <table id="rx-medicines-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                {/* Desktop Medicines Table (visible on >640px) */}
+                <div className="new-rx-medicines-desktop-table" style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '12px' }}>
+                  <table id="rx-medicines-table" style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ padding: '10px 12px', color: '#64748b', width: '36px' }}>No.</th>
-                        <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px' }}>Medicine Name <span style={{ color: '#ef4444' }}>*</span></th>
-                        <th style={{ padding: '10px 12px', color: '#64748b', width: '110px' }}>Potency <span style={{ color: '#ef4444' }}>*</span></th>
-                        <th style={{ padding: '10px 12px', color: '#64748b', width: '125px' }}>Dosage <span style={{ color: '#ef4444' }}>*</span></th>
-                        <th style={{ padding: '10px 12px', color: '#64748b', width: '105px' }}>Duration <span style={{ color: '#ef4444' }}>*</span></th>
-                        <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px' }}>Instructions (Optional)</th>
-                        <th style={{ padding: '10px 12px', color: '#64748b', width: '45px', textAlign: 'center' }}>Action</th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', width: '36px', whiteSpace: 'nowrap' }}>No.</th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px', whiteSpace: 'nowrap' }}>Medicine Name <span style={{ color: '#ef4444' }}>*</span></th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', width: '110px', whiteSpace: 'nowrap' }}>Potency <span style={{ color: '#ef4444' }}>*</span></th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', width: '125px', whiteSpace: 'nowrap' }}>Dosage <span style={{ color: '#ef4444' }}>*</span></th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', width: '105px', whiteSpace: 'nowrap' }}>Duration <span style={{ color: '#ef4444' }}>*</span></th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', minWidth: '150px', whiteSpace: 'nowrap' }}>Instructions (Optional)</th>
+                        <th style={{ padding: '10px 12px', color: '#64748b', width: '45px', textAlign: 'center', whiteSpace: 'nowrap' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2174,10 +2188,237 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                   </table>
                 </div>
 
+                {/* Mobile Medicines Cards (visible on <=640px) */}
+                <div className="new-rx-medicines-mobile-cards" style={{ marginBottom: '12px' }}>
+                  {medicines.length === 0 ? (
+                    <div
+                      style={{
+                        padding: '20px 16px',
+                        textAlign: 'center',
+                        backgroundColor: '#f8fafc',
+                        border: '1.5px dashed #cbd5e1',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <span style={{ fontSize: '13px', color: '#64748b' }}>
+                        No medicines added yet.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddMedicine}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#166534',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          textDecoration: 'underline',
+                          padding: '4px',
+                        }}
+                      >
+                        + Add Medicine
+                      </button>
+                    </div>
+                  ) : (
+                    medicines.map((med, idx) => {
+                      const isInvalidName = attemptedSubmit && !med.name?.trim();
+                      const isInvalidPotency = attemptedSubmit && !med.potency?.trim();
+                      const isInvalidDosage = attemptedSubmit && !med.dosage?.trim();
+                      const isInvalidDuration = attemptedSubmit && !med.duration?.trim();
+
+                      return (
+                        <div
+                          key={med.id || idx}
+                          style={{
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '12px',
+                            padding: '12px 14px',
+                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                            position: 'relative',
+                          }}
+                        >
+                          {/* Card Top: Number badge and Remove button */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                            <span
+                              style={{
+                                fontSize: '11.5px',
+                                fontWeight: '700',
+                                color: '#166534',
+                                backgroundColor: '#f0fdf4',
+                                border: '1px solid #bbf7d0',
+                                padding: '2px 8px',
+                                borderRadius: '6px',
+                              }}
+                            >
+                              Medicine #{idx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMedicine(med.id)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#ef4444',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '4px 6px',
+                                borderRadius: '6px',
+                              }}
+                              aria-label={`Remove medicine ${idx + 1}`}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              </svg>
+                              <span>Remove</span>
+                            </button>
+                          </div>
+
+                          {/* Medicine Name */}
+                          <div style={{ marginBottom: '10px' }}>
+                            <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                              Medicine Name <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={med.name}
+                              onChange={(e) => handleMedicineChange(med.id, 'name', e.target.value)}
+                              placeholder="e.g. Arnica Montana"
+                              style={{
+                                width: '100%',
+                                height: '38px',
+                                padding: '0 10px',
+                                borderRadius: '7px',
+                                border: isInvalidName ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                backgroundColor: isInvalidName ? '#fff5f5' : '#ffffff',
+                                fontSize: '13px',
+                                color: '#1e293b',
+                                outline: 'none',
+                                boxSizing: 'border-box',
+                              }}
+                            />
+                          </div>
+
+                          {/* Potency & Dosage Row */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                                Potency <span style={{ color: '#ef4444' }}>*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={med.potency}
+                                onChange={(e) => handleMedicineChange(med.id, 'potency', e.target.value)}
+                                placeholder="e.g. 30C, 200C"
+                                style={{
+                                  width: '100%',
+                                  height: '38px',
+                                  padding: '0 10px',
+                                  borderRadius: '7px',
+                                  border: isInvalidPotency ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                  backgroundColor: isInvalidPotency ? '#fff5f5' : '#ffffff',
+                                  fontSize: '13px',
+                                  color: '#1e293b',
+                                  outline: 'none',
+                                  boxSizing: 'border-box',
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                                Dosage <span style={{ color: '#ef4444' }}>*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={med.dosage}
+                                onChange={(e) => handleMedicineChange(med.id, 'dosage', e.target.value)}
+                                placeholder="e.g. 4 pills"
+                                style={{
+                                  width: '100%',
+                                  height: '38px',
+                                  padding: '0 10px',
+                                  borderRadius: '7px',
+                                  border: isInvalidDosage ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                  backgroundColor: isInvalidDosage ? '#fff5f5' : '#ffffff',
+                                  fontSize: '13px',
+                                  color: '#1e293b',
+                                  outline: 'none',
+                                  boxSizing: 'border-box',
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Duration & Instructions Row */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                                Duration <span style={{ color: '#ef4444' }}>*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={med.duration}
+                                onChange={(e) => handleMedicineChange(med.id, 'duration', e.target.value)}
+                                placeholder="e.g. 15 Days"
+                                style={{
+                                  width: '100%',
+                                  height: '38px',
+                                  padding: '0 10px',
+                                  borderRadius: '7px',
+                                  border: isInvalidDuration ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                  backgroundColor: isInvalidDuration ? '#fff5f5' : '#ffffff',
+                                  fontSize: '13px',
+                                  color: '#1e293b',
+                                  outline: 'none',
+                                  boxSizing: 'border-box',
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                                Instructions
+                              </label>
+                              <input
+                                type="text"
+                                value={med.instructions}
+                                onChange={(e) => handleMedicineChange(med.id, 'instructions', e.target.value)}
+                                placeholder="e.g. Twice daily"
+                                style={{
+                                  width: '100%',
+                                  height: '38px',
+                                  padding: '0 10px',
+                                  borderRadius: '7px',
+                                  border: '1px solid #cbd5e1',
+                                  fontSize: '13px',
+                                  color: '#1e293b',
+                                  backgroundColor: '#ffffff',
+                                  outline: 'none',
+                                  boxSizing: 'border-box',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
                 {/* + Add Medicine Button */}
                 <button
                   type="button"
                   id="rx-add-medicine-btn"
+                  className="new-rx-add-med-btn"
                   onClick={handleAddMedicine}
                   style={{
                     display: 'inline-flex',
