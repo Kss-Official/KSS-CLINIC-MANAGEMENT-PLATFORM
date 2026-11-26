@@ -252,7 +252,7 @@ const ContactPage = () => {
 
   const handleOpenGoogleMaps = () => {
     window.open(
-      'https://maps.google.com/?q=05,+Balram+DRESS+NH-19,+Ghazipur+-+Hajipur+Rd,+Sitalpur,+Bihar+841221',
+      'https://maps.google.com/?q=Sitalpur+Pandey+Comp,+Dariyapur,+Sitalpur,+841221',
       '_blank',
       'noopener,noreferrer'
     );
@@ -521,7 +521,7 @@ const ContactPage = () => {
                           </span>
                         </div>
                         <p style={{ fontSize: '13.5px', color: '#4b5563', lineHeight: '1.5', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
-                          05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,<br />Sitalpur, Bihar 841221
+                          Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221
                         </p>
                       </div>
                     </div>
@@ -575,8 +575,8 @@ const ContactPage = () => {
                             Call Directly
                           </span>
                         </div>
-                        <a href="tel:+919876543210" style={{ fontSize: '13.5px', color: '#166534', fontWeight: '600', textDecoration: 'none', fontFamily: "'Manrope', sans-serif" }}>
-                          +91 98765 43210
+                        <a href="tel:+918083429809" style={{ fontSize: '13.5px', color: '#166534', fontWeight: '600', textDecoration: 'none', fontFamily: "'Manrope', sans-serif" }}>
+                          +91 80834 29809
                         </a>
                       </div>
                     </div>
@@ -631,8 +631,8 @@ const ContactPage = () => {
                             Mail Us
                           </span>
                         </div>
-                        <a href="mailto:clinic.tripathi@gmail.com" style={{ fontSize: '13.5px', color: '#166534', fontWeight: '600', textDecoration: 'none', fontFamily: "'Manrope', sans-serif" }}>
-                          clinic.tripathi@gmail.com
+                        <a href="mailto:Drkalpanatripathi38@gmail.com" style={{ fontSize: '13.5px', color: '#166534', fontWeight: '600', textDecoration: 'none', fontFamily: "'Manrope', sans-serif" }}>
+                          Drkalpanatripathi38@gmail.com
                         </a>
                       </div>
                     </div>
@@ -862,7 +862,7 @@ const ContactPage = () => {
                           onFocus={() => setFocusedField('phone')}
                           onBlur={() => handleBlur('phone')}
                           maxLength={10}
-                          placeholder="e.g. 98765 43210"
+                          placeholder="e.g. 80834 29809"
                           style={{
                             width: '100%',
                             boxSizing: 'border-box',
@@ -1349,7 +1349,7 @@ const ContactPage = () => {
                   Ghazipur Rd
                 </div>
 
-                {/* 5. Landmark Label: Balram DRESS */}
+                {/* 5. Landmark Label: Pandey Complex */}
                 <div
                   style={{
                     position: 'absolute',
@@ -1371,7 +1371,7 @@ const ContactPage = () => {
                   }}
                 >
                   <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#059669' }} />
-                  <span>Balram DRESS</span>
+                  <span>Sitalpur Pandey Comp</span>
                 </div>
 
                 {/* 6. Road Name: NH-19 */}
@@ -1489,7 +1489,7 @@ const ContactPage = () => {
                     </span>
                   </div>
                   <p style={{ fontSize: '10.5px', color: '#6b7280', margin: '0 0 6px 0', lineHeight: '1.4', fontFamily: "'Manrope', sans-serif" }}>
-                    05, Balram DRESS NH-19, Sitalpur, Bihar 841221
+                    Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f2', paddingTop: '5px' }}>
                     <span style={{ fontSize: '10px', fontWeight: '700', color: '#166534', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Manrope', sans-serif", whiteSpace: 'nowrap' }}>
@@ -1720,13 +1720,10 @@ const ContactPage = () => {
                           fontFamily: "'Manrope', sans-serif",
                         }}
                       >
-                        Clinic Address & Landmark
+                        Clinic Address
                       </h4>
-                      <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.5', margin: '0 0 6px 0', fontFamily: "'Manrope', sans-serif" }}>
-                        05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221
-                      </p>
-                      <p style={{ fontSize: '13px', color: '#6b7280', margin: 0, display: 'flex', alignItems: 'center', gap: '4px', fontFamily: "'Manrope', sans-serif" }}>
-                        <span style={{ color: '#dc2626' }}>📍</span> Landmark: Balram DRESS, NH-19 (Ghazipur - Hajipur Rd)
+                      <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.5', margin: 0, fontFamily: "'Manrope', sans-serif" }}>
+                        Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221
                       </p>
                     </div>
                   </div>

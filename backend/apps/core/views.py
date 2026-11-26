@@ -52,8 +52,8 @@ class ContactFormView(APIView):
         except Exception as notif_err:
             logger.warning(f"Could not create admin notification for contact inquiry: {notif_err}")
 
-        recipient = getattr(settings, 'CLINIC_CONTACT_EMAIL', 'pratikshaharode0@gmail.com')
-        sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'pratikshaharode0@gmail.com')
+        recipient = getattr(settings, 'CLINIC_CONTACT_EMAIL', 'Drkalpanatripathi38@gmail.com')
+        sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'Drkalpanatripathi38@gmail.com')
         reply_to = [email] if email else [recipient]
 
         subject = f"New Patient Inquiry: {full_name} ({purpose})"

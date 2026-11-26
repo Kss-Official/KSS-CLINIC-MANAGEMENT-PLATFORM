@@ -14,8 +14,7 @@ import confirmedIllustration from '../../assets/confirmed-illustration.png?v=v2_
 
 import appointmentApi from '../../api/appointmentApi';
 import { downloadAppointmentConfirmationPdf } from '../../utils/appointmentPdf';
-
-
+import LegalPolicyModal from '../../components/common/LegalPolicyModal';
 
 const BookAppointmentPage = () => {
 
@@ -24,6 +23,7 @@ const BookAppointmentPage = () => {
 
   const { user, isAuthenticated } = useAuth();
 
+  const [legalModalType, setLegalModalType] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [rescheduleData, setRescheduleData] = useState(() => {
@@ -1509,8 +1509,8 @@ const BookAppointmentPage = () => {
         reason: reasonVal,
         date: dateVal,
         time: timeVal,
-        clinicAddress: '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,\nSitalpur, Bihar 841221',
-        clinicPhone: '+91 98765 43210',
+        clinicAddress: 'Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221',
+        clinicPhone: '+91 80834 29809',
       });
     } catch (err) {
       console.error('Error generating appointment PDF:', err);
@@ -1526,7 +1526,7 @@ const BookAppointmentPage = () => {
     const text = encodeURIComponent(
       `Hello Dr. Kalpana Tripathi Ampeh Clinic, my appointment is confirmed with ID: ${idVal} for ${dateVal}${timeVal ? ` at ${timeVal}` : ''}.`
     );
-    window.open(`https://wa.me/919876543210?text=${text}`, '_blank');
+    window.open(`https://wa.me/918083429809?text=${text}`, '_blank');
   };
 
 
@@ -4187,14 +4187,19 @@ const BookAppointmentPage = () => {
                           <strong style={{ color: '#0f172a', fontWeight: '700' }}>{displayTime}</strong>
                         </div>
 
-                        {/* Row 5: Clinic Address */}
+                        {/* Row 5: Clinic Address & Consultation Type */}
                         <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                           <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', marginTop: '2px', flexShrink: 0 }}>📍</span>
                           <span className="booking-confirm-label" style={{ color: '#64748b', minWidth: '120px', width: '120px', flexShrink: 0, marginTop: '2px', fontWeight: '500' }}>Clinic Address</span>
                           <strong style={{ color: '#0f172a', fontWeight: '700', lineHeight: '1.5' }}>
-                            05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,<br />
-                            Sitalpur, Bihar 841221
+                            Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221
                           </strong>
+                        </div>
+
+                        <div className="booking-confirm-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="booking-confirm-icon" style={{ width: '28px', height: '28px', borderRadius: '7px', backgroundColor: '#f8fafc', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🏥</span>
+                          <span className="booking-confirm-label booking-confirm-label-col2" style={{ color: '#64748b', minWidth: col2LabelWidth, width: col2LabelWidth, flexShrink: 0, fontWeight: '500' }}>Consultation</span>
+                          <strong style={{ color: '#166534', fontWeight: '700' }}>In-Person (Clinic Visit)</strong>
                         </div>
                       </div>
                     );
@@ -4717,57 +4722,9 @@ const BookAppointmentPage = () => {
 
                 </div>
 
-                <a
-
-                  href="https://maps.google.com/?q=05,+Balram+DRESS+NH-19,+Ghazipur+-+Hajipur+Rd,+Sitalpur,+Bihar+841221"
-
-                  target="_blank"
-
-                  rel="noopener noreferrer"
-
-                  style={{
-
-                    fontSize: '12px',
-
-                    fontWeight: '600',
-
-                    color: '#265e38',
-
-                    backgroundColor: '#ecfdf5',
-
-                    padding: '5px 12px',
-
-                    borderRadius: '9999px',
-
-                    textDecoration: 'none',
-
-                    display: 'inline-block',
-
-                    transition: 'all 0.2s',
-
-                  }}
-
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#d1fae5')}
-
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ecfdf5')}
-
-                >
-
-                  View on Map
-
-                </a>
-
               </div>
 
-
-
-              <a
-
-                href="https://maps.google.com/?q=05,+Balram+DRESS+NH-19,+Ghazipur+-+Hajipur+Rd,+Sitalpur,+Bihar+841221"
-
-                target="_blank"
-
-                rel="noopener noreferrer"
+              <p
 
                 style={{
 
@@ -4779,19 +4736,13 @@ const BookAppointmentPage = () => {
 
                   lineHeight: '1.6',
 
-                  textDecoration: 'none',
-
-                  display: 'block',
-
                 }}
 
               >
 
-                05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,<br />
+                Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221
 
-                Sitalpur, Bihar 841221
-
-              </a>
+              </p>
 
             </div>
 
@@ -4877,7 +4828,7 @@ const BookAppointmentPage = () => {
 
               <a
 
-                href="tel:+919876543210"
+                href="tel:+918083429809"
 
                 style={{
 
@@ -4895,7 +4846,7 @@ const BookAppointmentPage = () => {
 
               >
 
-                +91 98765 43210
+                +91 80834 29809
 
               </a>
 
@@ -5013,17 +4964,25 @@ const BookAppointmentPage = () => {
 
           >
 
-            <a
+            <button
 
-              href="#privacy"
+              type="button"
+
+              onClick={() => setLegalModalType('privacy')}
 
               className="booking-footer-link"
 
               style={{
 
+                background: 'none',
+
+                border: 'none',
+
+                padding: 0,
+
                 color: '#6b7280',
 
-                textDecoration: 'none',
+                cursor: 'pointer',
 
                 fontSize: '13px',
 
@@ -5041,19 +5000,27 @@ const BookAppointmentPage = () => {
 
               Privacy Policy
 
-            </a>
+            </button>
 
-            <a
+            <button
 
-              href="#terms"
+              type="button"
+
+              onClick={() => setLegalModalType('terms')}
 
               className="booking-footer-link"
 
               style={{
 
+                background: 'none',
+
+                border: 'none',
+
+                padding: 0,
+
                 color: '#6b7280',
 
-                textDecoration: 'none',
+                cursor: 'pointer',
 
                 fontSize: '13px',
 
@@ -5071,7 +5038,7 @@ const BookAppointmentPage = () => {
 
               Terms of Consultation
 
-            </a>
+            </button>
 
             <a
 
@@ -5719,6 +5686,13 @@ const BookAppointmentPage = () => {
           }
         }
       `}</style>
+
+      {/* Interactive Modal Card with Internal Scrollbar */}
+      <LegalPolicyModal
+        isOpen={Boolean(legalModalType)}
+        onClose={() => setLegalModalType(null)}
+        initialType={legalModalType || 'privacy'}
+      />
 
     </div>
 

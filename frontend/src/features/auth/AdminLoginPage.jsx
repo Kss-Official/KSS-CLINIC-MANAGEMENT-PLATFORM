@@ -169,6 +169,8 @@ const AdminLoginPage = () => {
         code: forgotCode.trim(),
 
         newPassword: newPassword,
+
+        portal: "admin",
       });
 
       if (res && res.success) {

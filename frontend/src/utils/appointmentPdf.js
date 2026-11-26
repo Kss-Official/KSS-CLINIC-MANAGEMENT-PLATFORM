@@ -142,9 +142,14 @@ export const downloadAppointmentConfirmationPdf = (data) => {
 
   // Card Content: 2 Balanced Columns
   const col1X = marginX + 6;
-  const col1LabelWidth = 34;
-  const col2X = marginX + contentWidth / 2 + 4;
+  const col1LabelWidth = 32;
+  const col1ValueX = col1X + col1LabelWidth;
+  const col2X = marginX + contentWidth / 2 + 3;
   const col2LabelWidth = 32;
+  const col2ValueX = col2X + col2LabelWidth;
+
+  const maxCol1ValueWidth = col2X - col1ValueX - 4; // ~53mm max width for column 1 value
+  const maxCol2ValueWidth = (marginX + contentWidth - 6) - col2ValueX; // ~50mm max width for column 2 value
 
   // Row heights
   let rowY = y + 18;
@@ -165,7 +170,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(27, 67, 50);
-  doc.text(String(data.appointmentId || 'APT-CONFIRMED'), col1X + col1LabelWidth, rowY);
+  doc.text(String(data.appointmentId || 'APT-CONFIRMED'), col1ValueX, rowY);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
@@ -174,7 +179,9 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text(String(data.doctorName || 'Dr. K. Tripathi Ampeh (Pat.)'), col2X + col2LabelWidth, rowY);
+  const docText = String(data.doctorName || 'Dr. K. Tripathi Ampeh (Pat.)');
+  const docLines = doc.splitTextToSize(docText, maxCol2ValueWidth);
+  doc.text(docLines[0] || docText, col2ValueX, rowY);
 
   // Row 2: Patient Name & Service
   rowY += rowGap;
@@ -185,10 +192,12 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text(String(data.fullName || '-'), col1X + col1LabelWidth, rowY);
+  const nameText = String(data.fullName || '-');
+  const nameLines = doc.splitTextToSize(nameText, maxCol1ValueWidth);
+  doc.text(nameLines[0] + (nameLines.length > 1 ? '...' : ''), col1ValueX, rowY);
 
   const serviceLabel = 'Reason for Visit';
-  const serviceVal = String(data.reason || data.service || '');
+  const serviceVal = String(data.reason || data.service || 'Consultation');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
@@ -197,9 +206,9 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  const maxPdfLen = 32;
-  const displayVal = serviceVal.length > maxPdfLen ? `${serviceVal.substring(0, maxPdfLen - 2)}...` : serviceVal;
-  doc.text(displayVal, col2X + col2LabelWidth, rowY);
+  const serviceLines = doc.splitTextToSize(serviceVal, maxCol2ValueWidth);
+  const displayVal = serviceLines[0] ? (serviceLines[0] + (serviceLines.length > 1 ? '...' : '')) : '-';
+  doc.text(displayVal, col2ValueX, rowY);
 
   // Row 3: Mobile Number & Date
   rowY += rowGap;
@@ -210,7 +219,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text(String(data.mobileNumber || '-'), col1X + col1LabelWidth, rowY);
+  doc.text(String(data.mobileNumber || '-'), col1ValueX, rowY);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
@@ -219,7 +228,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text(String(data.date || '-'), col2X + col2LabelWidth, rowY);
+  doc.text(String(data.date || '-'), col2ValueX, rowY);
 
   // Row 4: Email & Time
   rowY += rowGap;
@@ -231,7 +240,14 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
   const emailText = String(data.email || 'Not specified');
-  doc.text(emailText.length > 28 ? `${emailText.substring(0, 26)}...` : emailText, col1X + col1LabelWidth, rowY);
+  let displayEmail = emailText;
+  if (doc.getTextWidth(displayEmail) > maxCol1ValueWidth) {
+    while (displayEmail.length > 3 && doc.getTextWidth(displayEmail + '...') > maxCol1ValueWidth) {
+      displayEmail = displayEmail.slice(0, -1);
+    }
+    displayEmail += '...';
+  }
+  doc.text(displayEmail, col1ValueX, rowY);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
@@ -240,7 +256,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(27, 67, 50);
-  doc.text(String(data.time || '09:00 AM'), col2X + col2LabelWidth, rowY);
+  doc.text(String(data.time || '09:00 AM'), col2ValueX, rowY);
 
   // Horizontal divider inside card
   rowY += 9;
@@ -258,35 +274,21 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
 
-  const rawAddr = String(data.clinicAddress || '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd,\nSitalpur, Bihar 841221').trim();
-  let addrLines = [];
-  if (rawAddr.includes('\n')) {
-    rawAddr.split('\n').forEach((part) => {
-      const p = part.trim();
-      if (p) addrLines.push(p);
-    });
-  } else if (rawAddr.includes('Your State')) {
-    const idx = rawAddr.indexOf('Your State');
-    const part1 = rawAddr.slice(0, idx).replace(/,\s*$/, '').trim() + ',';
-    const part2 = rawAddr.slice(idx).trim();
-    addrLines = [part1, part2];
-  } else if (rawAddr.includes(',')) {
-    const parts = rawAddr.split(',').map((s) => s.trim()).filter(Boolean);
-    if (parts.length >= 3) {
-      const mid = Math.ceil(parts.length / 2);
-      const line1 = parts.slice(0, mid).join(', ') + ',';
-      const line2 = parts.slice(mid).join(', ');
-      addrLines = [line1, line2];
-    } else {
-      addrLines = doc.splitTextToSize(rawAddr, 42);
-    }
-  } else {
-    addrLines = doc.splitTextToSize(rawAddr, 42);
-  }
+  // Clean raw address string and strictly wrap within maxCol1ValueWidth (~52mm)
+  const rawAddr = String(
+    data.clinicAddress || 'Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221'
+  )
+    .replace(/\r\n/g, '\n')
+    .replace(/\n+/g, ', ')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*,/g, ', ')
+    .trim();
 
-  // Draw address lines cleanly without ever overlapping column 2
+  const addrLines = doc.splitTextToSize(rawAddr, maxCol1ValueWidth);
+
+  // Draw address lines cleanly strictly within Column 1 bounds (never overlapping Column 2)
   addrLines.forEach((line, idx) => {
-    doc.text(line, col1X + col1LabelWidth, rowY + idx * 4.2);
+    doc.text(line, col1ValueX, rowY + idx * 4.1);
   });
 
   doc.setFont('helvetica', 'bold');
@@ -297,7 +299,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(22, 101, 52);
-  doc.text('In-Person (Clinic Visit)', col2X + col2LabelWidth, rowY);
+  doc.text('In-Person (Clinic Visit)', col2ValueX, rowY);
 
   // 5. Important Instructions Section
   y = 155;
@@ -322,7 +324,7 @@ export const downloadAppointmentConfirmationPdf = (data) => {
     { title: 'Arrival Time:', text: 'Please arrive 10-15 minutes prior to your scheduled consultation time.' },
     { title: 'Medical Records:', text: 'Bring your previous prescriptions, lab investigation reports, and current medication list.' },
     { title: 'Cancellation / Reschedule:', text: 'If you need to reschedule, kindly notify the clinic at least 2 hours in advance.' },
-    { title: 'Clinic Helpline:', text: 'For directions, queries, or assistance, contact us at +91 98765 43210.' },
+    { title: 'Clinic Helpline:', text: 'For directions, queries, or assistance, contact us at +91 80834 29809.' },
   ];
 
   noteItems.forEach((item) => {
@@ -362,8 +364,8 @@ export const downloadAppointmentConfirmationPdf = (data) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
-  doc.text('05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221', marginX + 6, y + 12.5);
-  doc.text('Phone: +91 98765 43210  |  Email: clinic.tripathi@gmail.com', marginX + 6, y + 17.5);
+  doc.text('Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221', marginX + 6, y + 12.5);
+  doc.text('Phone: +91 80834 29809  |  Email: Drkalpanatripathi38@gmail.com', marginX + 6, y + 17.5);
   doc.text('Website: https://drtripathihomeopathy.com  |  Hours: Mon - Sat (09:00 AM - 06:00 PM)', marginX + 6, y + 22.5);
 
   // Right column Stamp / Verified Seal

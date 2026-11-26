@@ -201,21 +201,21 @@ const ServicesPage = () => {
               </p>
             </div>
 
-            {/* 4 Feature Columns Row */}
+            {/* 5 Healthcare Service Cards Row */}
             <div
               className="services-family-grid"
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
+                gridTemplateColumns: 'repeat(5, 1fr)',
                 textAlign: 'center',
                 alignItems: 'start',
               }}
             >
-              {/* Feature 1 */}
+              {/* Service 1: Women's Healthcare */}
               <div
                 className="services-family-item"
                 style={{
-                  padding: '8px 24px',
+                  padding: '8px 20px',
                   borderRight: '1px solid #eef2ef',
                   display: 'flex',
                   flexDirection: 'column',
@@ -232,10 +232,13 @@ const ServicesPage = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 16px',
+                    flexShrink: 0,
                   }}
                 >
-                  <svg width="21" height="21" viewBox="0 0 24 24" fill="#265e38">
-                    <path d="M20.6 3.4c-9.2.4-15.4 5.8-16.1 14.1l-1.5 3.5 3.5-1.5c8.3-.7 13.7-6.9 14.1-16.1zM15 13.5c-2.4 1-4.8 1.2-7.2.7 2.4-2.1 4.8-2.3 7.2-.7z" />
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="8.5" r="5" />
+                    <path d="M12 13.5v7.5" />
+                    <path d="M8.5 17.5h7" />
                   </svg>
                 </div>
                 <h3
@@ -247,27 +250,27 @@ const ServicesPage = () => {
                     fontFamily: "'Manrope', sans-serif",
                   }}
                 >
-                  Natural & Safe
+                  Women's Healthcare
                 </h3>
                 <p
                   style={{
-                    fontSize: '14px',
+                    fontSize: '13.5px',
                     color: '#6b7280',
-                    lineHeight: '1.5',
+                    lineHeight: '1.55',
                     fontFamily: "'Manrope', sans-serif",
                     margin: 0,
-                    maxWidth: '220px',
+                    maxWidth: '225px',
                   }}
                 >
-                  Gentle and side-effect free care.
+                  Menstrual disorders, PCOS, hormonal concerns, and reproductive health.
                 </p>
               </div>
 
-              {/* Feature 2 */}
+              {/* Service 2: Fertility Consultation */}
               <div
                 className="services-family-item"
                 style={{
-                  padding: '8px 24px',
+                  padding: '8px 20px',
                   borderRight: '1px solid #eef2ef',
                   display: 'flex',
                   flexDirection: 'column',
@@ -284,116 +287,10 @@ const ServicesPage = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 16px',
+                    flexShrink: 0,
                   }}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#265e38">
-                    <circle cx="12" cy="7" r="4" />
-                    <path d="M4 21v-1.5C4 16 7.5 13 12 13s8 3 8 6.5V21H4z" />
-                  </svg>
-                </div>
-                <h3
-                  style={{
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    color: '#111827',
-                    marginBottom: '8px',
-                    fontFamily: "'Manrope', sans-serif",
-                  }}
-                >
-                  Personalized Care
-                </h3>
-                <p
-                  style={{
-                    fontSize: '14px',
-                    color: '#6b7280',
-                    lineHeight: '1.5',
-                    fontFamily: "'Manrope', sans-serif",
-                    margin: 0,
-                    maxWidth: '220px',
-                  }}
-                >
-                  Individual attention for every patient.
-                </p>
-              </div>
-
-              {/* Feature 3 */}
-              <div
-                className="services-family-item"
-                style={{
-                  padding: '8px 24px',
-                  borderRight: '1px solid #eef2ef',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                }}
-              >
-                <div
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ebf6ee',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 16px',
-                  }}
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="#265e38">
-                    <circle cx="9" cy="7.5" r="3.5" />
-                    <path d="M2 20.5v-1.2c0-3.1 3.1-5.3 7-5.3s7 2.2 7 5.3v1.2H2z" />
-                    <circle cx="17" cy="8" r="3" />
-                    <path d="M15.5 14.5c.8-.4 1.7-.5 2.5-.5 2.8 0 4.8 1.8 4.8 4.2v1.8h-4.8v-.8c0-1.7-.8-3.2-2.5-4.7z" />
-                  </svg>
-                </div>
-                <h3
-                  style={{
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    color: '#111827',
-                    marginBottom: '8px',
-                    fontFamily: "'Manrope', sans-serif",
-                  }}
-                >
-                  For All Age Groups
-                </h3>
-                <p
-                  style={{
-                    fontSize: '14px',
-                    color: '#6b7280',
-                    lineHeight: '1.5',
-                    fontFamily: "'Manrope', sans-serif",
-                    margin: 0,
-                    maxWidth: '220px',
-                  }}
-                >
-                  Support from childhood to adulthood.
-                </p>
-              </div>
-
-              {/* Feature 4 */}
-              <div
-                className="services-family-item"
-                style={{
-                  padding: '8px 24px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                }}
-              >
-                <div
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ebf6ee',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 16px',
-                  }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                   </svg>
                 </div>
@@ -406,19 +303,184 @@ const ServicesPage = () => {
                     fontFamily: "'Manrope', sans-serif",
                   }}
                 >
-                  Long-Term Wellness
+                  Fertility Consultation
                 </h3>
                 <p
                   style={{
-                    fontSize: '14px',
+                    fontSize: '13.5px',
                     color: '#6b7280',
-                    lineHeight: '1.5',
+                    lineHeight: '1.55',
                     fontFamily: "'Manrope', sans-serif",
                     margin: 0,
-                    maxWidth: '220px',
+                    maxWidth: '225px',
                   }}
                 >
-                  Focus on overall and lasting health.
+                  Homeopathic consultation and supportive care for couples experiencing infertility and difficulty conceiving.
+                </p>
+              </div>
+
+              {/* Service 3: Child Healthcare */}
+              <div
+                className="services-family-item"
+                style={{
+                  padding: '8px 20px',
+                  borderRight: '1px solid #eef2ef',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ebf6ee',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 16px',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M8 13.5s1.5 2.5 4 2.5 4-2.5 4-2.5" />
+                    <line x1="9" y1="9.5" x2="9.01" y2="9.5" strokeWidth="3" />
+                    <line x1="15" y1="9.5" x2="15.01" y2="9.5" strokeWidth="3" />
+                  </svg>
+                </div>
+                <h3
+                  style={{
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    color: '#111827',
+                    marginBottom: '8px',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  Child Healthcare
+                </h3>
+                <p
+                  style={{
+                    fontSize: '13.5px',
+                    color: '#6b7280',
+                    lineHeight: '1.55',
+                    fontFamily: "'Manrope', sans-serif",
+                    margin: 0,
+                    maxWidth: '225px',
+                  }}
+                >
+                  Homeopathic consultation for common childhood health concerns.
+                </p>
+              </div>
+
+              {/* Service 4: General Healthcare */}
+              <div
+                className="services-family-item"
+                style={{
+                  padding: '8px 20px',
+                  borderRight: '1px solid #eef2ef',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ebf6ee',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 16px',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <path d="M12 8v8" />
+                    <path d="M8 12h8" />
+                  </svg>
+                </div>
+                <h3
+                  style={{
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    color: '#111827',
+                    marginBottom: '8px',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  General Healthcare
+                </h3>
+                <p
+                  style={{
+                    fontSize: '13.5px',
+                    color: '#6b7280',
+                    lineHeight: '1.55',
+                    fontFamily: "'Manrope', sans-serif",
+                    margin: 0,
+                    maxWidth: '225px',
+                  }}
+                >
+                  Personalized homeopathic consultation for various health conditions.
+                </p>
+              </div>
+
+              {/* Service 5: Maternal Wellness */}
+              <div
+                className="services-family-item"
+                style={{
+                  padding: '8px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ebf6ee',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 16px',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#265e38" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="6" r="3" />
+                    <path d="M6 21v-3a6 6 0 0 1 12 0v3" />
+                    <path d="M9 13a3 3 0 0 0 6 0" />
+                  </svg>
+                </div>
+                <h3
+                  style={{
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    color: '#111827',
+                    marginBottom: '8px',
+                    fontFamily: "'Manrope', sans-serif",
+                  }}
+                >
+                  Maternal Wellness
+                </h3>
+                <p
+                  style={{
+                    fontSize: '13.5px',
+                    color: '#6b7280',
+                    lineHeight: '1.55',
+                    fontFamily: "'Manrope', sans-serif",
+                    margin: 0,
+                    maxWidth: '225px',
+                  }}
+                >
+                  Supportive healthcare consultation for women's health during motherhood.
                 </p>
               </div>
             </div>
@@ -852,6 +914,15 @@ const ServicesPage = () => {
 
       {/* Responsive Styles */}
       <style>{`
+        @media (max-width: 1200px) {
+          .services-family-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 28px !important;
+          }
+          .services-family-item {
+            border-right: none !important;
+          }
+        }
         @media (max-width: 1024px) {
           .services-hero-title {
             font-size: 36px !important;
@@ -867,6 +938,7 @@ const ServicesPage = () => {
           }
           .services-family-item {
             border-right: none !important;
+            padding: 8px 12px !important;
           }
           .services-pill-cards-grid {
             grid-template-columns: 1fr !important;
@@ -898,6 +970,7 @@ const ServicesPage = () => {
           }
           .services-family-grid {
             grid-template-columns: 1fr !important;
+            gap: 24px !important;
           }
         }
       `}</style>

@@ -70,6 +70,25 @@ class PatientLoginView(views.APIView):
                 'detail': 'Access denied. Administrator accounts cannot log in through the Patient Portal. Please use the Admin Login.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        # Ensure patient record is linked and email/patient_id are synchronized
+        from apps.appointments.models import Patient
+        patient = Patient.objects.filter(user=user).first()
+        if not patient and user.email:
+            patient = Patient.objects.filter(email__iexact=user.email, user__isnull=True).first()
+            if patient:
+                patient.user = user
+                patient.save(update_fields=['user'])
+        if not patient:
+            full_name = f"{user.first_name} {user.last_name}".strip() or user.username
+            patient = Patient.objects.create(
+                user=user,
+                name=full_name,
+                email=user.email or f"{user.username}@gmail.com",
+                phone=user.phone_number or '',
+                status='Active',
+                primary_concern='General Consultation',
+            )
+
         token, _ = Token.objects.get_or_create(user=user)
 
         return Response({
@@ -183,6 +202,50 @@ class CurrentUserView(views.APIView):
         return Response(serializer.data)
 
 
+def _find_user_for_password_reset(identifier, portal=''):
+    """
+    Resolve the user account for password reset, enforcing portal separation
+    so admin resets only target staff/admin accounts and never fall back to patients.
+    """
+    clean_digits = ''.join(c for c in identifier if c.isdigit())
+
+    if portal == 'admin':
+        staff_filter = (
+            models.Q(role__in=[User.Role.ADMIN, User.Role.DOCTOR, User.Role.RECEPTIONIST])
+            | models.Q(is_staff=True)
+            | models.Q(is_superuser=True)
+        )
+        user = User.objects.filter(
+            (models.Q(email__iexact=identifier) | models.Q(username__iexact=identifier))
+            & staff_filter
+        ).first()
+        if not user and len(clean_digits) >= 10:
+            user = User.objects.filter(
+                models.Q(phone_number__endswith=clean_digits[-10:]) & staff_filter
+            ).first()
+        return user
+
+    user = User.objects.filter(
+        models.Q(email__iexact=identifier) | models.Q(username__iexact=identifier)
+    ).first()
+    if not user and len(clean_digits) >= 10:
+        user = User.objects.filter(phone_number__endswith=clean_digits[-10:]).first()
+
+    if not user:
+        try:
+            from apps.appointments.models import Patient
+            p_q = models.Q(email__iexact=identifier) | models.Q(patient_id__iexact=identifier)
+            if len(clean_digits) >= 10:
+                p_q |= models.Q(phone__endswith=clean_digits[-10:])
+            patient_rec = Patient.objects.filter(p_q).first()
+            if patient_rec and patient_rec.user:
+                user = patient_rec.user
+        except Exception:
+            pass
+
+    return user
+
+
 class ForgotPasswordView(views.APIView):
     """
     Handles request for forgot password.
@@ -201,25 +264,7 @@ class ForgotPasswordView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        user = User.objects.filter(
-            models.Q(email__iexact=identifier) | models.Q(username__iexact=identifier)
-        ).first()
-
-        clean_digits = ''.join(c for c in identifier if c.isdigit())
-        if not user and len(clean_digits) >= 10:
-            user = User.objects.filter(phone_number__endswith=clean_digits[-10:]).first()
-
-        if not user:
-            try:
-                from apps.appointments.models import Patient
-                p_q = models.Q(email__iexact=identifier) | models.Q(patient_id__iexact=identifier)
-                if len(clean_digits) >= 10:
-                    p_q |= models.Q(phone__endswith=clean_digits[-10:])
-                patient_rec = Patient.objects.filter(p_q).first()
-                if patient_rec and patient_rec.user:
-                    user = patient_rec.user
-            except Exception:
-                pass
+        user = _find_user_for_password_reset(identifier, portal=portal)
 
         if not user:
             portal_label = "patient " if portal == "patient" else ("administrator " if portal == "admin" else "")
@@ -242,7 +287,7 @@ class ForgotPasswordView(views.APIView):
 
         reset_record = PasswordResetCode.generate_for_user(user)
 
-        sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'pratikshaharode0@gmail.com')
+        sender = getattr(settings, 'DEFAULT_FROM_EMAIL', 'Drkalpanatripathi38@gmail.com')
         recipient = user.email
         subject = f"Password Reset Code: {reset_record.code} - Dr. Kalpana Tripathi Clinic"
 
@@ -340,25 +385,7 @@ class ResetPasswordView(views.APIView):
             )
 
         portal = (request.data.get('portal') or '').lower().strip()
-        user = User.objects.filter(
-            models.Q(email__iexact=identifier) | models.Q(username__iexact=identifier)
-        ).first()
-
-        clean_digits = ''.join(c for c in identifier if c.isdigit())
-        if not user and len(clean_digits) >= 10:
-            user = User.objects.filter(phone_number__endswith=clean_digits[-10:]).first()
-
-        if not user:
-            try:
-                from apps.appointments.models import Patient
-                p_q = models.Q(email__iexact=identifier) | models.Q(patient_id__iexact=identifier)
-                if len(clean_digits) >= 10:
-                    p_q |= models.Q(phone__endswith=clean_digits[-10:])
-                patient_rec = Patient.objects.filter(p_q).first()
-                if patient_rec and patient_rec.user:
-                    user = patient_rec.user
-            except Exception:
-                pass
+        user = _find_user_for_password_reset(identifier, portal=portal)
 
         if not user:
             return Response(

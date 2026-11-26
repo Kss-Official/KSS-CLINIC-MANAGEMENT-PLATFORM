@@ -348,15 +348,19 @@ const ViewPrescriptionModal = ({
         @media (max-width: 640px) {
           .admin-view-rx-overlay {
             padding: 8px 6px !important;
+            padding-top: max(8px, env(safe-area-inset-top, 8px)) !important;
+            padding-bottom: max(8px, env(safe-area-inset-bottom, 8px)) !important;
           }
           .admin-view-rx-modal {
             width: 100% !important;
             max-width: 100% !important;
-            max-height: 94vh !important;
+            max-height: calc(100vh - 16px) !important;
+            max-height: calc(100dvh - 16px) !important;
             border-radius: 16px !important;
           }
           .admin-view-rx-scroll {
-            padding: 14px 10px 16px !important;
+            padding: 14px 10px 24px !important;
+            padding-bottom: max(28px, env(safe-area-inset-bottom, 28px)) !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
             -webkit-overflow-scrolling: touch !important;

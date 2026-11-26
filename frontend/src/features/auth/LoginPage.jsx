@@ -44,6 +44,7 @@ const LoginPage = ({ initialMode = "login" }) => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [loginInputsReady, setLoginInputsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -503,8 +504,8 @@ const LoginPage = ({ initialMode = "login" }) => {
               </div>
             )}
 
-            <form onSubmit={handleLoginSubmit} style={{ textAlign: "left" }}>
-              {/* Field 1: Name or Email with User icon */}
+            <form onSubmit={handleLoginSubmit} autoComplete="off" style={{ textAlign: "left" }}>
+              {/* Field 1: Email, Patient ID, or Name with User icon */}
               <div style={{ marginBottom: "16px" }}>
                 <div
                   style={{
@@ -534,12 +535,30 @@ const LoginPage = ({ initialMode = "login" }) => {
                   </svg>
                   <input
                     type="text"
-                    name="username"
+                    name="patient_login_identifier"
+                    id="patient_login_identifier"
+                    autoComplete="off"
+                    data-form-type="other"
+                    data-lpignore="true"
+                    readOnly={!loginInputsReady}
+                    onFocus={(e) => {
+                      e.target.readOnly = false;
+                      if (!loginInputsReady) setLoginInputsReady(true);
+                    }}
+                    onMouseDown={(e) => {
+                      e.target.readOnly = false;
+                      if (!loginInputsReady) setLoginInputsReady(true);
+                    }}
+                    onTouchStart={(e) => {
+                      e.target.readOnly = false;
+                      if (!loginInputsReady) setLoginInputsReady(true);
+                    }}
                     value={loginData.username}
-                    onChange={(e) =>
-                      setLoginData((p) => ({ ...p, username: e.target.value }))
-                    }
-                    placeholder="Name or Email"
+                    onChange={(e) => {
+                      setLoginData((p) => ({ ...p, username: e.target.value }));
+                      if (error) setError("");
+                    }}
+                    placeholder="Email, Patient ID, or Name"
                     required
                     style={{
                       border: "none",
@@ -583,11 +602,29 @@ const LoginPage = ({ initialMode = "login" }) => {
                   </svg>
                   <input
                     type={showPassword ? "text" : "password"}
-                    name="password"
+                    name="patient_login_password"
+                    id="patient_login_password"
+                    autoComplete="new-password"
+                    data-form-type="other"
+                    data-lpignore="true"
+                    readOnly={!loginInputsReady}
+                    onFocus={(e) => {
+                      e.target.readOnly = false;
+                      if (!loginInputsReady) setLoginInputsReady(true);
+                    }}
+                    onMouseDown={(e) => {
+                      e.target.readOnly = false;
+                      if (!loginInputsReady) setLoginInputsReady(true);
+                    }}
+                    onTouchStart={(e) => {
+                      e.target.readOnly = false;
+                      if (!loginInputsReady) setLoginInputsReady(true);
+                    }}
                     value={loginData.password}
-                    onChange={(e) =>
-                      setLoginData((p) => ({ ...p, password: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setLoginData((p) => ({ ...p, password: e.target.value }));
+                      if (error) setError("");
+                    }}
                     placeholder="Password"
                     required
                     style={{

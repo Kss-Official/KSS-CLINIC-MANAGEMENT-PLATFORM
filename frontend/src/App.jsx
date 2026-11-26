@@ -1,13 +1,23 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, useLocation } from 'react-router-dom';
+import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
 import AppRoutes from './routes/AppRoutes';
 import { markSplashAsShown } from './components/common/SplashScreen';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 function ScrollManager() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Intercept legacy or anchor hash links for legal pages so clicking or loading #privacy / #terms never lands on hero section
+    if (location.hash === '#privacy' || location.hash === '#privacy-policy') {
+      navigate('/privacy-policy', { replace: true });
+      return;
+    }
+    if (location.hash === '#terms' || location.hash === '#terms-and-conditions') {
+      navigate('/terms-and-conditions', { replace: true });
+      return;
+    }
     const adminRoutes = [
       '/dashboard',
       '/appointments',
@@ -43,6 +53,10 @@ function ScrollManager() {
       '/services': 'Services | Dr. Kalpana Tripathi Ampeh (Pat.)',
       '/stories': 'Patient Stories | Dr. Kalpana Tripathi Ampeh (Pat.)',
       '/contact': 'Contact Us | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/privacy-policy': 'Privacy Policy | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/privacy': 'Privacy Policy | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/terms-and-conditions': 'Terms & Conditions | Dr. Kalpana Tripathi Ampeh (Pat.)',
+      '/terms': 'Terms & Conditions | Dr. Kalpana Tripathi Ampeh (Pat.)',
       '/book-appointment': 'Book Appointment | Dr. Kalpana Tripathi Ampeh (Pat.)',
       '/profile': 'Patient Profile | Dr. Kalpana Tripathi Ampeh (Pat.)',
       '/login': 'Patient Login | Dr. Kalpana Tripathi Ampeh (Pat.)',

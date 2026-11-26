@@ -41,6 +41,10 @@ class UserSerializer(serializers.ModelSerializer):
     def get_patient_id(self, obj):
         patient = getattr(obj, 'patient_records', None)
         if patient:
+            if obj.email:
+                exact = patient.filter(email__iexact=obj.email).first()
+                if exact and exact.patient_id:
+                    return exact.patient_id
             p = patient.first()
             if p and p.patient_id:
                 return p.patient_id

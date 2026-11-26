@@ -1,8 +1,42 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import logoWhite from '../../assets/logo-white.png';
+import LegalPolicyModal from '../common/LegalPolicyModal';
 
 const Footer = () => {
+  const [modalType, setModalType] = useState(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    // Listen for custom global event to open policy modal from anywhere
+    const handleOpenModal = (e) => {
+      if (e.detail?.type) {
+        setModalType(e.detail.type);
+      }
+    };
+    window.addEventListener('open-legal-modal', handleOpenModal);
+
+    // Check query params if any
+    const searchParams = new URLSearchParams(location.search);
+    const policyParam = searchParams.get('policy');
+    if (policyParam === 'privacy' || policyParam === 'terms') {
+      setModalType(policyParam);
+    }
+
+    return () => {
+      window.removeEventListener('open-legal-modal', handleOpenModal);
+    };
+  }, [location.search]);
+
+  const handlePrivacyClick = (e) => {
+    e.preventDefault();
+    setModalType('privacy');
+  };
+
+  const handleTermsClick = (e) => {
+    e.preventDefault();
+    setModalType('terms');
+  };
   return (
     <footer
       className="site-footer"
@@ -168,16 +202,11 @@ const Footer = () => {
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                   <circle cx="12" cy="10" r="3" />
                 </svg>
-                <a
-                  href="https://maps.google.com/?q=05,+Balram+DRESS+NH-19,+Ghazipur+-+Hajipur+Rd,+Sitalpur,+Bihar+841221"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: '#8b978f', textDecoration: 'none', transition: 'color 0.2s ease', lineHeight: '1.5' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#8b978f')}
+                <span
+                  style={{ color: '#8b978f', lineHeight: '1.5' }}
                 >
-                  05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221
-                </a>
+                  Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221
+                </span>
               </div>
 
               {/* Phone */}
@@ -196,12 +225,12 @@ const Footer = () => {
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
                 <a
-                  href="tel:+919876543210"
+                  href="tel:+918083429809"
                   style={{ color: '#8b978f', textDecoration: 'none', transition: 'color 0.2s ease' }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = '#8b978f')}
                 >
-                  +91 98765 43210
+                  +91 80834 29809
                 </a>
               </div>
 
@@ -222,12 +251,12 @@ const Footer = () => {
                   <polyline points="22,6 12,13 2,6" />
                 </svg>
                 <a
-                  href="mailto:info@dtripathiampeh.com"
+                  href="mailto:Drkalpanatripathi38@gmail.com"
                   style={{ color: '#8b978f', textDecoration: 'none', transition: 'color 0.2s ease' }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = '#8b978f')}
                 >
-                  info@dtripathiampeh.com
+                  Drkalpanatripathi38@gmail.com
                 </a>
               </div>
 
@@ -291,28 +320,56 @@ const Footer = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '16px',
+              zIndex: 20,
             }}
           >
-            <a
-              href="#privacy"
-              style={{ color: '#6e7a72', textDecoration: 'none', transition: 'color 0.2s ease' }}
+            <button
+              type="button"
+              onClick={handlePrivacyClick}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                color: '#6e7a72',
+                fontSize: '13px',
+                fontFamily: "'Manrope', sans-serif",
+                cursor: 'pointer',
+                transition: 'color 0.2s ease',
+              }}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#86efac')}
               onMouseLeave={(e) => (e.currentTarget.style.color = '#6e7a72')}
             >
               Privacy Policy
-            </a>
+            </button>
             <span style={{ color: '#3d4d42' }}>|</span>
-            <a
-              href="#terms"
-              style={{ color: '#6e7a72', textDecoration: 'none', transition: 'color 0.2s ease' }}
+            <button
+              type="button"
+              onClick={handleTermsClick}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                color: '#6e7a72',
+                fontSize: '13px',
+                fontFamily: "'Manrope', sans-serif",
+                cursor: 'pointer',
+                transition: 'color 0.2s ease',
+              }}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#86efac')}
               onMouseLeave={(e) => (e.currentTarget.style.color = '#6e7a72')}
             >
               Terms & Conditions
-            </a>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Interactive Modal Card with Internal Scrollbar */}
+      <LegalPolicyModal
+        isOpen={Boolean(modalType)}
+        onClose={() => setModalType(null)}
+        initialType={modalType || 'privacy'}
+      />
 
       <style>{`
         @media (max-width: 1080px) {

@@ -18,64 +18,102 @@ class LoginSerializer(serializers.Serializer):
 
         if username and password:
             raw_input = str(username).strip()
-            user_obj = None
+            candidates = []
+            seen_ids = set()
 
-            # 1. Email lookup
+            def add_candidate(u):
+                if u and u.pk not in seen_ids:
+                    seen_ids.add(u.pk)
+                    candidates.append(u)
+
+            # 1. Email lookup (User and linked Patient records)
             if '@' in raw_input:
-                user_obj = User.objects.filter(email__iexact=raw_input).first()
-                if not user_obj:
-                    p = Patient.objects.filter(email__iexact=raw_input).first()
-                    if p and p.user:
-                        user_obj = p.user
+                for u in User.objects.filter(email__iexact=raw_input):
+                    add_candidate(u)
+                for p in Patient.objects.filter(email__iexact=raw_input).select_related('user'):
+                    if p.user:
+                        add_candidate(p.user)
 
-            # 2. Patient ID lookup (e.g., PAT-1018, PAT-10002, PAT-10003)
-            if not user_obj and (raw_input.upper().startswith('PAT-') or raw_input.upper().startswith('PAT')):
-                p = Patient.objects.filter(patient_id__iexact=raw_input).first()
-                if p and p.user:
-                    user_obj = p.user
+            # 2. Patient ID lookup (e.g., PAT-1018, PAT1018, PAT 1018)
+            pat_match = re.match(r'^pat[\s\-_]*(\d+)$', raw_input, re.IGNORECASE)
+            normalized_pat_id = f"PAT-{pat_match.group(1)}" if pat_match else raw_input
+            if pat_match or raw_input.upper().startswith('PAT'):
+                for p in Patient.objects.filter(
+                    models.Q(patient_id__iexact=raw_input) | models.Q(patient_id__iexact=normalized_pat_id)
+                ).select_related('user'):
+                    if p.user:
+                        add_candidate(p.user)
+                    elif p.email:
+                        for u in User.objects.filter(email__iexact=p.email, role=User.Role.PATIENT):
+                            add_candidate(u)
 
             # 3. Exact username
-            if not user_obj:
-                user_obj = User.objects.filter(username__iexact=raw_input).first()
+            for u in User.objects.filter(username__iexact=raw_input):
+                add_candidate(u)
 
-            # 4. Username prefix before random suffix (e.g., harodepratiksha65, pratikshaharode2005)
-            if not user_obj:
-                user_obj = User.objects.filter(username__istartswith=raw_input + '_').first()
+            # 4. Username prefix before random suffix (e.g., harodepratiksha65, gaurav.tripathi)
+            for u in User.objects.filter(username__istartswith=raw_input + '_'):
+                add_candidate(u)
 
-            # 5. Patient full name or first name match (e.g., "Poobi", "Rohit")
-            if not user_obj:
-                p = Patient.objects.filter(name__iexact=raw_input).first()
-                if p and p.user:
-                    user_obj = p.user
-                if not user_obj:
-                    user_obj = User.objects.filter(
-                        models.Q(first_name__iexact=raw_input) |
-                        models.Q(last_name__iexact=raw_input),
-                        role=User.Role.PATIENT
-                    ).first()
+            # 5. Patient full name or first/last name match across all matching patients
+            if portal != 'admin':
+                for p in Patient.objects.filter(name__iexact=raw_input).select_related('user'):
+                    if p.user:
+                        add_candidate(p.user)
+                    elif p.email:
+                        for u in User.objects.filter(email__iexact=p.email, role=User.Role.PATIENT):
+                            add_candidate(u)
+                for u in User.objects.filter(
+                    models.Q(first_name__iexact=raw_input) | models.Q(last_name__iexact=raw_input),
+                    role=User.Role.PATIENT
+                ):
+                    add_candidate(u)
 
-            # 6. Phone number match (clean digits)
-            if not user_obj:
+                # 6. Phone number match (clean digits across Patient and User records)
                 clean_phone = ''.join(c for c in raw_input if c.isdigit())
                 if len(clean_phone) >= 10:
-                    matched_pats = list(Patient.objects.filter(phone__endswith=clean_phone[-10:], user__isnull=False))
-                    for mp in matched_pats:
-                        if mp.user and mp.user.check_password(password):
-                            user_obj = mp.user
-                            break
-                    if not user_obj and len(matched_pats) == 1:
-                        user_obj = matched_pats[0].user
+                    last10 = clean_phone[-10:]
+                    for u in User.objects.filter(phone_number__endswith=last10, role=User.Role.PATIENT):
+                        add_candidate(u)
+                    for mp in Patient.objects.filter(phone__endswith=last10, user__isnull=False).select_related('user'):
+                        add_candidate(mp.user)
 
-            if user_obj:
-                effective_username = user_obj.username
-            else:
-                effective_username = raw_input
-
-            # Authenticate strictly using effective username and provided password
-            user = authenticate(username=effective_username, password=password)
+            # Authenticate against candidates in priority order; pick the one whose password matches
+            user = None
+            first_matched_role_blocked = None
+            for cand in candidates:
+                authed = authenticate(username=cand.username, password=password)
+                if authed:
+                    cand_is_staff = (
+                        authed.role in [User.Role.ADMIN, User.Role.DOCTOR, User.Role.RECEPTIONIST]
+                        or authed.is_staff
+                        or authed.is_superuser
+                    )
+                    if portal == 'admin' and (not cand_is_staff or authed.role == User.Role.PATIENT):
+                        first_matched_role_blocked = authed
+                        continue
+                    if portal == 'patient' and (cand_is_staff or authed.role != User.Role.PATIENT):
+                        first_matched_role_blocked = authed
+                        continue
+                    user = authed
+                    break
 
             if not user:
-                raise serializers.ValidationError('Invalid username or password.')
+                if first_matched_role_blocked is not None:
+                    if portal == 'admin':
+                        raise serializers.ValidationError(
+                            'Access denied. Patient accounts cannot log in through the Admin Portal. Please use the Patient Login.'
+                        )
+                    if portal == 'patient':
+                        raise serializers.ValidationError(
+                            'Access denied. Administrator accounts cannot log in through the Patient Portal. Please use the Admin Login.'
+                        )
+                # Direct fallback authenticate if no candidate existed
+                if not candidates:
+                    user = authenticate(username=raw_input, password=password)
+                if not user:
+                    raise serializers.ValidationError('Invalid username or password.')
+
             if not user.is_active:
                 raise serializers.ValidationError('User account is disabled.')
 

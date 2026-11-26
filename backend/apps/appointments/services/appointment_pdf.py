@@ -81,7 +81,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
     service_name = appointment_data.get('reason_for_visit') or appointment_data.get('service') or ''
     apt_date = appointment_data.get('appointment_date') or appointment_data.get('date') or '—'
     apt_time = appointment_data.get('time_slot') or appointment_data.get('time') or '—'
-    clinic_address = appointment_data.get('clinic_address') or '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221'
+    clinic_address = appointment_data.get('clinic_address') or 'Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221'
 
     # 1. Header with Logo & Verification Badge
     logo_path = os.path.join(os.path.dirname(__file__), 'doctor-portal-logo.png')
@@ -93,8 +93,8 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
         Paragraph("HOMEOPATHY CLINIC & WELLNESS CENTER", clinic_tag_style),
         Spacer(1, 0.8 * mm),
         Paragraph("Specialized Classical Homeopathy & Advanced Natural Healing", clinic_addr_style),
-        Paragraph("05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221", clinic_addr_style),
-        Paragraph("Ph: +91 98765 43210 &nbsp;|&nbsp; clinic.tripathi@gmail.com", clinic_addr_style),
+        Paragraph("Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221", clinic_addr_style),
+        Paragraph("Ph: +91 80834 29809 &nbsp;|&nbsp; Drkalpanatripathi38@gmail.com", clinic_addr_style),
     ]
 
     badge_content = [
@@ -231,8 +231,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
         [Paragraph("CLINIC LOCATION & CONSULTATION VENUE", card_header_style), ""],
         [Paragraph("Clinic Name", label_style), Paragraph(": &nbsp; <b>Dr. Kalpana Tripathi Ampeh Homeopathy Clinic & Wellness Center</b>", val_bold_style)],
         [Paragraph("Full Address", label_style), Paragraph(f": &nbsp; {clinic_address}", val_style)],
-        [Paragraph("Landmark", label_style), Paragraph(": &nbsp; Balram DRESS, NH-19 (Ghazipur - Hajipur Rd)", val_style)],
-        [Paragraph("Desk Contact", label_style), Paragraph(": &nbsp; Ph: +91 98765 43210 &nbsp;|&nbsp; clinic.tripathi@gmail.com &nbsp;|&nbsp; Mon–Sat: 9:00 AM – 6:00 PM", val_style)],
+        [Paragraph("Desk Contact", label_style), Paragraph(": &nbsp; Ph: +91 80834 29809 &nbsp;|&nbsp; Drkalpanatripathi38@gmail.com &nbsp;|&nbsp; Mon–Sat: 9:00 AM – 6:00 PM", val_style)],
     ]
     venue_table = Table(venue_rows, colWidths=[35 * mm, 143 * mm])
     venue_table.setStyle(TableStyle([
@@ -317,7 +316,7 @@ def generate_appointment_confirmation_pdf_bytes(appointment_data):
     ]))
     elements.append(footer_table)
     elements.append(Spacer(1, 1 * mm))
-    elements.append(Paragraph("Helpline: +91 98765 43210 &nbsp;|&nbsp; Website: https://drtripathihomeopathy.com &nbsp;|&nbsp; Mon–Sat: 9:00 AM – 6:00 PM", footer_sub_style))
+    elements.append(Paragraph("Helpline: +91 80834 29809 &nbsp;|&nbsp; Website: https://drtripathihomeopathy.com &nbsp;|&nbsp; Mon–Sat: 9:00 AM – 6:00 PM", footer_sub_style))
 
     doc.build(elements)
     buffer.seek(0)

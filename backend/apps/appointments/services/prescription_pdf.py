@@ -177,8 +177,8 @@ def generate_prescription_pdf_bytes(prescription_data):
         Spacer(1, 1 * mm),
         Paragraph("HOMEOPATHY CLINIC", clinic_tag_style),
         Spacer(1, 1 * mm),
-        Paragraph("05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221", clinic_addr_style),
-        Paragraph("Ph: +91 98765 43210 &nbsp;|&nbsp; clinic.tripathi@gmail.com", clinic_addr_style),
+        Paragraph("Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221", clinic_addr_style),
+        Paragraph("Ph: +91 80834 29809 &nbsp;|&nbsp; Drkalpanatripathi38@gmail.com", clinic_addr_style),
     ]
     header_cells.append(clinic_info_p)
 

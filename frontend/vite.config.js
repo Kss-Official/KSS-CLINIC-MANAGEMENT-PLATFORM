@@ -34,9 +34,9 @@ export default defineConfig(({ mode }) => {
 
 
 
-  const receiverEmail = env.CLINIC_RECEIVER_EMAIL || 'pratikshaharode0@gmail.com';
+  const receiverEmail = env.CLINIC_RECEIVER_EMAIL || 'Drkalpanatripathi38@gmail.com';
 
-  const senderEmail = env.BREVO_SENDER_EMAIL || 'pratikshaharode0@gmail.com';
+  const senderEmail = env.BREVO_SENDER_EMAIL || 'Drkalpanatripathi38@gmail.com';
 
   const smtpUser = env.BREVO_SMTP_USER || 'c10889001@smtp-brevo.com';
 

@@ -44,6 +44,12 @@ const AppRoutes = () => {
       <Route path="/stories" element={<StoriesPage />} />
       <Route path="/contact" element={<ContactPage />} />
 
+      {/* Legal & Policy Card Modals (No separate pages) */}
+      <Route path="/privacy-policy" element={<Navigate to="/?policy=privacy" replace />} />
+      <Route path="/privacy" element={<Navigate to="/?policy=privacy" replace />} />
+      <Route path="/terms-and-conditions" element={<Navigate to="/?policy=terms" replace />} />
+      <Route path="/terms" element={<Navigate to="/?policy=terms" replace />} />
+
       {/* 2. Protected Patient Portal & Booking (Requires authenticated patient) */}
       <Route element={<ProtectedRoute redirectPath="/login" allowedRoles={['PATIENT']} />}>
         <Route path="/book-appointment" element={<BookAppointmentPage />} />

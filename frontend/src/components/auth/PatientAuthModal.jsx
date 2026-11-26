@@ -11,6 +11,7 @@ const PatientAuthModal = ({ isOpen, onClose, onSuccess }) => {
 
   // Login form state
   const [loginData, setLoginData] = useState({ username: '', password: '' });
+  const [loginInputsReady, setLoginInputsReady] = useState(false);
 
   // Register form state
   const [regData, setRegData] = useState({
@@ -321,17 +322,30 @@ const PatientAuthModal = ({ isOpen, onClose, onSuccess }) => {
 
         {/* Tab 1: Login Form */}
         {activeTab === 'login' && (
-          <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <form onSubmit={handleLoginSubmit} autoComplete="off" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '5px' }}>
-                Email or Username
+                Email, Patient ID, or Name
               </label>
               <input
                 type="text"
+                name="patient_modal_identifier"
+                autoComplete="off"
+                data-form-type="other"
+                data-lpignore="true"
+                readOnly={!loginInputsReady}
+                onFocus={(e) => {
+                  e.target.readOnly = false;
+                  if (!loginInputsReady) setLoginInputsReady(true);
+                }}
+                onMouseDown={(e) => {
+                  e.target.readOnly = false;
+                  if (!loginInputsReady) setLoginInputsReady(true);
+                }}
                 required
                 value={loginData.username}
                 onChange={(e) => setLoginData((prev) => ({ ...prev, username: e.target.value }))}
-                placeholder="name@example.com or username"
+                placeholder="Email, Patient ID (e.g. PAT-1018), or Name"
                 style={{
                   width: '100%',
                   padding: '10px 14px',
@@ -350,6 +364,19 @@ const PatientAuthModal = ({ isOpen, onClose, onSuccess }) => {
               </label>
               <input
                 type="password"
+                name="patient_modal_password"
+                autoComplete="new-password"
+                data-form-type="other"
+                data-lpignore="true"
+                readOnly={!loginInputsReady}
+                onFocus={(e) => {
+                  e.target.readOnly = false;
+                  if (!loginInputsReady) setLoginInputsReady(true);
+                }}
+                onMouseDown={(e) => {
+                  e.target.readOnly = false;
+                  if (!loginInputsReady) setLoginInputsReady(true);
+                }}
                 required
                 value={loginData.password}
                 onChange={(e) => setLoginData((prev) => ({ ...prev, password: e.target.value }))}
@@ -464,7 +491,7 @@ const PatientAuthModal = ({ isOpen, onClose, onSuccess }) => {
                 maxLength={10}
                 value={regData.phoneNumber}
                 onChange={(e) => setRegData((prev) => ({ ...prev, phoneNumber: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                placeholder="e.g. 9876543210"
+                placeholder="e.g. 8083429809"
                 style={{
                   width: '100%',
                   padding: '9px 12px',

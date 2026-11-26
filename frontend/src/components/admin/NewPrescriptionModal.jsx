@@ -993,13 +993,49 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
           }
           .new-rx-modal-overlay {
             padding: 8px 6px !important;
+            padding-top: max(8px, env(safe-area-inset-top, 8px)) !important;
+            padding-bottom: max(8px, env(safe-area-inset-bottom, 8px)) !important;
+            padding-left: max(6px, env(safe-area-inset-left, 6px)) !important;
+            padding-right: max(6px, env(safe-area-inset-right, 6px)) !important;
+            align-items: center !important;
+            justify-content: center !important;
           }
           .new-rx-modal-card {
-            max-height: 96vh !important;
+            max-height: calc(100vh - 16px) !important;
+            max-height: calc(100svh - 16px) !important;
+            max-height: calc(100dvh - 16px) !important;
+            height: auto !important;
             border-radius: 16px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          @supports (max-height: 100dvh) {
+            .new-rx-modal-card {
+              max-height: calc(100dvh - 16px) !important;
+            }
           }
           .new-rx-modal-scroll {
-            padding: 16px 12px 20px !important;
+            padding: 16px 14px 28px !important;
+            padding-bottom: max(36px, env(safe-area-inset-bottom, 36px)) !important;
+            -webkit-overflow-scrolling: touch !important;
+            box-sizing: border-box !important;
+          }
+          .new-rx-header-close-btn {
+            min-width: 36px !important;
+            min-height: 36px !important;
+            padding: 6px !important;
+            touch-action: manipulation;
+          }
+          .new-rx-back-to-edit-btn {
+            min-height: 38px !important;
+            padding: 6px 12px !important;
+            background-color: #f0fdf4 !important;
+            border: 1px solid #bbf7d0 !important;
+            border-radius: 8px !important;
+            touch-action: manipulation;
           }
           .new-rx-visit-grid {
             grid-template-columns: 1fr !important;
@@ -1012,20 +1048,90 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
           .new-rx-add-med-btn {
             width: 100% !important;
             justify-content: center !important;
-            min-height: 42px !important;
+            min-height: 44px !important;
             font-size: 13.5px !important;
+            touch-action: manipulation;
           }
           .new-rx-footer-buttons {
-            flex-wrap: wrap !important;
-            gap: 8px !important;
-            justify-content: stretch !important;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 10px !important;
+            padding-top: 18px !important;
+            margin-top: 18px !important;
+            border-top: 1px solid #f1f5f9 !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
           }
-          .new-rx-footer-buttons button {
-            flex: 1 1 auto !important;
-            min-height: 40px !important;
-            padding: 8px 14px !important;
-            font-size: 13px !important;
+          .new-rx-footer-btn-save {
+            grid-column: 1 !important;
+            order: 1 !important;
+            width: 100% !important;
+            min-height: 44px !important;
+            padding: 10px 12px !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            display: inline-flex !important;
+            align-items: center !important;
             justify-content: center !important;
+            gap: 8px !important;
+            border-radius: 10px !important;
+            box-sizing: border-box !important;
+            white-space: nowrap !important;
+            touch-action: manipulation;
+          }
+          .new-rx-footer-btn-next {
+            grid-column: 2 !important;
+            order: 2 !important;
+            width: 100% !important;
+            min-height: 44px !important;
+            padding: 10px 12px !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            border-radius: 10px !important;
+            box-sizing: border-box !important;
+            white-space: nowrap !important;
+            touch-action: manipulation;
+          }
+          .new-rx-footer-btn-close {
+            grid-column: 1 / -1 !important;
+            order: 3 !important;
+            width: 100% !important;
+            min-height: 42px !important;
+            padding: 10px 14px !important;
+            font-size: 13.5px !important;
+            font-weight: 600 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 10px !important;
+            box-sizing: border-box !important;
+            color: #64748b !important;
+            background-color: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            touch-action: manipulation;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .new-rx-footer-buttons {
+            grid-template-columns: 1fr !important;
+            gap: 8px !important;
+          }
+          .new-rx-footer-btn-next {
+            grid-column: 1 !important;
+            order: 1 !important;
+          }
+          .new-rx-footer-btn-save {
+            grid-column: 1 !important;
+            order: 2 !important;
+          }
+          .new-rx-footer-btn-close {
+            grid-column: 1 !important;
+            order: 3 !important;
           }
         }
       `}</style>
@@ -1099,6 +1205,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
             {/* Close X Button */}
             <button
               type="button"
+              className="new-rx-header-close-btn"
               onClick={onClose}
               aria-label="Close modal"
               style={{
@@ -1128,6 +1235,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
               <div style={{ marginBottom: '14px' }}>
                 <button
                   type="button"
+                  className="new-rx-back-to-edit-btn"
                   onClick={() => setStep(1)}
                   style={{
                     display: 'inline-flex',
@@ -2534,6 +2642,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                 {/* 1. Close Button */}
                 <button
                   type="button"
+                  className="new-rx-footer-btn-close"
                   onClick={onClose}
                   disabled={isSaving}
                   style={{
@@ -2554,6 +2663,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                 {/* 2. Save Button (Saves to Neon Database and links to Patient) */}
                 <button
                   type="button"
+                  className="new-rx-footer-btn-save"
                   onClick={handleSavePrescription}
                   disabled={isSaving}
                   style={{
@@ -2607,6 +2717,7 @@ const NewPrescriptionModal = ({ isOpen, onClose, onSave, initialPatient, initial
                 {/* 3. Next Button (Advances to Prescription Preview) */}
                 <button
                   type="submit"
+                  className="new-rx-footer-btn-next"
                   disabled={isSaving}
                   style={{
                     display: 'inline-flex',

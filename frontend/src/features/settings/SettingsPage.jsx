@@ -49,16 +49,16 @@ const validateDoctorName = (name) => {
 };
 
 const validateEmail = (email) => {
-  const trimmed = (email || '').trim().toLowerCase();
+  const trimmed = (email || '').trim();
   if (!trimmed) {
     return 'Email address is required.';
   }
   // Once the user enters .com, no additional characters should be allowed.
-  const comIndex = trimmed.indexOf('.com');
+  const comIndex = trimmed.toLowerCase().indexOf('.com');
   if (comIndex !== -1 && comIndex + 4 < trimmed.length) {
     return 'No characters are allowed after .com in the email address.';
   }
-  const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   if (!emailRegex.test(trimmed)) {
     return 'Please enter a valid email address.';
   }
@@ -91,10 +91,10 @@ const SettingsPage = () => {
     return {
       clinicName: 'HOMEOPATHY CLINIC',
       doctorName: 'Dr. Kalpana Tripathi Ampeh (Pat.)',
-      contactNumber: '+91 98765 43210',
+      contactNumber: '+91 80834 29809',
       alternateNumber: '+91 99887 66554',
-      email: 'clinic.tripathi@gmail.com',
-      address: '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221',
+      email: 'Drkalpanatripathi38@gmail.com',
+      address: 'Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221',
     };
   });
 
@@ -376,7 +376,7 @@ const SettingsPage = () => {
 
   // Draft States for editing
   const [draftClinicInfo, setDraftClinicInfo] = useState({ ...clinicInfo });
-  const [draftContactDigits, setDraftContactDigits] = useState('9876543210');
+  const [draftContactDigits, setDraftContactDigits] = useState('8083429809');
   const [draftAlternateDigits, setDraftAlternateDigits] = useState('9988766554');
   const [formErrors, setFormErrors] = useState({});
   const [draftWorkingDays, setDraftWorkingDays] = useState([...workingDays]);
@@ -418,7 +418,6 @@ const SettingsPage = () => {
 
       const handleKeyDown = (e) => {
         if (e.key === 'Escape') {
-          setEditClinicModalOpen(false);
           setEditAppointmentModalOpen(false);
           setEditNotificationModalOpen(false);
         }
@@ -466,10 +465,10 @@ const SettingsPage = () => {
   };
 
   const handleEmailChange = (e) => {
-    let val = e.target.value.toLowerCase();
+    let val = e.target.value;
     // Once the user enters .com, no additional characters should be allowed.
     // Prevent typing or pasting anything after .com
-    const comIndex = val.indexOf('.com');
+    const comIndex = val.toLowerCase().indexOf('.com');
     if (comIndex !== -1) {
       val = val.slice(0, comIndex + 4);
     }
@@ -1681,7 +1680,6 @@ const SettingsPage = () => {
       {editClinicModalOpen && (
         <div
           className="admin-settings-modal-overlay"
-          onClick={() => setEditClinicModalOpen(false)}
           style={{
             position: 'fixed',
             top: 0,
@@ -1878,7 +1876,7 @@ const SettingsPage = () => {
                             contactNumber: validateMobileNumber(draftContactDigits, true),
                           }))
                         }
-                        placeholder="9876543210"
+                        placeholder="8083429809"
                         style={{
                           flex: 1,
                           padding: '10px 14px',
@@ -1974,7 +1972,7 @@ const SettingsPage = () => {
                         email: validateEmail(draftClinicInfo.email),
                       }))
                     }
-                    placeholder="clinic.tripathi@gmail.com"
+                    placeholder="Drkalpanatripathi38@gmail.com"
                     style={{
                       width: '100%',
                       padding: '10px 14px',

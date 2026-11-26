@@ -248,7 +248,7 @@ const PrescriptionPreviewCard = ({
                 lineHeight: 1.35,
               }}
             >
-              05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221
+              Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221
             </div>
             <div
               className="prescription-clinic-contact"
@@ -258,7 +258,7 @@ const PrescriptionPreviewCard = ({
                 marginTop: '1px',
               }}
             >
-              Ph: +91 98765 43210 &nbsp;|&nbsp; clinic.tripathi@gmail.com
+              Ph: +91 80834 29809 &nbsp;|&nbsp; Drkalpanatripathi38@gmail.com
             </div>
           </div>
         </div>

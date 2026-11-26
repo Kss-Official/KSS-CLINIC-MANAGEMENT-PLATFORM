@@ -1866,10 +1866,10 @@ _IN_MEMORY_CLINIC_SETTINGS = {}
 DEFAULT_CLINIC_SETTINGS = {
     'clinicName': 'HOMEOPATHY CLINIC',
     'doctorName': 'Dr. Kalpana Tripathi Ampeh (Pat.)',
-    'contactNumber': '+91 98765 43210',
+    'contactNumber': '+91 80834 29809',
     'alternateNumber': '+91 99887 66554',
-    'email': 'clinic.tripathi@gmail.com',
-    'address': '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221',
+    'email': 'Drkalpanatripathi38@gmail.com',
+    'address': 'Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221',
     'profile_image_url': None,
     'working_days': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     'workingDays': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -2990,7 +2990,7 @@ class AppointmentPdfDownloadView(APIView):
                     'service': apt.reason_for_visit or '',
                     'appointment_date': apt.appointment_date,
                     'time_slot': apt.time_slot,
-                    'clinic_address': getattr(apt, 'clinic_address', '') or '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221'
+                    'clinic_address': getattr(apt, 'clinic_address', '') or 'Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221'
                 }
                 pdf_bytes = generate_appointment_confirmation_pdf_bytes(apt_data)
 

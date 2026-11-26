@@ -103,7 +103,7 @@ const DoctorSection = ({ onOpenBooking }) => {
                 fontFamily: "'Manrope', sans-serif",
               }}
             >
-              Dr. Kalpana Tripathi Ampeh (Pat.)
+              Dr. Kalpana Tripathi
             </h2>
 
             <p
@@ -115,10 +115,10 @@ const DoctorSection = ({ onOpenBooking }) => {
                 fontFamily: "'Manrope', sans-serif",
               }}
             >
-              Homeopathy Practitioner
+              Homeopathic Physician | Women's &amp; Child Healthcare
             </p>
 
-            <p
+            <div
               className="doctor-desc"
               style={{
                 fontSize: '14.5px',
@@ -127,10 +127,21 @@ const DoctorSection = ({ onOpenBooking }) => {
                 marginBottom: '30px',
                 width: '100%',
                 fontFamily: "'Manrope', sans-serif",
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
               }}
             >
-              With years of experience in homeopathic care, Dr. K. Tripathi Ampeh (Pat.) is dedicated to providing compassionate and personalized treatment. Her approach focuses on understanding the root cause of health concerns and supporting each patient's overall well-being.
-            </p>
+              <p style={{ margin: 0 }}>
+                Dr. Kalpana Tripathi is a qualified homeopathic healthcare practitioner who has been providing consultation and healthcare services since 2016. With over 10 years of experience, she focuses on providing compassionate and personalized homeopathic care for women, children, and families.
+              </p>
+              <p style={{ margin: 0 }}>
+                Her areas of consultation include women's health, reproductive health, fertility-related concerns, menstrual disorders, PCOS, hormonal health, and child healthcare.
+              </p>
+              <p style={{ margin: 0 }}>
+                She also provides consultation and supportive care for couples experiencing difficulty conceiving, including those who have been trying to achieve pregnancy for 10–12 years or longer. Each case is approached with individual attention, proper assessment, and personalized consultation.
+              </p>
+            </div>
 
             {/* 4 Key Points in a balanced 2x2 grid */}
             <div

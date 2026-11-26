@@ -210,7 +210,7 @@ class ClinicSettingsSerializer(serializers.Serializer):
 
         clinic_name = attrs.get('clinicName') or attrs.get('clinic_name')
         doctor_name = attrs.get('doctorName') or attrs.get('doctor_name')
-        email = (attrs.get('email') or '').strip().lower()
+        email = (attrs.get('email') or '').strip()
 
         # If full clinic info is being saved, validate clinic and doctor name
         if clinic_name is not None:
@@ -228,8 +228,9 @@ class ClinicSettingsSerializer(serializers.Serializer):
                 raise serializers.ValidationError({'doctorName': "Doctor Name can only contain letters, spaces, dots (.), and parentheses ( )."})
 
         if email:
-            if '.com' in email:
-                idx = email.find('.com')
+            email_lower = email.lower()
+            if '.com' in email_lower:
+                idx = email_lower.find('.com')
                 if idx + 4 < len(email):
                     raise serializers.ValidationError({'email': "No characters are allowed after .com in the email address."})
 

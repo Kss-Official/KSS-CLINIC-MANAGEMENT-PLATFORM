@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 import Navbar from '../../components/layout/Navbar';
 
@@ -274,7 +274,7 @@ const ProfilePage = () => {
 
     ...profile,
 
-    mobileNumber: user?.phone_number || '9876543210',
+    mobileNumber: user?.phone_number || '8083429809',
 
   });
 
@@ -1174,8 +1174,8 @@ const ProfilePage = () => {
       reason: apt.reason || apt.title || '',
       date: apt.fullDate || apt.date || '',
       time: apt.time || '',
-      clinicAddress: '05, Balram DRESS NH-19, Ghazipur - Hajipur Rd, Sitalpur, Bihar 841221',
-      clinicPhone: '+91 98765 43210',
+      clinicAddress: 'Sitalpur Pandey Comp, Dariyapur, Sitalpur, PIN Code: 841221',
+      clinicPhone: '+91 80834 29809',
       filename: apt.pdfName || `Appointment_${aptId}.pdf`,
     });
   };
@@ -1539,7 +1539,7 @@ const ProfilePage = () => {
 
       {/* Top Navbar */}
 
-      <Navbar onOpenBooking={() => {}} />
+      <Navbar onOpenBooking={() => navigate('/book-appointment')} />
 
 
 
@@ -4920,9 +4920,9 @@ const ProfilePage = () => {
 
           <div className="profile-footer-links" style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
 
-            <a href="#privacy" className="profile-footer-link" style={{ color: '#6b7280', textDecoration: 'none' }}>Privacy Policy</a>
+            <Link to="/privacy-policy" className="profile-footer-link" style={{ color: '#6b7280', textDecoration: 'none' }}>Privacy Policy</Link>
 
-            <a href="#terms" className="profile-footer-link" style={{ color: '#6b7280', textDecoration: 'none' }}>Terms of Consultation</a>
+            <Link to="/terms-and-conditions" className="profile-footer-link" style={{ color: '#6b7280', textDecoration: 'none' }}>Terms of Consultation</Link>
 
             <a href="#support" className="profile-footer-link" style={{ color: '#6b7280', textDecoration: 'none' }}>Contact Support</a>
 
@@ -5524,7 +5524,9 @@ const ProfilePage = () => {
           }
 
           .profile-pdf-modal-inner {
-            height: 94vh !important;
+            height: calc(100vh - 20px) !important;
+            height: calc(100dvh - 20px) !important;
+            max-height: calc(100dvh - 20px) !important;
           }
 
           .profile-pdf-modal-header {

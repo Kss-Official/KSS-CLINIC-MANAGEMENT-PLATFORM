@@ -6,7 +6,6 @@ import HeroSection from './HeroSection';
 import AboutSection from './AboutSection';
 import ServicesSection from './ServicesSection';
 import DoctorSection from './DoctorSection';
-import CredentialsSection from './CredentialsSection';
 import TestimonialsSection from './TestimonialsSection';
 import ClinicGallerySection from './ClinicGallerySection';
 import CtaBannerSection from './CtaBannerSection';
@@ -60,10 +59,7 @@ const HomePage = () => {
         {/* 4. Meet Our Doctor */}
         <DoctorSection onOpenBooking={handleOpenBooking} />
 
-        {/* 5. Our Credentials */}
-        <CredentialsSection />
-
-        {/* 6. Patient Stories (Testimonials) */}
+        {/* 5. Patient Stories (Testimonials) */}
         <TestimonialsSection />
 
         {/* 7. Our Clinic (Ambience Gallery) */}
